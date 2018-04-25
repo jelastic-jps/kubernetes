@@ -62,10 +62,7 @@
             "cmd[worker]": [
             "systemctl daemon-reload > /dev/null 2>&1", 
             "service kubelet restart > /dev/null 2>&1",
-            "$(cat /var/lib/connect/settings) --ignore-preflight-errors=all > /dev/null 2>&1",
-            "mkdir -p $HOME/.kube",
-            "cp -i /etc/kubernetes/admin.conf $HOME/.kube/config",
-            "chown root:root $HOME/.kube/config"
+            "$(cat /var/lib/connect/settings) --ignore-preflight-errors=all > /dev/null 2>&1"
         ]
         },
           "deploy-dashboard": {
