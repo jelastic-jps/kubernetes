@@ -12,14 +12,14 @@
     ],
     "logo": "https://avatars1.githubusercontent.com/u/13629408?s=100",
     "name": "Kubernetes",
-    "region": "azure-sea",
+    "region": "premium-vz7",
     "nodes": [{
         "count": "1",
         "cloudlets": 32,
         "image": "ihorman/kubernetes:working",
         "nodeGroup": "cp",
         "displayName": "Master",
-        "extip": "false",
+        "extip": "true",
         "env": {
             "JELASTIC_EXPOSE": false
         }
