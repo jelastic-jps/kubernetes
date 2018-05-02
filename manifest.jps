@@ -44,6 +44,10 @@
         "init-kubernetes",
         "connect-workers"
     ],
+    "onAfterScaleOut[worker]": [
+    {
+      "connect-workers"
+    },
     "actions": {
         "init-kubernetes": {
             "cmd[cp]": [
@@ -62,8 +66,9 @@
             "cmd[worker]": [
             "systemctl daemon-reload > /dev/null 2>&1", 
             "service kubelet restart > /dev/null 2>&1",
-            "iptables -I KUBE-FIREWALL -m comment --comment \"kubernetes firewall for dropping marked packets\" -m mark --mark 0x8000/0x8000 -j  ACCEPT",
             "$(cat /var/lib/connect/settings) --ignore-preflight-errors=all > /dev/null 2>&1"
+            "iptables -I KUBE-FIREWALL -m comment --comment \"kubernetes firewall for dropping marked packets\" -m mark --mark 0x8000/0x8000 -j  ACCEPT",
+            "service iptables save",
         ]
         },
           "deploy-dashboard": {
