@@ -4,7 +4,7 @@
     "baseUrl": "https://raw.githubusercontent.com/jelastic-jps/kubernetes/dev",
     "description": {
         "text": "/text/description-swarm.md",
-        "short": "Jelastic Kubernetes"
+        "short": "Jelastic Kubernetes (Beta)"
     },
     "categories": [
         "apps/popular",
@@ -13,22 +13,51 @@
     "logo": "https://avatars1.githubusercontent.com/u/13629408?s=100",
     "name": "Kubernetes",
     "region": "premium-vz7",
+    "settings": {
+        "fields": [{
+            "type": "spinner",
+            "name": "worker",
+            "caption": "Worker",
+            "min": 1,
+            "max": 10,
+            "default": 2
+        }, {
+            "name": "stack",
+            "type": "radio-fieldset",
+            "values": {
+                "clean": "Clean Cluster",
+                "deploy": "Deploy Stack YML"
+            },
+            "default": "clean",
+            "showIf": {
+                "deploy": {
+                    "name": "yml",
+                    "type": "string",
+                    "caption": "Stack YML URL",
+                    "default": "https://raw.githubusercontent.com/vfarcic/docker-flow-proxy/master/docker-compose-stack.yml",
+                    "required": true,
+                    "vtype": "url"
+                }
+            }
+        }]
+    },
     "nodes": [{
         "count": "1",
         "cloudlets": 32,
         "image": "ihorman/kubernetes:working",
         "nodeGroup": "cp",
         "displayName": "Master",
-        "extip": "true",
+        "extip": "false",
         "env": {
             "JELASTIC_EXPOSE": false
         }
     }, {
-        "count": "2",
+        "count": "${settings.worker}",
         "nodeGroup": "worker",
         "image": "ihorman/kubernetes:working",
         "displayName": "Worker",
         "cloudlets": 32,
+        "extip": "true",
         "env": {
             "JELASTIC_EXPOSE": false
         },
@@ -44,14 +73,14 @@
         "init-kubernetes",
         "connect-workers"
     ],
-    "onAfterScaleOut[worker]": [
-    {
-      "connect-workers"
+    "onAfterScaleOut[worker]":{
+        "forEach(event.response.nodes)": [
+        "connect-workers"]
     },
     "actions": {
         "init-kubernetes": {
             "cmd[cp]": [
-            "systemctl daemon-reload > /dev/null 2>&1", 
+            "systemctl daemon-reload > /dev/null 2>&1",
             "service kubelet restart > /dev/null 2>&1",
             "kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --ignore-preflight-errors=all",
             "mkdir -p $HOME/.kube",
@@ -64,11 +93,11 @@
         },
         "connect-workers": {
             "cmd[worker]": [
-            "systemctl daemon-reload > /dev/null 2>&1", 
+            "systemctl daemon-reload > /dev/null 2>&1",
             "service kubelet restart > /dev/null 2>&1",
-            "$(cat /var/lib/connect/settings) --ignore-preflight-errors=all > /dev/null 2>&1"
+            "$(cat /var/lib/connect/settings) --ignore-preflight-errors=all > /dev/null 2>&1",
             "iptables -I KUBE-FIREWALL -m comment --comment \"kubernetes firewall for dropping marked packets\" -m mark --mark 0x8000/0x8000 -j  ACCEPT",
-            "service iptables save",
+            "service iptables save"
         ]
         },
           "deploy-dashboard": {
