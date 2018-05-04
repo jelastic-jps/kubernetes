@@ -13,6 +13,9 @@
     "logo": "https://avatars1.githubusercontent.com/u/13629408?s=100",
     "name": "Kubernetes",
     "region": "vz7",
+    "targetRegions": {
+        "type": "vz7"    
+        },
     "settings": {
         "fields": [{
             "type": "spinner",
