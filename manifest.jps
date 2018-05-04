@@ -34,7 +34,7 @@
                     "name": "yml",
                     "type": "string",
                     "caption": "Stack YML URL",
-                    "default": "https://raw.githubusercontent.com/vfarcic/docker-flow-proxy/master/docker-compose-stack.yml",
+                    "default": "https://raw.githubusercontent.com/jelastic-jps/kubernetes/dev/addons/nginx-pod.yaml",
                     "required": true,
                     "vtype": "url"
                 }
@@ -112,7 +112,7 @@
         },
            "generate-admin-token": {
             "cmd[cp]":[
-            "kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}')  | grep 'token:' | sed -e's/token: *//g' > /var/lib/admin-token"
+            "kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token: *//g' > /var/lib/admin-token"
         ]       
         }
     },
