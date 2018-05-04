@@ -1,7 +1,7 @@
 {
     "jpsType": "install",
     "id": "kubernetes",
-    "baseUrl": "https://raw.githubusercontent.com/jelastic-jps/kubernetes/dev",
+    "baseUrl": "https://raw.githubusercontent.com/jelastic-jps/kubernetes/dev/addons/",
     "description": {
         "text": "/text/description-swarm.md",
         "short": "Jelastic Kubernetes (Beta)"
@@ -71,7 +71,9 @@
     }],
     "onInstall": [
         "init-kubernetes",
-        "connect-workers"
+        "connect-workers",
+        "install-components",
+        "generate-admin-token"
     ],
     "onAfterScaleOut[worker]":{
         "forEach(event.response.nodes)": [
@@ -95,16 +97,23 @@
             "cmd[worker]": [
             "systemctl daemon-reload > /dev/null 2>&1",
             "service kubelet restart > /dev/null 2>&1",
-            "$(cat /var/lib/connect/settings) --ignore-preflight-errors=all > /dev/null 2>&1",
+            "$(cat /var/lib/connect/settings) --ignore-preflight-errors=all > /dev/null 2>&1", "sleep 5",
             "iptables -I KUBE-FIREWALL -m comment --comment \"kubernetes firewall for dropping marked packets\" -m mark --mark 0x8000/0x8000 -j  ACCEPT",
             "service iptables save"
         ]
         },
-          "deploy-dashboard": {
+          "install-components": {
             "cmd[cp]": [
-            "kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.8.3/src/deploy/recommended/kubernetes-dashboard.yaml",
-            "kubectl proxy --address 0.0.0.0  --port=80 --accept-hosts='^*$'&"
+            "kubectl apply -f ${baseUrl}/kubernetes-dashboard.yaml",                
+            "kubectl apply -f ${baseUrl}/heapster.yaml",
+            "kubectl create -f ${baseUrl}/create-admin.yaml",
+            "kubectl apply -f ${baseUrl}/grant-privileges.yaml"
         ]
+        },
+           "generate-admin-token": {
+            "cmd[cp]":[
+            "kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}')  | grep 'token:' | sed -e's/token: *//g' > /var/lib/admin-token"
+        ]       
         }
     },
     "jpsVersion": "1.1"
