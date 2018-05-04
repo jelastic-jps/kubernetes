@@ -108,9 +108,14 @@
             "kubectl apply -f ${baseUrl}/heapster.yaml",
             "kubectl create -f ${baseUrl}/create-admin.yaml",
             "kubectl apply -f ${baseUrl}/grant-privileges.yaml"
-        ]
+        ],
+          "if ('${settings.deploy}'": {
+             "cmd[cp]": [
+              "kubectl apply -f ${settings.yml}"
+        ]        
+        }              
         },
-           "generate-admin-token": {
+          "generate-admin-token": {
             "cmd[cp]":[
             "kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token: *//g' > /var/lib/admin-token"
         ]       
