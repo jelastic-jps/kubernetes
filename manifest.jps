@@ -3,7 +3,7 @@
     "id": "kubernetes",
     "baseUrl": "https://raw.githubusercontent.com/jelastic-jps/kubernetes/dev/addons/",
     "description": {
-        "text": "/text/description-kube.md",
+        "text": "../text/description-kube.md",
         "short": "Jelastic Kubernetes (Beta)"
     },
     "categories": [
