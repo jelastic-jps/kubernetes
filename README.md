@@ -8,6 +8,8 @@ The clusters can be automatically installed on top of the Jelastic PaaS in two w
 
 * **Pre-packaged application** within Kubernetes cluster. While installation, there can be provided the URL to a YAML stack manifest. As a result, the cluster will be created already with the needed custom application deployed.
 
+<img src="/images/Managed-Kubernetes-Hosting.png" width="500" alt="Managed Kubernetes Hosting Multi-Cloud" />
+
 ## Cloud Native Applications
 
 Easily containerize and migrate existing applications, run hyper scalable microservices and keep them resilient to failures, get extra savings due to more efficient resource utilization, implement CI/CD automation and develop at a higher level of speed in shorter release cycles. 
