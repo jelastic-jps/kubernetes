@@ -68,6 +68,7 @@ onInstall:
   - init-kubernetes
   - connect-workers
   - install-components
+  - install-helm
   - generate-admin-token
   
 onAfterScaleOut[cp]:
@@ -100,10 +101,18 @@ actions:
       kubectl apply -f ${baseUrl}/addons/heapster.yaml
       kubectl create -f ${baseUrl}/addons/create-admin.yaml
       kubectl apply -f ${baseUrl}/addons/grant-privileges.yaml
-      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
-      helm init
     if ('${settings.deploy}':
       cmd[master]: kubectl apply -f ${settings.yml}
+
+  install-helm:
+    cmd[master]: |-
+      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
+      helm init
+      helm update
+      kubectl create serviceaccount --namespace kube-system tiller
+      kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+      kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
+      
 
   generate-admin-token:
     - cmd[master]: kubectl describe svc kubernetes-dashboard -n kube-system  | grep "NodePort:" | grep -o -E "[0-9]*"      
