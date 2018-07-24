@@ -100,8 +100,11 @@ actions:
       kubectl apply -f ${baseUrl}/addons/heapster.yaml
       kubectl create -f ${baseUrl}/addons/create-admin.yaml
       kubectl apply -f ${baseUrl}/addons/grant-privileges.yaml
+      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
+      helm init
     if ('${settings.deploy}':
       cmd[master]: kubectl apply -f ${settings.yml}
+
   generate-admin-token:
     - cmd[master]: kubectl describe svc kubernetes-dashboard -n kube-system  | grep "NodePort:" | grep -o -E "[0-9]*"      
     - setGlobals:
