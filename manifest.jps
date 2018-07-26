@@ -34,7 +34,7 @@ settings:
         name: yml
         type: string
         caption: Stack YML URL
-        default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/dev/addons/nginx-pod.yaml
+        default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-pod.yaml
         required: true
         vtype: url
 
@@ -69,6 +69,7 @@ onInstall:
   - connect-workers
   - install-components
   - install-helm
+  - install-traefik
   - generate-admin-token
   
 onAfterScaleOut[cp]:
@@ -112,7 +113,14 @@ actions:
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
       kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
-      
+  
+  install-traefik:
+     cmd[master]: |-
+      kubectl apply -f ${baseUrl}/addons/traefik-rbac.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik-ds.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik-ui.yaml
+      openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=traefik-ui.jelastic"
+      kubectl -n kube-system create secret tls traefik-ui-tls-cert --key=tls.key --cert=tls.crt
 
   generate-admin-token:
     - cmd[master]: kubectl describe svc kubernetes-dashboard -n kube-system  | grep "NodePort:" | grep -o -E "[0-9]*"      
