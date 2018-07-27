@@ -2,7 +2,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/ingress-network
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster (Beta)
