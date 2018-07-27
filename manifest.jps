@@ -44,7 +44,7 @@ nodes:
   image: ihorman/kubernetes:working
   nodeGroup: master
   displayName: Master
-  extip: true
+  extip: false
   env:
     JELASTIC_EXPOSE: false
 
@@ -53,7 +53,7 @@ nodes:
   image: ihorman/kubernetes:working
   displayName: Workers
   cloudlets: 32
-  extip: true
+  extip: false
   env:
     JELASTIC_EXPOSE: false
   volumes:
