@@ -31,8 +31,6 @@ spec:
         - name: admin
           containerPort: 8080
           hostPort: 8080
-        - name: ssl
-          hostPost: 443
         securityContext:
           capabilities:
             drop:
@@ -42,13 +40,6 @@ spec:
         args:
         - --api
         - --kubernetes
-        - --acme=true
-        - --acme.entrypoint=https
-        - --acme.httpchallenge
-        - --acme.httpchallenge.entrypoint=http
-        - --acme.storage=/tmp/acme.json
-        - --acme.email="EMAIL"
-        - --acme.domains="DOMAIN"
         - --logLevel=DEBUG
 ---
 kind: Service
