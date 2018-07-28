@@ -40,7 +40,11 @@ spec:
         args:
         - --api
         - --kubernetes
-        - --logLevel=DEBUG
+        - --logLevel="DEBUG"
+        - --traefikLog.filePath="/var/log/traefik.log"
+        - --traefikLog.format="json"
+        - --accessLog.filePath="/var/log/access.log"
+        - --accessLog.format="json"
 ---
 kind: Service
 apiVersion: v1
