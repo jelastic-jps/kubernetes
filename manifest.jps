@@ -41,7 +41,7 @@ settings:
 nodes:
 - count: 1
   cloudlets: 32
-  image: ihorman/kubernetes:working
+  image: ihorman/kubernetes:dev-delta
   nodeGroup: master
   displayName: Master
   extip: false
@@ -50,7 +50,7 @@ nodes:
 
 - count: ${settings.worker}
   nodeGroup: cp
-  image: ihorman/kubernetes:working
+  image: ihorman/kubernetes:dev-delta
   displayName: Workers
   cloudlets: 32
   extip: false
@@ -67,6 +67,7 @@ nodes:
 onInstall:
   - init-kubernetes
   - connect-workers
+  - setup-overlay
   - install-components
   - install-helm
   - install-traefik
@@ -95,7 +96,11 @@ actions:
       sleep 5
       iptables -I KUBE-FIREWALL -m comment --comment "kubernetes firewall for dropping marked packets" -m mark --mark 0x8000/0x8000 -j  ACCEPT
       service iptables save
-      
+  
+  setup-overlay:
+    cmd[master]: |-
+      kubectl apply -f ${baseUrl}/addons/weave-pack.yaml 
+    
   install-components:
     cmd[master]: |-
       kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml
