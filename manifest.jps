@@ -71,6 +71,7 @@ onInstall:
   - install-components
   - install-helm
   - install-traefik
+  - manage-ingress-routes
   - generate-admin-token
   
 onAfterScaleOut[cp]:
@@ -88,6 +89,10 @@ actions:
       service iptables save
       kubeadm token create $(kubeadm token generate) --print-join-command --ttl=0 > /var/lib/connect/settings
       
+  manage-ingress-routes:
+    cmd[master]: |-
+      kubectl apply -f ${baseUrl}/addons/dashboard-ingress.yaml
+
   connect-workers:
     cmd[cp]: |-
       systemctl daemon-reload > /dev/null 2>&1
