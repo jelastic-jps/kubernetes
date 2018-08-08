@@ -143,6 +143,6 @@ actions:
         token: ${response.out}
         
 success: |
-   Access Token to [Kubernetes UI](https://node${nodes.master.first.id}-${env.domain}:${globals.port}):
+   Access Token to [Kubernetes UI](https://node${nodes.master.first.id}-${env.domain}):
    
    ```${globals.token}```
