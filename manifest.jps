@@ -38,6 +38,7 @@ settings:
         required: true
         vtype: url
 
+ssl: true
 nodes:
 - count: 1
   cloudlets: 32
