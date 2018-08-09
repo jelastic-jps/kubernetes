@@ -144,6 +144,6 @@ actions:
         token: ${response.out}
         
 success: |
-   Access Token to [Kubernetes UI](https://node${nodes.master.first.id}-${env.domain}):
+   Access Token to [Kubernetes UI](https://node${nodes.master.first.id}-${env.domain}/kubernetes-dashboard):
    
    ```${globals.token}```
