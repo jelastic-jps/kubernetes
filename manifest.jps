@@ -26,7 +26,7 @@ settings:
   - type: checkbox
     name: storage
     caption: Attach and activate Storage Node on Kubernetes Cluster
-    value: true
+    value: false
   - name: stack
     type: radio-fieldset
     values:
