@@ -1,14 +1,15 @@
+---
 type: update
 version: 1.5
 id: storage
-name: 'Storage for Kubernetes'
-nodes:
-    -
-        count: 1
-        cloudlets: 32
-        image: 'ihorman/kubernetes:dev-delta'
+name: Storage for Kubernetes
+onInstall:
+    - addNodes:
+        nodeType: docker
+        cloudlets: 16
+        dockerName: jelastic/storage
+        dockerTag: latest
+        displayName: Storage
         nodeGroup: storage
-        displayName: Master
-        extip: false
-env:
-    JELASTIC_EXPOSE: false
+        metadata:
+          layer: storage
