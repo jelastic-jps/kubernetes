@@ -150,6 +150,11 @@ actions:
 
   install-helloworld:
     - cmd[master]: kubectl apply -f ${baseUrl}/addons/helloworld.yaml
+ 
+  portainer:
+  if ('${settings.storage}' == 'true'):
+    - install:
+        jps: ${baseUrl}/storage.jps?_r=${fn.random}
         
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
