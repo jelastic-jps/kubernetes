@@ -97,7 +97,9 @@ actions:
       
   manage-ingress-routes:
     cmd[master]: |-
-      kubectl apply -f ${baseUrl}/addons/dashboard-ingress.yaml
+      wget ${baseUrl}/addons/dashboard-ingress.yaml -O /tmp/dashboard-ingress.yaml
+      sed 's/*.demo.jelastic.com/${env.domain}/g' /tmp/dashboard-ingress.yaml
+      kubectl apply -f /tmp/dashboard-ingress.yaml
 
   connect-workers:
     cmd[cp]: |-
@@ -149,9 +151,12 @@ actions:
         token: ${response.out}
 
   install-helloworld:
-    - cmd[master]: kubectl apply -f ${baseUrl}/addons/helloworld.yaml
- 
-  portainer:
+    cmd[master]: |-
+      wget ${baseUrl}/addons/helloworld.yaml -O /tmp/helloworld.yaml
+      sed 's/*.demo.jelastic.com/${env.domain}/g' /tmp/helloworld.yaml
+      kubectl apply -f /tmp/helloworld.yaml
+
+  install-storage:
   if ('${settings.storage}' == 'true'):
     - install:
         jps: ${baseUrl}/storage.jps?_r=${fn.random}
