@@ -68,7 +68,9 @@ nodes:
       readOnly: true
       sourcePath: /var/lib/connect
       sourceNodeGroup: master
-      
+
+skipNodeEmails: true
+
 onInstall:
   - init-kubernetes
   - connect-workers
