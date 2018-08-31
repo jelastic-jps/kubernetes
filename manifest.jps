@@ -70,7 +70,7 @@ nodes:
       sourceNodeGroup: master
 
 skipNodeEmails: true
-
+  
 onInstall:
   - init-kubernetes
   - connect-workers
@@ -80,6 +80,7 @@ onInstall:
   - install-traefik
   - manage-ingress-routes
   - generate-admin-token
+  - install-storage
   - install-helloworld
   
 onAfterScaleOut[cp]:
@@ -159,9 +160,8 @@ actions:
       kubectl apply -f /tmp/helloworld.yaml
 
   install-storage:
-  if ('${settings.storage}' == 'true'):
-    - install:
-        jps: ${baseUrl}/storage.jps?_r=${fn.random}
+    if ('${settings.storage}' == 'true'):
+      install: /addons/storage.jps?_r=${fn.random}
         
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
