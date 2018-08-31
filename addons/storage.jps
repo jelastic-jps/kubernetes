@@ -13,3 +13,10 @@ onInstall:
         nodeGroup: storage
         metadata:
           layer: storage
+
+
+
+actions:
+  connect-storage:
+    cmd[master]: |-
+      kubectl apply -f ${baseUrl}/addons/persistent-storage.yaml
