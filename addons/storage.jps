@@ -3,7 +3,7 @@ type: update
 version: 1.5
 id: storage
 name: Storage for Kubernetes
-
+skipNodeEmails: true
 onInstall:
     - addNodes:
         nodeType: docker
