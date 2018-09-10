@@ -101,7 +101,7 @@ actions:
   manage-ingress-routes:
     cmd[master]: |-
       wget ${baseUrl}/addons/dashboard-ingress.yaml -O /tmp/dashboard-ingress.yaml
-      sed 's/*.demo.jelastic.com/${env.domain}/g' /tmp/dashboard-ingress.yaml
+      sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/dashboard-ingress.yaml
       kubectl apply -f /tmp/dashboard-ingress.yaml
 
   connect-workers:
@@ -156,7 +156,7 @@ actions:
   install-helloworld:
     cmd[master]: |-
       wget ${baseUrl}/addons/helloworld.yaml -O /tmp/helloworld.yaml
-      sed 's/*.demo.jelastic.com/${env.domain}/g' /tmp/helloworld.yaml
+      sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/helloworld.yaml
       kubectl apply -f /tmp/helloworld.yaml
 
   install-storage:
