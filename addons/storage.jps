@@ -1,0 +1,33 @@
+---
+type: update
+version: 1.5
+id: storage
+name: Storage for Kubernetes
+skipNodeEmails: true
+onInstall:
+    - addNodes:
+        nodeType: docker
+        cloudlets: 16
+        dockerName: jelastic/storage
+        dockerTag: latest
+        displayName: Storage
+        nodeGroup: storage
+        metadata:
+          layer: storage
+    - mount: cp
+    - mount: master
+    - connect-storage
+       
+actions:
+  connect-storage:
+    cmd[master]: kubectl apply -f ${baseUrl}/persistent-storage.yaml
+  
+  mount:
+    env.file.AddMountPointByGroup:
+      nodeGroup: ${this}
+      sourceNodeId: ${nodes.storage.master.id}
+      protocol: nfs
+      path: /data
+      sourcePath: /data
+      name: Shared Storage
+      readOnly: false    

@@ -1,0 +1,20 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: kubernetes-dashboard
+  namespace: kube-system
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    ingress.kubernetes.io/secure-backends: "true"
+    traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - host: "*.demo.jelastic.com"
+    http: &http_rules
+      paths:
+      - path: /kubernetes-dashboard
+        backend:
+          serviceName: kubernetes-dashboard
+          servicePort: 443
+  - host: "*.vip.jelastic.cloud"
+    http: *http_rules

@@ -2,7 +2,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/dev-delta
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster (Beta)
@@ -23,6 +23,10 @@ settings:
     min: 1
     max: 10
     default: 2
+  - type: checkbox
+    name: storage
+    caption: Attach and activate Storage Node on Kubernetes Cluster
+    value: false
   - name: stack
     type: radio-fieldset
     values:
@@ -38,22 +42,23 @@ settings:
         required: true
         vtype: url
 
+ssl: true
 nodes:
 - count: 1
   cloudlets: 32
-  image: ihorman/kubernetes:working
+  image: ihorman/kubernetes:dev-delta
   nodeGroup: master
   displayName: Master
-  extip: true
+  extip: false
   env:
     JELASTIC_EXPOSE: false
 
 - count: ${settings.worker}
   nodeGroup: cp
-  image: ihorman/kubernetes:working
+  image: ihorman/kubernetes:dev-delta
   displayName: Workers
   cloudlets: 32
-  extip: true
+  extip: false
   env:
     JELASTIC_EXPOSE: false
   volumes:
@@ -63,14 +68,20 @@ nodes:
       readOnly: true
       sourcePath: /var/lib/connect
       sourceNodeGroup: master
-      
+
+skipNodeEmails: true
+  
 onInstall:
   - init-kubernetes
   - connect-workers
+  - setup-overlay
   - install-components
   - install-helm
   - install-traefik
+  - manage-ingress-routes
   - generate-admin-token
+  - install-storage
+  - install-helloworld
   
 onAfterScaleOut[cp]:
   forEach(event.response.nodes): connect-workers
@@ -87,6 +98,12 @@ actions:
       service iptables save
       kubeadm token create $(kubeadm token generate) --print-join-command --ttl=0 > /var/lib/connect/settings
       
+  manage-ingress-routes:
+    cmd[master]: |-
+      wget ${baseUrl}/addons/dashboard-ingress.yaml -O /tmp/dashboard-ingress.yaml
+      sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/dashboard-ingress.yaml
+      kubectl apply -f /tmp/dashboard-ingress.yaml
+
   connect-workers:
     cmd[cp]: |-
       systemctl daemon-reload > /dev/null 2>&1
@@ -95,7 +112,13 @@ actions:
       sleep 5
       iptables -I KUBE-FIREWALL -m comment --comment "kubernetes firewall for dropping marked packets" -m mark --mark 0x8000/0x8000 -j  ACCEPT
       service iptables save
-      
+  
+  setup-overlay:
+    cmd[master]: |-
+      kubectl apply -f ${baseUrl}/addons/weave-pack.yaml 
+      wget https://github.com/weaveworks/weave/releases/download/v2.4.0/weave -O /usr/bin/weave
+      chmod +x /usr/bin/weave
+    
   install-components:
     cmd[master]: |-
       kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml
@@ -129,8 +152,18 @@ actions:
     - cmd[master]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
     - setGlobals:
         token: ${response.out}
+
+  install-helloworld:
+    cmd[master]: |-
+      wget ${baseUrl}/addons/helloworld.yaml -O /tmp/helloworld.yaml
+      sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/helloworld.yaml
+      kubectl apply -f /tmp/helloworld.yaml
+
+  install-storage:
+    if ('${settings.storage}' == 'true'):
+      install: /addons/storage.jps?_r=${fn.random}
         
 success: |
-   Access Token to [Kubernetes UI](https://node${nodes.master.first.id}-${env.domain}:${globals.port}):
+   Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
    
    ```${globals.token}```

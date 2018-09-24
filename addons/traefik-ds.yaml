@@ -19,6 +19,7 @@ spec:
         k8s-app: traefik-ingress-lb
         name: traefik-ingress-lb
     spec:
+      hostNetwork: true
       serviceAccountName: traefik-ingress-controller
       terminationGracePeriodSeconds: 60
       containers:
@@ -41,6 +42,7 @@ spec:
         - --api
         - --kubernetes
         - --logLevel=DEBUG
+        - --insecureskipverify=true
 ---
 kind: Service
 apiVersion: v1
