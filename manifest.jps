@@ -2,7 +2,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/dev-delta
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster (Beta)
@@ -46,7 +46,7 @@ ssl: true
 nodes:
 - count: 1
   cloudlets: 32
-  image: ihorman/kubernetes:dev-delta
+  image: jelastic/kubernetes:master
   nodeGroup: master
   displayName: Master
   extip: false
@@ -55,7 +55,7 @@ nodes:
 
 - count: ${settings.worker}
   nodeGroup: cp
-  image: ihorman/kubernetes:dev-delta
+  image: jelastic/kubernetes:master
   displayName: Workers
   cloudlets: 32
   extip: false
