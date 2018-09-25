@@ -126,7 +126,7 @@ items:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
-              image: 'ihorman/weave-kube'
+              image: 'jelastic/weave-kube'
               livenessProbe:
                 httpGet:
                   host: 127.0.0.1
@@ -161,7 +161,7 @@ items:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
-              image: 'ihorman/weave-npc'
+              image: 'jelastic/weave-npc'
               resources:
                 requests:
                   cpu: 10m
