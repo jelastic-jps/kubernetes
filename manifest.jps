@@ -9,6 +9,7 @@ description:
 categories:
   - apps/popular
   - apps/clusters
+  - apps/microservices
 
 logo: /images/k8s-logo.png
 name: Kubernetes Cluster
