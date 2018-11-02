@@ -63,8 +63,7 @@ onInstall:
   - install-traefik
   - manage-ingress-routes
   - generate-admin-token
-  - install-storage
-  - install-helloworld
+  - install-maria-cluster
   
 onAfterScaleOut[cp]:
   forEach(event.response.nodes): connect-workers
@@ -142,8 +141,8 @@ actions:
       sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/helloworld.yaml
       kubectl apply -f /tmp/helloworld.yaml
 
-  install-storage:
-      install: /addons/storage.jps?_r=${fn.random}
+  install-mariadb-cluster:
+      install: /addons/mariadb-cluster.jps?_r=${fn.random}
         
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
