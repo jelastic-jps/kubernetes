@@ -64,7 +64,7 @@ onInstall:
   - manage-ingress-routes
   - generate-admin-token
   - install-helloworld
-  - install-maria-cluster
+  - install-mariadb-cluster
   
 onAfterScaleOut[cp]:
   forEach(event.response.nodes): connect-workers
