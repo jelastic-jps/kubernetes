@@ -1,0 +1,46 @@
+---
+type: update
+version: 1.5
+id: storage
+name: Maria Enterprise Cluster for Kubernetes
+skipNodeEmails: true
+
+globals:
+  mariaHelmRepo: https://raw.githubusercontent.com/mariadb-corporation/mariadb-kubernetes/master
+
+onInstall:
+    - addNodes:
+        nodeType: docker
+        cloudlets: 16
+        dockerName: jelastic/storage
+        dockerTag: latest
+        displayName: Storage
+        nodeGroup: storage
+        metadata:
+          layer: storage
+    - mount: cp
+    - mount: master
+    - connect-storage
+    - install-mariadb
+       
+actions:
+  connect-storage:
+    cmd[master]: |-
+     mkdir -p /data/pv01 /data/pv02 /data/pv03
+     kubectl apply -f ${baseUrl}/persistent-storage-mariadb.yaml
+
+  install-mariadb:
+    cmd[master]: |-
+     helm repo add maria-enterprise ${mariaHelmRepo}
+     kubectl apply -f ${baseUrl}/persistent-storage-mariadb.yaml
+
+  
+  mount:
+    env.file.AddMountPointByGroup:
+      nodeGroup: ${this}
+      sourceNodeId: ${nodes.storage.master.id}
+      protocol: nfs
+      path: /data
+      sourcePath: /data
+      name: Shared Storage
+      readOnly: false    

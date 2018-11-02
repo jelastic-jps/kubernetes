@@ -24,20 +24,6 @@ settings:
     min: 1
     max: 10
     default: 2
-  - name: stack
-    type: radio-fieldset
-    values:
-      clean: Clean Cluster
-      deploy: Deploy Stack YML
-    default: clean
-    showIf:
-      deploy:
-        name: yml
-        type: string
-        caption: Stack YML URL
-        default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-pod.yaml
-        required: true
-        vtype: url
 
 ssl: true
 nodes:

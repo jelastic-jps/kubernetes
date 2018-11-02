@@ -1,0 +1,46 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pv01
+  labels:
+    type: local
+spec:
+  storageClassName: 
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/pv01"
+
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pv02
+  labels:
+    type: local
+spec:
+  storageClassName:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/pv02"
+
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pv03
+  labels:
+    type: local
+spec:
+  storageClassName:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/pv03"
+
+
