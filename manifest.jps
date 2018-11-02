@@ -24,10 +24,6 @@ settings:
     min: 1
     max: 10
     default: 2
-  - type: checkbox
-    name: storage
-    caption: Attach and activate Storage Node on Kubernetes Cluster
-    value: false
   - name: stack
     type: radio-fieldset
     values:
@@ -161,7 +157,6 @@ actions:
       kubectl apply -f /tmp/helloworld.yaml
 
   install-storage:
-    if ('${settings.storage}' == 'true'):
       install: /addons/storage.jps?_r=${fn.random}
         
 success: |
