@@ -31,7 +31,7 @@ actions:
 
   install-mariadb:
     cmd[master]: |-
-     helm repo add maria-enterprise globals.${mariaHelmRepo}
+     helm repo add maria-enterprise ${globals.mariaHelmRepo}
      helm install maria-enterprise/mariadb-enterprise
 
   
