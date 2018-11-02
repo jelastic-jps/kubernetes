@@ -5,7 +5,7 @@ id: kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master
 description:
   text: /text/description-kube.md
-  short: Kubernetes Cluster (Beta)
+  short: MariaDB Enterprise Kubernetes Cluster 
 categories:
   - apps/popular
   - apps/clusters
