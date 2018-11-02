@@ -1,10 +1,10 @@
 ---
 type: install
 version: 1.5
-id: kubernetes
+id: mariadb-kubernetes-cluster
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/mariakube
 description:
-  text: /text/description-kube.md
+  text: /text/description-mariadb.md
   short: MariaDB Enterprise Kubernetes Cluster 
 categories:
   - apps/popular
@@ -12,15 +12,15 @@ categories:
   - apps/microservices
 
 logo: /images/logo-mariadb.png
-name: Kubernetes Cluster
+name: MariaDB Enterprise Cluster 
 targetRegions:
-  type: vz7
-  
+  type: vz7 
+ 
 settings:
   fields:
   - type: spinner
     name: worker
-    caption: Worker
+    caption: Workers
     min: 1
     max: 10
     default: 2
