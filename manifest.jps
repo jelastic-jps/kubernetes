@@ -63,6 +63,7 @@ onInstall:
   - install-traefik
   - manage-ingress-routes
   - generate-admin-token
+  - install-helloworld
   - install-maria-cluster
   
 onAfterScaleOut[cp]:
