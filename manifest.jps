@@ -11,7 +11,7 @@ categories:
   - apps/clusters
   - apps/microservices
 
-logo: /images/k8s-logo.png
+logo: /images/logo-mariadb.png
 name: Kubernetes Cluster
 targetRegions:
   type: vz7
