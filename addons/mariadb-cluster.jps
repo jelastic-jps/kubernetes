@@ -32,7 +32,7 @@ actions:
   install-mariadb:
     cmd[master]: |-
      helm repo add maria-enterprise ${mariaHelmRepo}
-     kubectl apply -f ${baseUrl}/persistent-storage-mariadb.yaml
+     helm install maria-enterprise/mariadb-enterprise
 
   
   mount:

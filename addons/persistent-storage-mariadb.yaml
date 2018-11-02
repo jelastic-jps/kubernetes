@@ -13,6 +13,8 @@ spec:
   hostPath:
     path: "/data/pv01"
 
+---
+
 kind: PersistentVolume
 apiVersion: v1
 metadata:
@@ -27,6 +29,8 @@ spec:
     - ReadWriteOnce
   hostPath:
     path: "/data/pv02"
+
+---
 
 kind: PersistentVolume
 apiVersion: v1
