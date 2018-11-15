@@ -1,4 +1,3 @@
----
 type: install
 version: 1.5
 id: kubernetes
@@ -16,20 +15,10 @@ name: Kubernetes Cluster
 targetRegions:
   type: vz7
   
-onBeforeInit: |
-  var bQuota,
-      oResp;
-  
-  oResp = jelastic.billing.account.GetQuotas(appid, session, 'environment.jelasticssl.enabled');
-  if (!oResp || oResp.result != 0 ) {
-      return oResp;
-  }
-    
-  bQuota = oResp.array[0].value;
-  return  {
-    result: 0,
-    ssl: !!bQuota
-  }
+onBeforeInit: |  
+  var resp = jelastic.billing.account.GetQuotas(appid, session, 'environment.jelasticssl.enabled');
+  if (resp.result != 0 ) return resp;  
+  return  { result: 0, ssl: !!resp.array[0].value };
   
 settings:
   fields:
