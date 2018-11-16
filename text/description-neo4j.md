@@ -1,1 +1,1 @@
-Neo4j is a graph database management system developed by Neo4j, Inc. Described by its developers as an ACID-compliant transactional database with native graph storage and processing,[4] Neo4j is the most popular graph database according to DB-Engines ranking[5], and the 22nd most popular database overall
+Neo4j is a graph database management system developed by Neo4j, Inc. Described by its developers as an ACID-compliant transactional database with native graph storage and processing.
