@@ -5,7 +5,7 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: 
+  storageClassName: standard
   capacity:
     storage: 10Gi
   accessModes:
@@ -22,7 +22,7 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName:
+  storageClassName: standard
   capacity:
     storage: 10Gi
   accessModes:
@@ -39,7 +39,7 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName:
+  storageClassName: standard
   capacity:
     storage: 10Gi
   accessModes:

@@ -1,18 +1,18 @@
 ---
 type: install
 version: 1.5
-id: mariadb-kubernetes-cluster
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/mariakube
+id: neo4j-kubernetes-cluster
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/neo4jkube
 description:
-  text: /text/description-mariadb.md
-  short: MariaDB Enterprise Kubernetes Cluster 
+  text: /text/description-neo4j.md
+  short: Neo4j Kubernetes Cluster 
 categories:
   - apps/popular
   - apps/clusters
   - apps/microservices
 
-logo: /images/logo-mariadb.png
-name: MariaDB Enterprise Cluster 
+logo: /images/logo-neo4j.png
+name: Neo4j Cluster 
 targetRegions:
   type: vz7 
  
@@ -63,7 +63,7 @@ onInstall:
   - install-traefik
   - manage-ingress-routes
   - generate-admin-token
-  - install-mariadb-cluster
+  - install-neo4j-cluster
   
 onAfterScaleOut[cp]:
   forEach(event.response.nodes): connect-workers
@@ -143,8 +143,8 @@ actions:
       sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/helloworld.yaml
       kubectl apply -f /tmp/helloworld.yaml
 
-  install-mariadb-cluster:
-      install: /addons/mariadb-cluster.jps?_r=${fn.random}
+  install-neo4j-cluster:
+      install: /addons/neo4j-cluster.jps?_r=${fn.random}
         
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):

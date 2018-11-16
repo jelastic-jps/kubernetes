@@ -2,11 +2,11 @@
 type: update
 version: 1.5
 id: storage
-name: Maria Enterprise Cluster for Kubernetes
+name: Neo4J Cluster for Kubernetes
 skipNodeEmails: true
 
 globals:
-  mariaHelmRepo: https://raw.githubusercontent.com/mariadb-corporation/mariadb-kubernetes/master
+  neo4jrepo: https://github.com/neo4j-contrib/kubernetes-neo4j.git
 
 onInstall:
     - addNodes:
@@ -21,19 +21,20 @@ onInstall:
     - mount: cp
     - mount: master
     - connect-storage
-    - install-mariadb
+    - install-neo4j
        
 actions:
   connect-storage:
     cmd[master]: |-
      mkdir -p /data/pv01 /data/pv02 /data/pv03
-     kubectl apply -f ${baseUrl}/persistent-storage-mariadb.yaml
+     kubectl apply -f ${baseUrl}/persistent-storage-neo4j.yaml
 
-  install-mariadb:
+  install-neo4j:
     cmd[master]: |-
-     helm repo add maria-enterprise ${globals.mariaHelmRepo}
-     helm install maria-enterprise/mariadb-enterprise
-
+     yum install -y git
+     git clone ${globals.neo4jrepo}
+     cd kubernetes-neo4j && kubectl apply -f cores
+     
   
   mount:
     env.file.AddMountPointByGroup:
