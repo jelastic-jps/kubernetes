@@ -1,4 +1,3 @@
----
 type: install
 version: 1.5
 id: kubernetes
@@ -15,6 +14,11 @@ logo: /images/k8s-logo.png
 name: Kubernetes Cluster
 targetRegions:
   type: vz7
+  
+onBeforeInit: |  
+  var resp = jelastic.billing.account.GetQuotas(appid, session, 'environment.jelasticssl.enabled');
+  if (resp.result != 0 ) return resp;  
+  return  { result: 0, ssl: !!resp.array[0].value };
   
 settings:
   fields:
