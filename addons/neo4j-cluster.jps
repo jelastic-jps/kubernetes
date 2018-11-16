@@ -33,7 +33,7 @@ actions:
     cmd[master]: |-
      yum install -y git
      git clone ${globals.neo4jrepo}
-     cd kubernetes-neo4j && kubectl apply -f cores
+     cd kubernetes-neo4j && kubectl apply -f cores && kubectl apply -f read-replicas
      
   
   mount:
