@@ -160,8 +160,8 @@ actions:
 
   scale: 
     cmd[master]: |-
-      kubectl scale statefulsets neo4j-core --replicas  ${settings.cores2}
-      kubectl scale deployment neo4j-replica  --replicas ${settings.replicas2} 
+      kubectl scale statefulsets neo4j-core --replicas  ${settings.cores}
+      kubectl scale deployment neo4j-replica  --replicas ${settings.replicas} 
         
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
