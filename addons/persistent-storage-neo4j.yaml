@@ -47,4 +47,36 @@ spec:
   hostPath:
     path: "/data/pv03"
 
+---
 
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pv04
+  labels:
+    type: local
+spec:
+  storageClassName: standard
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/pv04"
+
+---
+
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pv05
+  labels:
+    type: local
+spec:
+  storageClassName: standard
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/pv05"
