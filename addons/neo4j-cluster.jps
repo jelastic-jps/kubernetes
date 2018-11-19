@@ -22,7 +22,41 @@ onInstall:
     - mount: master
     - connect-storage
     - install-neo4j
-       
+    - install:
+        envName: ${settings.envName} 
+        nodeGroup: cp
+        jps:
+          type: update
+          name: Horizontal Scaling for Node4J Cluster
+          id: scale
+          targetNodes:
+            nodeGroup: cp
+          settings: 
+            scale:
+              fields:
+                - type: spinner
+                  name: cores2
+                  caption: Cores
+                  min: 3
+                  max: 5
+                  default: ${settings.cores}
+                - type: spinner
+                  name: replicas2
+                  caption: Replicas
+                  min: 1
+                  max: 5
+                  default: ${settings.replicas}
+          buttons: 
+            settings: scale
+            action: scale
+            caption: Scaling
+            submitButtonText: Apply  
+          actions:
+            scale: 
+              cmd[master]: |-
+                kubectl scale statefulsets neo4j-core --replicas  ${settings.cores2}
+                kubectl scale deployment neo4j-replica  --replicas ${settings.replicas2} 
+
 actions:
   connect-storage:
     cmd[master]: |-
@@ -34,8 +68,13 @@ actions:
      yum install -y git
      git clone ${globals.neo4jrepo}
      cd kubernetes-neo4j && kubectl apply -f cores && kubectl apply -f read-replicas
-     
-  
+
+  scale:
+    cmd[master]: |-
+     kubectl scale statefulsets neo4j-core --replicas  ${settings.cores2}
+     kubectl scale deployment neo4j-replica  --replicas ${settings.replicas2}
+
+
   mount:
     env.file.AddMountPointByGroup:
       nodeGroup: ${this}
@@ -44,4 +83,4 @@ actions:
       path: /data
       sourcePath: /data
       name: Shared Storage
-      readOnly: false    
+      readOnly: false

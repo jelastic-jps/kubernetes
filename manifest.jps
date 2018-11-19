@@ -20,10 +20,22 @@ settings:
   fields:
   - type: spinner
     name: worker
-    caption: Workers
+    caption: Worker Nodes
     min: 1
     max: 10
     default: 2
+  - type: spinner
+    name: cores
+    caption: Cores
+    min: 3
+    max: 5
+    default: ${settings.cores}
+  - type: spinner
+    name: replicas
+    caption: Replicas
+    min: 1
+    max: 5
+    default: ${settings.replicas}
 
 ssl: true
 nodes:
@@ -145,6 +157,11 @@ actions:
 
   install-neo4j-cluster:
       install: /addons/neo4j-cluster.jps?_r=${fn.random}
+
+  scale: 
+      cmd[master]: |-
+      kubectl scale statefulsets neo4j-core --replicas  ${settings.cores2}
+      kubectl scale deployment neo4j-replica  --replicas ${settings.replicas2} 
         
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
