@@ -1,0 +1,32 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: neo4j-browser
+spec:
+  selector:
+    app: neo4j
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 7474
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: neo4j-browser
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    #ingress.kubernetes.io/secure-backends: "true"
+spec:
+  rules:
+  - host: "*.demo.jelastic.com"
+    http: &http_rules
+      paths:
+      - backend:
+          serviceName: neo4j-browser
+          servicePort: 80
+  - host: "*.vip.jelastic.cloud"
+    http: *http_rules
