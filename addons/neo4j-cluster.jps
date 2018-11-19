@@ -8,6 +8,36 @@ skipNodeEmails: true
 globals:
   neo4jrepo: https://github.com/neo4j-contrib/kubernetes-neo4j.git
 
+settings:
+  fields:
+    - type: spinner
+      name: cores
+      caption: Cores
+      min: 3
+      max: 5
+      default: 3
+    - type: spinner
+      name: replicas
+      caption: Replicas
+      min: 1
+      max: 5
+      default: 2
+    - caption: Env Name  
+      type: envname
+      name: envName
+      dependsOn: region
+      randomName: true
+      showFullDomain: true
+      required: true    
+    - caption: Region
+      type: regionlist
+      name: region
+      disableInactive: true
+      selectFirstAvailable: true
+      filter:
+        type: ["vz7"]
+        isActive: true
+
 onInstall:
     - addNodes:
         nodeType: docker
