@@ -159,7 +159,7 @@ actions:
       install: /addons/neo4j-cluster.jps?_r=${fn.random}
 
   scale: 
-      cmd[master]: |-
+    cmd[master]: |-
       kubectl scale statefulsets neo4j-core --replicas  ${settings.cores2}
       kubectl scale deployment neo4j-replica  --replicas ${settings.replicas2} 
         
