@@ -99,6 +99,8 @@ actions:
      git clone ${globals.neo4jrepo}
      cd kubernetes-neo4j && kubectl apply -f cores && kubectl apply -f read-replicas
      kubectl apply -f ${baseUrl}/neo4j-ingress.yaml
+     kubectl apply -f ${baseUrl}/neo4j-bolt.yaml
+     kubectl exec neo4j-core-0 -- bin/neo4j-admin set-initial-password neo4j
 
   scale:
     cmd[master]: |-
