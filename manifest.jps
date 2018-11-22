@@ -80,7 +80,7 @@ onInstall:
   - manage-ingress-routes
   - generate-admin-token
   - install-neo4j-cluster
-  - add-endpoint
+  - add-endpoint:
       nodeId: ${nodes.worker.first.id}
       port: 30050
   
