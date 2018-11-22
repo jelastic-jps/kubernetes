@@ -168,7 +168,17 @@ actions:
     cmd[master]: |-
       kubectl scale statefulsets neo4j-core --replicas  ${settings.cores}
       kubectl scale deployment neo4j-replica  --replicas ${settings.replicas} 
-        
+      
+  addEndpoint:
+    environment.control.AddEndpoint:
+      nodeId: ${this.nodeId}
+      privatePort: ${this.port}
+      protocol: TCP
+      name: Bolt
+      
+    setGlobals:
+      endpointUrl: bolt://node-${this.nodeId}-${env.domain}:${response.publicPort}
+      
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
    Botl URL: botl://${env.domain}:${globals.port})
