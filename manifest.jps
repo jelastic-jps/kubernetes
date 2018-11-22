@@ -18,6 +18,7 @@ targetRegions:
 
 globals: 
   password: ${fn.password(20)}
+  port: 30050
  
 settings:
   fields:
@@ -170,5 +171,8 @@ actions:
         
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
+   Botl URL: botl://${env.domain}:${globals.port})
+   User: neo4j
+   Password: ${globals.password}
    
    ```${globals.token}```
