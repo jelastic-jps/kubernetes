@@ -80,6 +80,9 @@ onInstall:
   - manage-ingress-routes
   - generate-admin-token
   - install-neo4j-cluster
+  - add-endpoint
+      nodeId: ${nodes.worker.first.id}
+      port: 30050
   
 onAfterScaleOut[cp]:
   forEach(event.response.nodes): connect-workers
@@ -169,7 +172,7 @@ actions:
       kubectl scale statefulsets neo4j-core --replicas  ${settings.cores}
       kubectl scale deployment neo4j-replica  --replicas ${settings.replicas} 
       
-  addEndpoint:
+  add-endpoint:
     environment.control.AddEndpoint:
       nodeId: ${this.nodeId}
       privatePort: ${this.port}
@@ -177,11 +180,11 @@ actions:
       name: Bolt
       
     setGlobals:
-      endpointUrl: bolt://node-${this.nodeId}-${env.domain}:${response.publicPort}
+      endpointUrl: bolt://node-${this.nodeId}-${env.domain}:${response.object.publicPort}
       
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
-   Botl URL: botl://${env.domain}:${globals.port})
+   Botl URL: ${globals.endpointUrl}
    User: neo4j
    Password: ${globals.password}
    
