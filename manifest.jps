@@ -81,7 +81,7 @@ onInstall:
   - generate-admin-token
   - install-neo4j-cluster
   - add-endpoint:
-      nodeId: ${nodes.worker.first.id}
+      nodeId: ${nodes.cp.first.id}
       port: 30050
   
 onAfterScaleOut[cp]:
