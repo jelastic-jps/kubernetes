@@ -7,6 +7,7 @@ skipNodeEmails: true
 
 globals:
   neo4jrepo: https://github.com/neo4j-contrib/kubernetes-neo4j.git
+  password: ${settings.password:[fn.password]}
   
 settings:
   fields:
@@ -100,7 +101,7 @@ actions:
      cd kubernetes-neo4j && kubectl apply -f cores && kubectl apply -f read-replicas
      kubectl apply -f ${baseUrl}/neo4j-ingress.yaml
      kubectl apply -f ${baseUrl}/neo4j-bolt.yaml
-     sleep 30s && kubectl exec neo4j-core-0 -- bin/neo4j-admin set-initial-password neo4j
+     sleep 30s && kubectl exec neo4j-core-0 -- bin/neo4j-admin set-initial-password ${globals.password}
 
   scale:
     cmd[master]: |-
