@@ -15,6 +15,9 @@ logo: /images/logo-neo4j.png
 name: Neo4j Cluster 
 targetRegions:
   type: vz7 
+
+globals: 
+  password: ${fn.password(20)}
  
 settings:
   fields:

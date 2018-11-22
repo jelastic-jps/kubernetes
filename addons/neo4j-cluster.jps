@@ -7,7 +7,7 @@ skipNodeEmails: true
 
 globals:
   neo4jrepo: https://github.com/neo4j-contrib/kubernetes-neo4j.git
-
+  
 settings:
   fields:
     - type: spinner
