@@ -160,6 +160,8 @@ actions:
 
   install-neo4j-cluster:
       install: /addons/neo4j-cluster.jps?_r=${fn.random}
+      settings:
+        password: ${globals.password}
 
   scale: 
     cmd[master]: |-
