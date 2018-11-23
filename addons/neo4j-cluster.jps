@@ -10,6 +10,7 @@ globals:
   password: ${settings.password:[fn.password]}
   cores: ${settings.cores:3}
   replicas: ${settings.replicas:1}
+  cluster-dns: 10.244.0.10
   
 settings:
   fields:
@@ -101,6 +102,7 @@ actions:
      yum install -y git
      git clone ${globals.neo4jrepo}
      cd kubernetes-neo4j && kubectl apply -f cores && kubectl apply -f read-replicas
+     while $(! nc -vz ${globals.cluster-dns} 53) ;do sleep 1s; done
      kubectl apply -f ${baseUrl}/neo4j-ingress.yaml
      kubectl apply -f ${baseUrl}/neo4j-bolt.yaml
      kubectl scale statefulsets neo4j-core --replicas  ${globals.cores}
