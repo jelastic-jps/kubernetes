@@ -8,24 +8,12 @@ skipNodeEmails: true
 globals:
   neo4jrepo: https://github.com/neo4j-contrib/kubernetes-neo4j.git
   password: ${settings.password:[fn.password]}
-  cores: ${settings.cores:3}
-  replicas: ${settings.replicas:1}
+  cores: ${settings.cores}
+  replicas: ${settings.replicas}
   cluster-dns: 10.244.0.10
   
 settings:
   fields:
-    - type: spinner
-      name: cores
-      caption: Cores
-      min: 3
-      max: 5
-      default: ${settings.cores}
-    - type: spinner
-      name: replicas
-      caption: Replicas
-      min: 1
-      max: 5
-      default: ${settings.replicas}
     - caption: Env Name  
       type: envname
       name: envName
