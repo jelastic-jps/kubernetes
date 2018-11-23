@@ -41,7 +41,7 @@ settings:
     max: 5
     default: ${settings.replicas}
 
-ssl: true
+ssl: false
 nodes:
 - count: 1
   cloudlets: 32
@@ -189,8 +189,8 @@ success: |
    ```${globals.token}```  
    [Neo4JBrowser URL](http://${env.domain})  
    Bolt URL:    
-   ``` ${globals.endpointUrl} ``  `
+   ```${globals.endpointUrl}```  
    User:  
-   ``` neo4j ```  
-   Password:    
-   ``` ${globals.password} ``` 
+   ```neo4j```  
+   Password:  
+   ```${globals.password}``` 
