@@ -166,8 +166,8 @@ actions:
       install: /addons/neo4j-cluster.jps?_r=${fn.random}
       settings:
         password: ${globals.password}
-        cores: ${globals.cores}
-        replicas: ${globals.replicas}
+        cores: ${settings.cores}
+        replicas: ${settings.replicas}
 
   scale: 
     cmd[master]: |-
