@@ -183,9 +183,12 @@ actions:
       endpointUrl: bolt://node-${this.nodeId}-${env.domain}:${response.object.publicPort}
       
 success: |
-   Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
-   Botl URL: ${globals.endpointUrl}
-   User: neo4j
-   Password: ${globals.password}
-   
-   ```${globals.token}```
+ccess Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
+   ```${globals.token}```  
+   [Neo4JBrowser URL](http://${env.domain})  
+   Botl URL:  
+   ``` ${globals.endpointUrl} ```  
+   User:  
+   ``` neo4j ```  
+   Password:  
+   ``` ${globals.password} ```
