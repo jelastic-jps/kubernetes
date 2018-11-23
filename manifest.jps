@@ -186,7 +186,7 @@ success: |
 ccess Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
    ```${globals.token}```  
    [Neo4JBrowser URL](http://${env.domain})  
-   Botl URL:  
+   Bolt URL:  
    ``` ${globals.endpointUrl} ```  
    User:  
    ``` neo4j ```  
