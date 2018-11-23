@@ -18,13 +18,13 @@ settings:
       caption: Cores
       min: 3
       max: 5
-      default: 3
+      default: ${settings.cores}
     - type: spinner
       name: replicas
       caption: Replicas
       min: 1
       max: 5
-      default: 2
+      default: ${settings.replicas}
     - caption: Env Name  
       type: envname
       name: envName
