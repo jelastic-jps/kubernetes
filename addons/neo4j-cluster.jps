@@ -99,7 +99,7 @@ actions:
 
   install-neo4j:
     cmd[master]: |-
-     yum install -y git
+     yum install -y git nc
      git clone ${globals.neo4jrepo}
      cd kubernetes-neo4j && kubectl apply -f cores && kubectl apply -f read-replicas
      while $(! nc -vz ${globals.cluster-dns} 53) ;do sleep 1s; done
