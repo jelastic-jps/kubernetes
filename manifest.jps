@@ -80,7 +80,6 @@ onInstall:
   - manage-ingress-routes
   - generate-admin-token
   - install-neo4j-cluster
-  - scale
   - add-endpoint:
       nodeId: ${nodes.cp.first.id}
       port: 30050
@@ -167,6 +166,8 @@ actions:
       install: /addons/neo4j-cluster.jps?_r=${fn.random}
       settings:
         password: ${globals.password}
+        cores: ${globals.cores}
+        replicas: ${globals.replicas}
 
   scale: 
     cmd[master]: |-
@@ -184,12 +185,12 @@ actions:
       endpointUrl: bolt://node-${this.nodeId}-${env.domain}:${response.object.publicPort}
       
 success: |
-ccess Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
+   Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):  
    ```${globals.token}```  
    [Neo4JBrowser URL](http://${env.domain})  
-   Bolt URL:  
-   ``` ${globals.endpointUrl} ```  
+   Bolt URL:    
+   ``` ${globals.endpointUrl} ``  `
    User:  
    ``` neo4j ```  
-   Password:  
-   ``` ${globals.password} ```
+   Password:    
+   ``` ${globals.password} ``` 
