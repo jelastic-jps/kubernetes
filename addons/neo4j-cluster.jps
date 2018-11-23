@@ -90,6 +90,7 @@ actions:
      yum install -y git nc
      git clone ${globals.neo4jrepo}
      while $(! nc -vz ${globals.cluster-dns} 53) ;do sleep 1s; done
+     sed -i '1s/^/nameserver 10.244.0.10\n /'  /etc/resolv.conf
      cd kubernetes-neo4j && kubectl apply -f cores && kubectl apply -f read-replicas
      kubectl apply -f ${baseUrl}/neo4j-ingress.yaml
      kubectl apply -f ${baseUrl}/neo4j-bolt.yaml
