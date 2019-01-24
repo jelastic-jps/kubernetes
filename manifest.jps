@@ -6,9 +6,7 @@ description:
   text: /text/description-kube.md
   short: Kubernetes Cluster (Beta)
 categories:
-  - apps/popular
   - apps/clusters
-  - apps/microservices
   - apps/dev-and-admin-tools
 
 logo: /images/k8s-logo.png
