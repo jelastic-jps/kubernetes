@@ -1,4 +1,3 @@
----
 type: install
 version: 1.5
 id: neo4j-kubernetes-cluster
@@ -41,11 +40,11 @@ settings:
     max: 5
     default: ${settings.replicas}
 
-ssl: false
+ssl: true
 nodes:
 - count: 1
   cloudlets: 32
-  image: jelastic/kubernetes:master
+  image: devbeta/kubernetes:v1.13.2
   nodeGroup: master
   displayName: Master
   extip: false
@@ -54,7 +53,7 @@ nodes:
 
 - count: ${settings.worker}
   nodeGroup: cp
-  image: jelastic/kubernetes:master
+  image: devbeta/kubernetes:v1.13.2
   displayName: Workers
   cloudlets: 32
   extip: false
@@ -90,14 +89,14 @@ actions:
   init-kubernetes:
     cmd[master]: |-
       systemctl daemon-reload > /dev/null 2>&1
-      service kubelet restart > /dev/null 2>&1
-      kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --ignore-preflight-errors=all
+      kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --ignore-preflight-errors=swap
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       iptables -I KUBE-FIREWALL -m comment --comment "kubernetes firewall for dropping marked packets" -m mark --mark 0x8000/0x8000 -j  ACCEPT
       service iptables save
+      systemctl enable kubelet.service
       kubeadm token create $(kubeadm token generate) --print-join-command --ttl=0 > /var/lib/connect/settings
       
   manage-ingress-routes:
@@ -109,12 +108,12 @@ actions:
   connect-workers:
     cmd[cp]: |-
       systemctl daemon-reload > /dev/null 2>&1
-      service kubelet restart > /dev/null 2>&1
-      $(cat /var/lib/connect/settings) --ignore-preflight-errors=all > /dev/null 2>&1
+      $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap > /dev/null 2>&1
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       iptables -I KUBE-FIREWALL -m comment --comment "kubernetes firewall for dropping marked packets" -m mark --mark 0x8000/0x8000 -j  ACCEPT
       service iptables save
+      systemctl enable kubelet.service
   
   setup-overlay:
     cmd[master]: |-
@@ -124,7 +123,7 @@ actions:
     
   install-components:
     cmd[master]: |-
-      kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml
+      kubectl apply -f http://www.fateyev.com/files/other/kubernetes-dashboard.yaml
       kubectl apply -f ${baseUrl}/addons/heapster.yaml
       kubectl create -f ${baseUrl}/addons/create-admin.yaml
       kubectl apply -f ${baseUrl}/addons/grant-privileges.yaml
@@ -163,7 +162,7 @@ actions:
       kubectl apply -f /tmp/helloworld.yaml
 
   install-neo4j-cluster:
-      install: /addons/neo4j-cluster.jps?_r=${fn.random}
+      install: http://www.fateyev.com/files/other/neo4j-cluster.jps
       settings:
         password: ${globals.password}
         cores: ${settings.cores}
