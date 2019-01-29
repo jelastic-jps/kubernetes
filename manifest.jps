@@ -123,7 +123,7 @@ actions:
     
   install-components:
     cmd[master]: |-
-      kubectl apply -f http://www.fateyev.com/files/other/kubernetes-dashboard.yaml
+      kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml
       kubectl apply -f ${baseUrl}/addons/heapster.yaml
       kubectl create -f ${baseUrl}/addons/create-admin.yaml
       kubectl apply -f ${baseUrl}/addons/grant-privileges.yaml
@@ -162,7 +162,7 @@ actions:
       kubectl apply -f /tmp/helloworld.yaml
 
   install-neo4j-cluster:
-      install: http://www.fateyev.com/files/other/neo4j-cluster.jps
+      install: /addons/neo4j-cluster.jps?_r=${fn.random}
       settings:
         password: ${globals.password}
         cores: ${settings.cores}
