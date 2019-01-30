@@ -29,8 +29,8 @@ settings:
     default: 2
   - type: checkbox
     name: storage
-    caption: Attach and activate Storage Node on Kubernetes Cluster
-    value: false
+    caption: Attach Storage Node and Activate Dynamic Volume Provisioning on Kubernetes Cluster
+    value: true
   - name: stack
     type: radio-fieldset
     values:
