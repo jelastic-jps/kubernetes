@@ -20,7 +20,7 @@ onInstall:
        
 actions:
   connect-storage:
-    cmd[master]: kubectl apply -f ${baseUrl}/persistent-storage.yaml
+    cmd[master]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume   
   
   mount:
     env.file.AddMountPointByGroup:
