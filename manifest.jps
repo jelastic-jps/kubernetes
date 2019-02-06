@@ -44,7 +44,7 @@ ssl: true
 nodes:
 - count: 1
   cloudlets: 32
-  image: devbeta/kubernetes:v1.13.2
+  image: devbeta/kubernetes:latest
   nodeGroup: master
   displayName: Master
   extip: false
@@ -53,7 +53,7 @@ nodes:
 
 - count: ${settings.worker}
   nodeGroup: cp
-  image: devbeta/kubernetes:v1.13.2
+  image: devbeta/kubernetes:latest
   displayName: Workers
   cloudlets: 32
   extip: false
