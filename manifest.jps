@@ -44,7 +44,7 @@ ssl: true
 nodes:
 - count: 1
   cloudlets: 32
-  image: devbeta/kubernetes:v1.13.2
+  image: jelastic/kubernetes:latest
   nodeGroup: master
   displayName: Master
   extip: false
@@ -53,7 +53,7 @@ nodes:
 
 - count: ${settings.worker}
   nodeGroup: cp
-  image: devbeta/kubernetes:v1.13.2
+  image: jelastic/kubernetes:latest
   displayName: Workers
   cloudlets: 32
   extip: false
@@ -94,7 +94,6 @@ actions:
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-      iptables -I KUBE-FIREWALL -m comment --comment "kubernetes firewall for dropping marked packets" -m mark --mark 0x8000/0x8000 -j  ACCEPT
       service iptables save
       systemctl enable kubelet.service
       kubeadm token create $(kubeadm token generate) --print-join-command --ttl=0 > /var/lib/connect/settings
@@ -111,7 +110,6 @@ actions:
       $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap > /dev/null 2>&1
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-      iptables -I KUBE-FIREWALL -m comment --comment "kubernetes firewall for dropping marked packets" -m mark --mark 0x8000/0x8000 -j  ACCEPT
       service iptables save
       systemctl enable kubelet.service
   
