@@ -126,6 +126,8 @@ items:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
+                - name: IPALLOC_RANGE
+                  value: 10.239.0.0/16
               image: 'jelastic/weave-kube'
               livenessProbe:
                 httpGet:
