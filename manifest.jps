@@ -31,20 +31,30 @@ settings:
     name: storage
     caption: Attach Storage Node and Activate Dynamic Volume Provisioning on Kubernetes Cluster
     value: true
-  - name: stack
+  - name: deploy
     type: radio-fieldset
     values:
-      clean: Clean Cluster
-      deploy: Deploy Stack YML
-    default: clean
+      1: Clean Cluster
+      2: Deploy Helm Chart
+      3: Deploy Stack YML
+    default: 1
     showIf:
-      deploy:
+      2:
+        name: cmd
+        type: text
+        caption: Command
+        required: true
+        default: |-
+          helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
+          helm install --name open-liberty --set service.type=LoadBalancer --set service.port=80 --set service.enabled=true --set resources.constraints.enabled=true --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
+      3:
         name: yml
         type: string
         caption: Stack YML URL
         default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-pod.yaml
         required: true
-        vtype: url
+        vtype: url    
+
 
 ssl: true
 nodes:
@@ -85,10 +95,11 @@ onInstall:
   - manage-ingress-routes
   - generate-admin-token
   - install-storage
-  - install-helloworld
+  - deploy
   
 onAfterScaleOut[cp]:
   forEach(event.response.nodes): connect-workers
+  
 actions:
   init-kubernetes:
     cmd[master]: |-
@@ -124,13 +135,11 @@ actions:
       chmod +x /usr/bin/weave
     
   install-components:
-    cmd[master]: |-
-      kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml
-      kubectl apply -f ${baseUrl}/addons/heapster.yaml
-      kubectl create -f ${baseUrl}/addons/create-admin.yaml
-      kubectl apply -f ${baseUrl}/addons/grant-privileges.yaml
-    if ('${settings.deploy}':
-      cmd[master]: kubectl apply -f ${settings.yml}
+    - cmd[master]: |-
+        kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml
+        kubectl apply -f ${baseUrl}/addons/heapster.yaml
+        kubectl create -f ${baseUrl}/addons/create-admin.yaml
+        kubectl apply -f ${baseUrl}/addons/grant-privileges.yaml
 
   install-helm:
     cmd[master]: |-
@@ -157,11 +166,16 @@ actions:
     - setGlobals:
         token: ${response.out}
 
-  install-helloworld:
-    cmd[master]: |-
-      wget ${baseUrl}/addons/helloworld.yaml -O /tmp/helloworld.yaml
-      sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/helloworld.yaml
-      kubectl apply -f /tmp/helloworld.yaml
+  deploy:
+    - if ('${settings.deploy}' == '1'): 
+        cmd[master]: |-
+          wget ${baseUrl}/addons/helloworld.yaml -O /tmp/helloworld.yaml
+          sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/helloworld.yaml
+          kubectl apply -f /tmp/helloworld.yaml
+    - if ('${settings.deploy}' == '2'): 
+        cmd[${nodes.master.master.id}]: ${settings.cmd}
+    - if ('${settings.deploy}' == '3'):
+        cmd[master]: kubectl apply -f ${settings.yml}
 
   install-storage:
     if ('${settings.storage}' == 'true'):
