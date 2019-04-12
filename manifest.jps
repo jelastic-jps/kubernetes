@@ -42,6 +42,7 @@ settings:
       cmd:
         name: cmd
         type: text
+        height: 100
         caption: Command
         required: true
         default: |-
