@@ -9,12 +9,12 @@ metadata:
     traefik.frontend.rule.type: PathPrefixStrip
 spec:
   rules:
-  - host: "*.demo.jelastic.com"
+  - host: "$DOMAIN"
     http: &http_rules
       paths:
       - path: /kubernetes-dashboard
         backend:
           serviceName: kubernetes-dashboard
           servicePort: 443
-  - host: "*.vip.jelastic.cloud"
+  - host: "$DOMAIN"
     http: *http_rules
