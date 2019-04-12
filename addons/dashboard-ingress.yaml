@@ -16,5 +16,3 @@ spec:
         backend:
           serviceName: kubernetes-dashboard
           servicePort: 443
-  - host: "$DOMAIN"
-    http: *http_rules
