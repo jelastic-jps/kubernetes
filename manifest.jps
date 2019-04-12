@@ -34,12 +34,12 @@ settings:
   - name: deploy
     type: radio-fieldset
     values:
-      1: Clean Cluster
-      2: Deploy Helm Chart
-      3: Deploy Stack YML
-    default: 1
+      cc: Clean Cluster
+      cmd: Deploy Helm Chart
+      yml: Deploy Stack YML
+    default: cc
     showIf:
-      2:
+      cmd:
         name: cmd
         type: text
         caption: Command
@@ -49,7 +49,7 @@ settings:
           helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
           kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/openliberty.yaml 
           
-      3:
+      yml:
         name: yml
         type: string
         caption: Stack YML URL
@@ -169,14 +169,14 @@ actions:
         token: ${response.out}
 
   deploy:
-    - if ('${settings.deploy}' == '1'): 
+    - if ('${settings.deploy}' == 'cc'): 
         cmd[master]: |-
           wget ${baseUrl}/addons/helloworld.yaml -O /tmp/helloworld.yaml
           sed -i 's/$DOMAIN/${env.domain}/g' /tmp/helloworld.yaml
           kubectl apply -f /tmp/helloworld.yaml
-    - if ('${settings.deploy}' == '2'): 
+    - if ('${settings.deploy}' == 'cmd'): 
         cmd[${nodes.master.master.id}]: ${settings.cmd}
-    - if ('${settings.deploy}' == '3'):
+    - if ('${settings.deploy}' == 'yml'):
         cmd[master]: kubectl apply -f ${settings.yml}
 
   install-storage:
