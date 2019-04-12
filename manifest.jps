@@ -49,7 +49,7 @@ settings:
           helm install --name open-liberty --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
           name=$(kubectl get deployments | grep open-liberty | awk '{ print $1 }')          
           wget https://raw.githubusercontent.com/jelastic-jps/openliberty/master/kubernetes.yaml -O /tmp/kubernetes.yaml
-          sed -i "s/DEPLOYMENT/${name}/g" /tmp/kubernetes.yaml
+          sed -i "s/DEPLOYMENT/$name/g" /tmp/kubernetes.yaml
           sed -i 's/$DOMAIN/${env.domain}/g' /tmp/kubernetes.yaml
           kubectl apply -f /tmp/kubernetes.yaml
           
