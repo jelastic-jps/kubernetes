@@ -36,11 +36,9 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-  - host: "*.demo.jelastic.com"
+  - host: "$DOMAIN"
     http: &http_rules
       paths:
       - backend:
           serviceName: hello-kubernetes
           servicePort: 80
-  - host: "*.vip.jelastic.cloud"
-    http: *http_rules
