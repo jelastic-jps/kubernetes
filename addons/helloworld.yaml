@@ -42,5 +42,3 @@ spec:
       - backend:
           serviceName: hello-kubernetes
           servicePort: 80
-  - host: "$DOMAIN"
-    http: *http_rules
