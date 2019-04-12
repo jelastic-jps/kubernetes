@@ -1,0 +1,30 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: liberty-service
+spec:
+  selector:
+    app: default-ibm-open-liberty
+  ports:
+  - protocol: TCP
+    port: 443
+    targetPort: 9443
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: open-liberty
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    ingress.kubernetes.io/secure-backends: "true"
+spec:
+  rules:
+   - http:
+      paths:
+      - backend:
+          serviceName: liberty-service
+          servicePort: 443
+  

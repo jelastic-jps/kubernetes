@@ -47,7 +47,7 @@ settings:
         default: |-
           helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
           helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
-          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/openliberty/master/kubernetes.yaml 
+          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/openliberty.yaml 
           
       3:
         name: yml
