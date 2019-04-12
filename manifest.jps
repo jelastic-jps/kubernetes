@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master
+baseUrl: https://raw.githubusercontent.com/sych74/kubernetes/master
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster
@@ -46,7 +46,13 @@ settings:
         required: true
         default: |-
           helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
-          helm install --name open-liberty --set service.type=LoadBalancer --set service.port=80 --set service.enabled=true --set resources.constraints.enabled=true --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
+          helm install --name open-liberty --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
+          name=$(kubectl get deployments | grep open-liberty | awk '{ print $1 }')          
+          wget https://raw.githubusercontent.com/jelastic-jps/openliberty/master/kubernetes.yaml -O /tmp/kubernetes.yaml
+          sed -i "s/DEPLOYMENT/${name}/g" /tmp/kubernetes.yaml
+          sed -i 's/$DOMAIN/${env.domain}/g' /tmp/kubernetes.yaml
+          kubectl apply -f /tmp/kubernetes.yaml
+          
       3:
         name: yml
         type: string
@@ -116,7 +122,7 @@ actions:
   manage-ingress-routes:
     cmd[master]: |-
       wget ${baseUrl}/addons/dashboard-ingress.yaml -O /tmp/dashboard-ingress.yaml
-      sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/dashboard-ingress.yaml
+      sed -i 's/$DOMAIN/${env.domain}/g' /tmp/dashboard-ingress.yaml
       kubectl apply -f /tmp/dashboard-ingress.yaml
 
   connect-workers:
@@ -170,7 +176,7 @@ actions:
     - if ('${settings.deploy}' == '1'): 
         cmd[master]: |-
           wget ${baseUrl}/addons/helloworld.yaml -O /tmp/helloworld.yaml
-          sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/helloworld.yaml
+          sed -i 's/$DOMAIN/${env.domain}/g' /tmp/helloworld.yaml
           kubectl apply -f /tmp/helloworld.yaml
     - if ('${settings.deploy}' == '2'): 
         cmd[${nodes.master.master.id}]: ${settings.cmd}
