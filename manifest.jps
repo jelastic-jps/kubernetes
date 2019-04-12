@@ -53,7 +53,7 @@ settings:
         name: yml
         type: string
         caption: Stack YML URL
-        default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-pod.yaml
+        default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-example.yaml
         required: true
         vtype: url    
 
