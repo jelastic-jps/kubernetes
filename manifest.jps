@@ -1,36 +1,52 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/k8s-mmaster
 description:
   text: /text/description-kube.md
-  short: Kubernetes Cluster
+  short: Kubernetes Multi-Master HA Cluster
 categories:
   - apps/clusters
   - apps/dev-and-admin-tools
 
 logo: /images/k8s-logo.png
-name: Kubernetes Cluster
+name: Kubernetes Multi-Master Cluster
 targetRegions:
   type: vz7
-  
-onBeforeInit: |  
+
+onBeforeInit: |
   var resp = jelastic.billing.account.GetQuotas(appid, session, 'environment.jelasticssl.enabled');
   if (resp.result != 0 ) return resp;  
   return  { result: 0, ssl: !!resp.array[0].value };
-  
+
 settings:
   fields:
   - type: spinner
+    name: k8sm
+    caption: Master
+    min: 3
+    max: 6
+    default: 3
+
+  - type: spinner
+    name: mbl
+    caption: Balancer
+    min: 1
+    max: 4
+    default: 1
+
+  - type: spinner
     name: worker
     caption: Worker
-    min: 1
+    min: 3
     max: 10
-    default: 2
+    default: 3
+
   - type: checkbox
     name: storage
     caption: Attach Storage Node and Activate Dynamic Volume Provisioning on Kubernetes Cluster
     value: true
+
   - name: deploy
     type: radio-fieldset
     values:
@@ -48,27 +64,42 @@ settings:
         default: |-
           helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
           helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
-          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/openliberty.yaml 
-          
+          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/openliberty.yaml
+
       yml:
         name: yml
         type: string
         caption: Stack YML URL
         default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-example.yaml
         required: true
-        vtype: url    
-
+        vtype: url
 
 ssl: true
 nodes:
-- count: 1
+- count: ${settings.mbl}
+  cloudlets: 8
+  nodeType: haproxy
+  nodeGroup: mbl
+  displayName: Master Balancer
+  extip: false
+  env:
+    JELASTIC_PORTS: '6443'
+
+- count: ${settings.k8sm}
   cloudlets: 32
   image: jelastic/kubernetes:latest
-  nodeGroup: master
+  nodeGroup: k8sm
   displayName: Master
   extip: false
   env:
     JELASTIC_EXPOSE: false
+  volumes:
+  - /var/lib/connect
+  volumeMounts:
+    /var/lib/connect:
+      readOnly: true
+      sourcePath: /var/lib/connect
+      sourceNodeGroup: k8sm
 
 - count: ${settings.worker}
   nodeGroup: cp
@@ -84,12 +115,22 @@ nodes:
     /var/lib/connect:
       readOnly: true
       sourcePath: /var/lib/connect
-      sourceNodeGroup: master
+      sourceNodeGroup: k8sm
 
 skipNodeEmails: true
-  
+
 onInstall:
-  - init-kubernetes
+  - init-masters:
+      id: ${nodes.k8sm.master.id}
+      ip: ${nodes.k8sm.master.intIP}
+      master: true
+  - forEach(node:nodes.k8sm):
+      if (!${@node.ismaster}):
+        init-masters:
+          id: ${@node.id}
+          ip: ${@node.intIP}
+          master: false
+
   - connect-workers
   - setup-overlay
   - install-components
@@ -100,24 +141,46 @@ onInstall:
   - install-storage
   - deploy
   
+onAfterScaleOut[k8sm]:
+  forEach(event.response.nodes): init-masters
+
 onAfterScaleOut[cp]:
   forEach(event.response.nodes): connect-workers
-  
+
 actions:
-  init-kubernetes:
-    cmd[master]: |-
-      systemctl daemon-reload > /dev/null 2>&1
-      kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --ignore-preflight-errors=swap
-      mkdir -p $HOME/.kube
-      cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-      chown root:root $HOME/.kube/config
-      iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-      service iptables save
-      systemctl enable kubelet.service
-      kubeadm token create $(kubeadm token generate) --print-join-command --ttl=0 > /var/lib/connect/settings
-      
+  init-masters:
+    - cmd[${this.id}]: |-
+        systemctl daemon-reload > /dev/null 2>&1
+
+    - if (${this.master}):
+        - cmd [mbl]: |-
+            sed -i '/^<\/mappings>.*/i \\t<pair frontend_port="6443" backend_port="6443" description="CPlane balancing" option="tcp-check" params="check fall 3 rise 2">' /etc/haproxy/tcpmaps/mappings.xml
+            echo '${this.ip}' > /etc/haproxy/hosts
+            jem balancer rebuildCommon
+          user: root
+        - cmd [${this.id}]: |-
+            sed -i '/^kubernetesVersion:.*/a controlPlaneEndpoint: "mbl.${env.domain}:6443"' /etc/kubernetes/custom-kubeadm.yaml
+            kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --experimental-upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
+            sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'experimental-control-plane' > /var/lib/connect/settings-master
+            sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'experimental-control-plane' > /var/lib/connect/settings
+    - if (!${this.master}):
+        - cmd [${this.id}]: |-
+            $(cat /var/lib/connect/settings-master) --ignore-preflight-errors=swap > /dev/null 2>&1
+        - cmd [mbl]: |-
+            echo '${this.ip}' >> /etc/haproxy/hosts
+            jem balancer rebuildCommon
+          user: root
+
+    - cmd[${this.id}]: |-
+        mkdir -p $HOME/.kube
+        cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        chown root:root $HOME/.kube/config
+        iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        service iptables save
+        systemctl enable kubelet.service
+
   manage-ingress-routes:
-    cmd[master]: |-
+    cmd[${nodes.k8sm.master.id}]: |-
       wget ${baseUrl}/addons/dashboard-ingress.yaml -O /tmp/dashboard-ingress.yaml
       sed -i 's/$DOMAIN/${env.domain}/g' /tmp/dashboard-ingress.yaml
       kubectl apply -f /tmp/dashboard-ingress.yaml
@@ -130,31 +193,31 @@ actions:
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
       systemctl enable kubelet.service
-  
+
   setup-overlay:
-    cmd[master]: |-
+    cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/weave-pack.yaml 
       wget https://github.com/weaveworks/weave/releases/download/v2.4.0/weave -O /usr/bin/weave
       chmod +x /usr/bin/weave
-    
+
   install-components:
-    - cmd[master]: |-
+    - cmd[${nodes.k8sm.master.id}]: |-
         kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml
         kubectl apply -f ${baseUrl}/addons/heapster.yaml
         kubectl create -f ${baseUrl}/addons/create-admin.yaml
         kubectl apply -f ${baseUrl}/addons/grant-privileges.yaml
 
   install-helm:
-    cmd[master]: |-
+    cmd[${nodes.k8sm.master.id}]: |-
       curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
       helm init
       helm update
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
       kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
-  
+
   install-traefik:
-     cmd[master]: |-
+     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/traefik-rbac.yaml
       kubectl apply -f ${baseUrl}/addons/traefik-ds.yaml
       kubectl apply -f ${baseUrl}/addons/traefik-ui.yaml
@@ -162,29 +225,29 @@ actions:
       kubectl -n kube-system create secret tls traefik-ui-tls-cert --key=tls.key --cert=tls.crt
 
   generate-admin-token:
-    - cmd[master]: kubectl describe svc kubernetes-dashboard -n kube-system  | grep "NodePort:" | grep -o -E "[0-9]*"      
+    - cmd[${nodes.k8sm.master.id}]: kubectl describe svc kubernetes-dashboard -n kube-system  | grep "NodePort:" | grep -o -E "[0-9]*"
     - setGlobals:
         port: ${response.out}
-    - cmd[master]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
+    - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
     - setGlobals:
         token: ${response.out}
 
   deploy:
-    - if ('${settings.deploy}' == 'cc'): 
-        cmd[master]: |-
+    - if ('${settings.deploy}' == 'cc'):
+        cmd[${nodes.k8sm.master.id}]: |-
           wget ${baseUrl}/addons/helloworld.yaml -O /tmp/helloworld.yaml
           sed -i 's/$DOMAIN/${env.domain}/g' /tmp/helloworld.yaml
           kubectl apply -f /tmp/helloworld.yaml
-    - if ('${settings.deploy}' == 'cmd'): 
-        cmd[${nodes.master.master.id}]: ${settings.cmd}
+    - if ('${settings.deploy}' == 'cmd'):
+        cmd[${nodes.k8sm.master.id}]: ${settings.cmd}
     - if ('${settings.deploy}' == 'yml'):
-        cmd[master]: kubectl apply -f ${settings.yml}
+        cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
   install-storage:
     if ('${settings.storage}' == 'true'):
       install: /addons/storage.jps?_r=${fn.random}
-        
+
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
-   
+
    ```${globals.token}```
