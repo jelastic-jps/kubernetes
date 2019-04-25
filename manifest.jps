@@ -64,13 +64,13 @@ settings:
         default: |-
           helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
           helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
-          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/openliberty.yaml
+          kubectl apply -f ${baseUrl}/addons/openliberty.yaml
 
       yml:
         name: yml
         type: string
         caption: Stack YML URL
-        default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-example.yaml
+        default: ${baseUrl}/addons/nginx-example.yaml
         required: true
         vtype: url
 
