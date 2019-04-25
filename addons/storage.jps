@@ -15,13 +15,13 @@ onInstall:
         metadata:
           layer: storage
     - mount: cp
-    - mount: master
+    - mount: k8sm
     - connect-storage
-       
+
 actions:
   connect-storage:
-    cmd[master]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume   
-  
+    cmd[${nodes.k8sm.master.id}]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume   
+
   mount:
     env.file.AddMountPointByGroup:
       nodeGroup: ${this}
@@ -30,4 +30,4 @@ actions:
       path: /data
       sourcePath: /data
       name: Shared Storage
-      readOnly: false    
+      readOnly: false
