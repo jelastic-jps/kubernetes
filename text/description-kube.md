@@ -1,1 +1,2 @@
 Easily containerize and migrate existing projects, run hyper scalable microservices and keep them resilient to failures, get extra savings due to efficient resource usage, implement CI/CD automation and develop applications at a higher speed.
+Multi-master configuration with multiple load balancers provides robust high availability for Kubernetes cluster.
