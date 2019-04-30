@@ -172,9 +172,7 @@ actions:
   deploy:
     - if ('${settings.deploy}' == 'cc'): 
         cmd[master]: |-
-          wget ${baseUrl}/addons/helloworld.yaml -O /tmp/helloworld.yaml
-          sed -i 's/$DOMAIN/${env.domain}/g' /tmp/helloworld.yaml
-          kubectl apply -f /tmp/helloworld.yaml
+          kubectl apply -f ${baseUrl}/addons/helloworld.yaml
     - if ('${settings.deploy}' == 'cmd'): 
         cmd[${nodes.master.master.id}]: ${settings.cmd}
     - if ('${settings.deploy}' == 'yml'):

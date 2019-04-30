@@ -36,8 +36,7 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-  - host: "$DOMAIN"
-    http: &http_rules
+  - http: &http_rules
       paths:
       - backend:
           serviceName: hello-kubernetes
