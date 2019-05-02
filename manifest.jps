@@ -202,14 +202,14 @@ actions:
 
   install-components:
     - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl create -f ${baseUrl}/addons/metrics-server/aggregated-metrics-reader.yaml
+        kubectl create -f ${baseUrl}/addons/metrics-server/auth-delegator.yaml
+        kubectl create -f ${baseUrl}/addons/metrics-server/auth-reader.yaml
+        kubectl create -f ${baseUrl}/addons/metrics-server/metrics-apiservice.yaml
+        kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-deployment.yaml
+        kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-service.yaml
+        kubectl create -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/aggregated-metrics-reader.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/auth-delegator.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/auth-reader.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/metrics-apiservice.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/metrics-server-deployment.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/metrics-server-service.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         kubectl create -f ${baseUrl}/addons/create-admin.yaml
         kubectl apply -f ${baseUrl}/addons/grant-privileges.yaml
 
