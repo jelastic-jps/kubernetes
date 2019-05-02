@@ -4,7 +4,7 @@ id: kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master
 description:
   text: /text/description-kube.md
-  short: Kubernetes Cluster
+  short: Elastic Kubernetes Cluster (EKC)
 categories:
   - apps/clusters
   - apps/dev-and-admin-tools
