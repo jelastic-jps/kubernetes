@@ -182,9 +182,7 @@ actions:
 
   manage-ingress-routes:
     cmd[${nodes.k8sm.master.id}]: |-
-      wget ${baseUrl}/addons/dashboard-ingress.yaml -O /tmp/dashboard-ingress.yaml
-      sed -i 's/$DOMAIN/${env.domain}/g' /tmp/dashboard-ingress.yaml
-      kubectl apply -f /tmp/dashboard-ingress.yaml
+      kubectl apply -f ${baseUrl}/addons/dashboard-ingress.yaml 
 
   connect-workers:
     cmd[cp]: |-
