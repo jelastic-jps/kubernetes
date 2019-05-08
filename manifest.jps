@@ -4,13 +4,13 @@ id: kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/k8s-mmaster
 description:
   text: /text/description-kube.md
-  short: Kubernetes Multi-Master HA Cluster
+  short: Jelastic Kubernetes as a Service (KaaS)
 categories:
   - apps/clusters
   - apps/dev-and-admin-tools
 
 logo: /images/k8s-logo.png
-name: Kubernetes Multi-Master Cluster
+name: Kubernetes Cluster
 targetRegions:
   type: vz7
 
@@ -18,23 +18,33 @@ onBeforeInit: |
   var resp = jelastic.billing.account.GetQuotas(appid, session, 'environment.jelasticssl.enabled');
   if (resp.result != 0 ) return resp;
   return  { result: 0, ssl: !!resp.array[0].value };
+  
 
 settings:
   fields:
-  - type: spinner
-    name: k8sm
-    caption: Master
-    increment: 2
-    min: 1
-    max: 9
-    default: 3
+  - name: mode
+    type: radio-fieldset
+    values:
+      0singlemaster: Single Master (reccomended for staging)
+      1multimaster:  Multi Master (reccomended for production)
+    default: 0singlemaster
+    showIf:
+       1multimaster:   
+        - type: spinner
+          name: k8sm
+          caption: Master
+          increment: 2
+          min: 1
+          max: 9
+          default: 3
 
-  - type: spinner
-    name: mbl
-    caption: API Balancers
-    min: 1
-    max: 3
-    default: 1
+        - type: spinner
+          name: mbl
+          caption: API Balancers
+          min: 1
+          max: 3
+          default: 1
+          
 
   - type: spinner
     name: worker
@@ -77,7 +87,7 @@ settings:
 
 ssl: true
 nodes:
-- count: ${settings.k8sm}
+- count: ${settings.k8sm:1}
   cloudlets: 32
   image: jelastic/kubernetes:latest
   nodeGroup: k8sm
@@ -112,6 +122,8 @@ nodes:
 skipNodeEmails: true
 
 onInstall:
+  - setGlobals:
+        apiEndpoint: k8sm.${env.domain}:6443
   - init-balancers: ${settings.mbl}
   - init-masters:
       id: ${nodes.k8sm.master.id}
@@ -143,35 +155,39 @@ onAfterScaleOut[cp]:
 
 actions:
   init-balancers:
-    desiredBalancerCount: ${this:0}
-    currentBalancerCount: ${nodes.mbl.length:0}
-    masterCount: ${nodes.k8sm.length:0}
-    script: |
-      var nodes = [],
-          onAfterReturn = {};
-
-      if (!currentBalancerCount) {
-        if (!desiredBalancerCount && masterCount > 1) desiredBalancerCount = 1;
-
-        for (var i = 0; i < desiredBalancerCount; i++) {
-          nodes.push({
-             nodeType: "haproxy",
-             fixedCloudlets: 1,
-             flexibleCloudlets: 8,
-             displayName: "Master Balancer",
-             nodeGroup: "mbl",
-             metadata: {
-                dockerEnvVars: {
-                  JELASTIC_PORTS: '6443'
-                }
-             }
-          });
-        }
-
-        if (nodes.length > 0) onAfterReturn["env.control.AddNode"] = nodes;
-      }
-
-      return { result: 0, onAfterReturn: onAfterReturn };
+  - if ('${settings.mode}' == '0singlemaster' ):
+    - setGlobals:
+        apiEndpoint: k8sm.${env.domain}:6443
+        script: |
+          return { result: 0, onAfterReturn: onAfterReturn };
+          
+  - if ('${settings.mode}' == '1multimaster' ):         
+    - desiredBalancerCount: ${this:0}
+      currentBalancerCount: ${nodes.mbl.length:0}
+      masterCount: ${nodes.k8sm.length:0}
+      script: |
+            var nodes = [],
+                onAfterReturn = {};    
+            if (!currentBalancerCount) {
+              if (!desiredBalancerCount && masterCount > 1) desiredBalancerCount = 1;  
+              for (var i = 0; i < desiredBalancerCount; i++) {
+                nodes.push({
+                   nodeType: "haproxy",
+                   fixedCloudlets: 1,
+                   flexibleCloudlets: 8,
+                   displayName: "Master Balancer",
+                   nodeGroup: "mbl",
+                   metadata: {
+                      dockerEnvVars: {
+                        JELASTIC_PORTS: '6443'
+                      }
+                   }
+                });
+              } 
+              if (nodes.length > 0) onAfterReturn["env.control.AddNode"] = nodes;
+            } 
+            return { result: 0, onAfterReturn: onAfterReturn };
+    
 
   init-masters:
     - cmd[${this.id}]: |-
@@ -184,7 +200,7 @@ actions:
             jem balancer rebuildCommon
           user: root
         - cmd [${this.id}]: |-
-            sed -i 's/^controlPlaneEndpoint:.*/controlPlaneEndpoint: "mbl.${env.domain}:6443"/g' /etc/kubernetes/custom-kubeadm.yaml
+            sed -i 's/^controlPlaneEndpoint:.*/controlPlaneEndpoint: "${globals.apiEndpoint}"/g' /etc/kubernetes/custom-kubeadm.yaml
             kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --experimental-upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
             sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'experimental-control-plane' > /var/lib/connect/settings-master
             sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'experimental-control-plane' > /var/lib/connect/settings
@@ -232,9 +248,9 @@ actions:
         kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-deployment.yaml
         kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-service.yaml
         kubectl create -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
-        kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml
+        kubectl create -f ${baseUrl}/addons/kubernetes-dashboard.yaml
         kubectl create -f ${baseUrl}/addons/create-admin.yaml
-        kubectl apply -f ${baseUrl}/addons/grant-privileges.yaml
+        kubectl create -f ${baseUrl}/addons/grant-privileges.yaml
 
   install-helm:
     cmd[${nodes.k8sm.master.id}]: |-
