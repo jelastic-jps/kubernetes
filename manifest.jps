@@ -122,8 +122,6 @@ nodes:
 skipNodeEmails: true
 
 onInstall:
-  - setGlobals:
-        apiEndpoint: k8sm.${env.domain}:6443
   - init-balancers: ${settings.mbl}
   - init-masters:
       id: ${nodes.k8sm.master.id}
@@ -161,7 +159,9 @@ actions:
         script: |
           return { result: 0, onAfterReturn: onAfterReturn };
           
-  - if ('${settings.mode}' == '1multimaster' ):         
+  - if ('${settings.mode}' == '1multimaster' ):     
+    - setGlobals:
+        apiEndpoint: mbl.${env.domain}:6443
     - desiredBalancerCount: ${this:0}
       currentBalancerCount: ${nodes.mbl.length:0}
       masterCount: ${nodes.k8sm.length:0}
