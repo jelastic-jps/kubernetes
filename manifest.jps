@@ -31,9 +31,9 @@ settings:
 
   - type: spinner
     name: mbl
-    caption: Balancer
+    caption: API Balancers
     min: 1
-    max: 4
+    max: 3
     default: 1
 
   - type: spinner
