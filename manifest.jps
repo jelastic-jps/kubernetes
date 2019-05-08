@@ -16,7 +16,7 @@ targetRegions:
 
 onBeforeInit: |
   var resp = jelastic.billing.account.GetQuotas(appid, session, 'environment.jelasticssl.enabled');
-  if (resp.result != 0 ) return resp;  
+  if (resp.result != 0 ) return resp;
   return  { result: 0, ssl: !!resp.array[0].value };
 
 settings:
@@ -77,15 +77,6 @@ settings:
 
 ssl: true
 nodes:
-- count: ${settings.mbl}
-  cloudlets: 8
-  nodeType: haproxy
-  nodeGroup: mbl
-  displayName: Master Balancer
-  extip: false
-  env:
-    JELASTIC_PORTS: '6443'
-
 - count: ${settings.k8sm}
   cloudlets: 32
   image: jelastic/kubernetes:latest
@@ -121,6 +112,7 @@ nodes:
 skipNodeEmails: true
 
 onInstall:
+  - init-balancers: ${settings.mbl}
   - init-masters:
       id: ${nodes.k8sm.master.id}
       ip: ${nodes.k8sm.master.intIP}
@@ -143,12 +135,44 @@ onInstall:
   - deploy
 
 onAfterScaleOut[k8sm]:
-  forEach(event.response.nodes): init-masters
+  - init-balancers
+  - forEach(event.response.nodes): init-masters
 
 onAfterScaleOut[cp]:
   forEach(event.response.nodes): connect-workers
 
 actions:
+  init-balancers:
+    desiredBalancerCount: ${this:0}
+    currentBalancerCount: ${nodes.mbl.length:0}
+    masterCount: ${nodes.k8sm.length:0}
+    script: |
+      var nodes = [],
+          onAfterReturn = {};
+
+      if (!currentBalancerCount) {
+        if (!desiredBalancerCount && masterCount > 1) desiredBalancerCount = 1;
+
+        for (var i = 0; i < desiredBalancerCount; i++) {
+          nodes.push({
+             nodeType: "haproxy",
+             fixedCloudlets: 1,
+             flexibleCloudlets: 8,
+             displayName: "Master Balancer",
+             nodeGroup: "mbl",
+             metadata: {
+                dockerEnvVars: {
+                  JELASTIC_PORTS: '6443'
+                }
+             }
+          });
+        }
+
+        if (nodes.length > 0) onAfterReturn["env.control.AddNode"] = nodes;
+      }
+
+      return { result: 0, onAfterReturn: onAfterReturn };
+
   init-masters:
     - cmd[${this.id}]: |-
         systemctl daemon-reload > /dev/null 2>&1
@@ -182,7 +206,7 @@ actions:
 
   manage-ingress-routes:
     cmd[${nodes.k8sm.master.id}]: |-
-      kubectl apply -f ${baseUrl}/addons/dashboard-ingress.yaml 
+      kubectl apply -f ${baseUrl}/addons/dashboard-ingress.yaml
 
   connect-workers:
     cmd[cp]: |-
@@ -195,7 +219,7 @@ actions:
 
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
-      kubectl apply -f ${baseUrl}/addons/weave-pack.yaml 
+      kubectl apply -f ${baseUrl}/addons/weave-pack.yaml
       wget https://github.com/weaveworks/weave/releases/download/v2.4.0/weave -O /usr/bin/weave
       chmod +x /usr/bin/weave
 
