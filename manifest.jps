@@ -81,7 +81,7 @@ settings:
         name: yml
         type: string
         caption: Stack YML URL
-        default: ${baseUrl}/addons/nginx-example.yaml
+        default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-example.yaml
         required: true
         vtype: url
 
