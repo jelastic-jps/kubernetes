@@ -264,7 +264,7 @@ actions:
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
   install-storage:
-    if ('${settings.storage}' == 'true'):
+    if (${settings.storage:false}):
       install: /addons/storage.jps?_r=${fn.random}
 
 success: |
