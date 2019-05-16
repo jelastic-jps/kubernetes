@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/k8s-mmaster
+baseUrl: https://raw.githubusercontent.com/sych74/kubernetes/k8s-mmaster
 description:
   text: /text/description-kube.md
   short: Jelastic Kubernetes as a Service (KaaS)
@@ -14,76 +14,63 @@ name: Kubernetes Cluster
 targetRegions:
   type: vz7
 
-onBeforeInit: |
-  var resp = jelastic.billing.account.GetQuotas(appid, session, 'environment.jelasticssl.enabled');
-  if (resp.result != 0 ) return resp;
-  return  { result: 0, ssl: !!resp.array[0].value };
-  
+onBeforeInit: return {result:0, ssl:!!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value}
 
 settings:
   fields:
-  - name: mode
-    type: radio-fieldset
-    values:
-      0singlemaster: Single Master (recommended for staging)
-      1multimaster:  Multi Master (recommended for production)
-    default: 0singlemaster
-    showIf:
-       1multimaster:   
-        - type: spinner
-          name: k8sm
-          caption: Master Nodes
-          increment: 2
-          min: 1
-          max: 9
-          default: 3
+    - type: spinner
+      name: mbl
+      caption: API Balancer
+      min: 0
+      max: 3
+      default: 0
 
-        - type: spinner
-          name: mbl
-          caption: API Balancers
-          min: 1
-          max: 3
-          default: 1
-          
+    - type: spinner
+      name: k8sm
+      caption: Master
+      increment: 2
+      min: 1
+      max: 9
+      default: 1
 
-  - type: spinner
-    name: worker
-    caption: Worker
-    min: 3
-    max: 10
-    default: 3
+    - type: spinner
+      name: worker
+      caption: Worker
+      min: 2
+      max: 10
+      default: 2
 
-  - type: checkbox
-    name: storage
-    caption: Attach Storage Node and Activate Dynamic Volume Provisioning on Kubernetes Cluster
-    value: true
+    - type: checkbox
+      name: storage
+      caption: Attach Storage Node and Activate Dynamic Volume Provisioning on Kubernetes Cluster
+      value: true
 
-  - name: deploy
-    type: radio-fieldset
-    values:
-      cc: Clean Cluster
-      cmd: Deploy Helm Chart
-      yml: Deploy Stack YML
-    default: cc
-    showIf:
-      cmd:
-        name: cmd
-        type: text
-        height: 100
-        caption: Command
-        required: true
-        default: |-
-          helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
-          helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
-          kubectl apply -f ${baseUrl}/addons/openliberty.yaml
+    - name: deploy
+      type: radio-fieldset
+      values:
+        cc: Clean Cluster
+        cmd: Deploy Helm Chart
+        yml: Deploy Stack YML
+      default: cc
+      showIf:
+        cmd:
+          name: cmd
+          type: text
+          height: 100
+          caption: Command
+          required: true
+          default: |-
+            helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
+            helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
+            kubectl apply -f ${baseUrl}/addons/openliberty.yaml
 
-      yml:
-        name: yml
-        type: string
-        caption: Stack YML URL
-        default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-example.yaml
-        required: true
-        vtype: url
+        yml:
+          name: yml
+          type: string
+          caption: Stack YML URL
+          default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-example.yaml
+          required: true
+          vtype: url
 
 ssl: true
 nodes:
@@ -152,14 +139,7 @@ onAfterScaleOut[cp]:
   forEach(event.response.nodes): connect-workers
 
 actions:
-  init-balancers:
-  - if ('${settings.mode}' == '0singlemaster' ):
-    - setGlobals:
-        apiEndpoint: k8sm.${env.domain}:6443
-        script: |
-          return { result: 0, onAfterReturn: onAfterReturn };
-          
-  - if ('${settings.mode}' == '1multimaster' ):     
+  init-balancers:          
     - setGlobals:
         apiEndpoint: mbl.${env.domain}:6443
     - desiredBalancerCount: ${this:0}
@@ -187,25 +167,25 @@ actions:
               if (nodes.length > 0) onAfterReturn["env.control.AddNode"] = nodes;
             } 
             return { result: 0, onAfterReturn: onAfterReturn };
-    
+
 
   init-masters:
     - cmd[${this.id}]: |-
         systemctl daemon-reload > /dev/null 2>&1
 
     - if (${this.master}):
-        - cmd [mbl]: |-
+        - cmd[mbl]: |-
             sed -i '/^<\/mappings>.*/i \\t<pair frontend_port="6443" backend_port="6443" description="CPlane balancing" option="tcp-check" params="check fall 3 rise 2">' /etc/haproxy/tcpmaps/mappings.xml
             echo '${this.ip}' > /etc/haproxy/hosts
             jem balancer rebuildCommon
           user: root
-        - cmd [${this.id}]: |-
-            sed -i 's/^controlPlaneEndpoint:.*/controlPlaneEndpoint: "${globals.apiEndpoint}"/g' /etc/kubernetes/custom-kubeadm.yaml
+        - cmd[${this.id}]: |-
+            sed -i 's/^controlPlaneEndpoint:.*/controlPlaneEndpoint: "mbl.${env.domain}:6443"/g' /etc/kubernetes/custom-kubeadm.yaml
             kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --experimental-upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
             sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'experimental-control-plane' > /var/lib/connect/settings-master
             sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'experimental-control-plane' > /var/lib/connect/settings
     - if (!${this.master}):
-        - cmd [${this.id}]: |-
+        - cmd[${this.id}]: |-
             $(cat /var/lib/connect/settings-master) --ignore-preflight-errors=swap > /dev/null 2>&1
         - cmd [mbl]: |-
             echo '${this.ip}' >> /etc/haproxy/hosts
