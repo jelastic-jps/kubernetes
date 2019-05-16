@@ -250,9 +250,6 @@ actions:
       kubectl -n kube-system create secret tls traefik-ui-tls-cert --key=tls.key --cert=tls.crt
 
   generate-admin-token:
-    - cmd[${nodes.k8sm.master.id}]: kubectl describe svc kubernetes-dashboard -n kube-system  | grep "NodePort:" | grep -o -E "[0-9]*"
-    - setGlobals:
-        port: ${response.out}
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
     - setGlobals:
         token: ${response.out}
