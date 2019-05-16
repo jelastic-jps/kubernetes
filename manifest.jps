@@ -15,64 +15,56 @@ targetRegions:
   type: vz7
 
 settings:
-  fields:
-    - type: spinner
-      name: k8sm
-      caption: Master
-      increment: 2
-      min: 1
-      max: 9
-      default: 1
-
-    - type: spinner
-      name: worker
-      caption: Worker
-      min: 1
-      max: 10
-      default: 1
-
-    - type: checkbox
-      name: storage
-      caption: Attach Storage Node and Activate Dynamic Volume Provisioning on Kubernetes Cluster
-      value: true
-
+  fields:  
     - name: deploy
       type: radio-fieldset
       values:
-        cc: Clean Cluster
-        cmd: Deploy Helm Chart
-        yml: Deploy Stack YML
+        cc: Clean cluster with pre-deployed HelloWorld example
+        cmd: Deploy custom helm or stack via shell command
       default: cc
       showIf:
         cmd:
           name: cmd
           type: text
-          height: 100
-          caption: Command
+          height: 65
           required: true
+          hideLabel: true
           default: |-
             helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
             helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --debug
             kubectl apply -f ${baseUrl}/addons/openliberty.yaml
-
-        yml:
-          name: yml
-          type: string
-          caption: Stack YML URL
-          default: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/nginx-example.yaml
-          required: true
-          vtype: url
+            
+    - name: label
+      caption: Topology
+      type: displayfield            
+    - name: topo
+      type: radio-fieldset
+      values:
+        0-dev: '<b>Development:</b> one Master (1) and one scalable Worker (1+)'
+        1-prod: '<b>Production:</b> multi Master (3) covered by HAProxy (2+) with two scalable Workers (2+)'
+      default: 0-dev
+  
+    - type: checkbox
+      name: storage
+      caption: Attach dedicated NFS Storage with dynamic volume provisioning
+      value: true
 
 ssl: true
 
 onBeforeInstall: |
+  var url = "https://registry.hub.docker.com/v1/repositories/jelastic/kubernetes/tags", 
+    tags = toNative(new com.hivext.api.core.utils.Transport().get(url)).sort(), 
+    latest = "latest";
+  for (var i = 0; i < tags.length; i++) if (tags[i].name > latest) latest = tags[i].name;
+  var k8smCount = ${settings.topo} == '0-dev' ? 1 : 3,
+      workerCount = k8smCount > 1 ? 2 : 1;
   var resp = {
     result: 0, 
     ssl: !!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value,
     nodes: [{
-      count: ${settings.k8sm},
+      count: k8smCount,
       cloudlets: 32,
-      image: "jelastic/kubernetes:latest",
+      image: "jelastic/kubernetes:" + latest,
       nodeGroup: "k8sm",
       displayName: "Master",
       extip: false,
@@ -90,9 +82,9 @@ onBeforeInstall: |
         }
       }
     }, {
-      count: ${settings.worker},
+      count: workerCount,
       nodeGroup: "cp",
-      image: "jelastic/kubernetes:latest",
+      image: "jelastic/kubernetes:" + latest,
       displayName: "Workers",
       cloudlets: 32,
       extip: false,
@@ -112,18 +104,46 @@ onBeforeInstall: |
     }]
   }
     
-  if (${settings.k8sm} > 1) {
+  if (k8smCount > 1) {
     resp.nodes.push({
       count: 2,
       nodeType: "haproxy",
       cloudlets: 8,
-      displayName: "Mater Nodes Balancer",
+      displayName: "API Balancer",
       nodeGroup: "mbl",
       env: {
         JELASTIC_PORTS: 6443
       }
     })
   }
+  
+  if (${settings.storage:false}) {
+    var path = "/data";
+    resp.nodes.push({
+      count: 1,
+      image: "jelastic/storage",
+      cloudlets: 8,
+      displayName: "Storage",
+      nodeGroup: "storage",
+      env: {
+        JELASTIC_PORTS: 6443
+      },
+      volumes: [
+        path
+      ]      
+    }) 
+    
+    for (var i = 0; i < 2; i++){
+      var n = resp.nodes[i];
+      n.volumes.push(path);
+      n.volumeMounts[path] = {
+          readOnly: false,
+          sourcePath: path,
+          sourceNodeGroup: "storage"    
+      };
+    }
+  }
+  return {result: -1, k8smCount:k8smCount};
   return resp;
 
 nodes: definedInOnBeforeInstall
@@ -146,7 +166,7 @@ onInstall:
   - install-traefik
   - manage-ingress-routes
   - generate-admin-token
-  - install-storage
+  - connect-storage
   - deploy
 
 onAfterScaleOut[cp]:
@@ -257,9 +277,9 @@ actions:
     - if ('${settings.deploy}' == 'yml'):
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
-  install-storage:
+  connect-storage:
     if (${settings.storage:false}):
-      install: /addons/storage.jps?_r=${fn.random}
+      cmd[${nodes.k8sm.master.id}]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
 
 success: |
    Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
