@@ -14,17 +14,8 @@ name: Kubernetes Cluster
 targetRegions:
   type: vz7
 
-onBeforeInit: return {result:0, ssl:!!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value}
-
 settings:
   fields:
-    - type: spinner
-      name: mbl
-      caption: API Balancer
-      min: 0
-      max: 3
-      default: 0
-
     - type: spinner
       name: k8sm
       caption: Master
@@ -36,9 +27,9 @@ settings:
     - type: spinner
       name: worker
       caption: Worker
-      min: 2
+      min: 1
       max: 10
-      default: 2
+      default: 1
 
     - type: checkbox
       name: storage
@@ -73,55 +64,82 @@ settings:
           vtype: url
 
 ssl: true
-nodes:
-- count: ${settings.k8sm:1}
-  cloudlets: 32
-  image: jelastic/kubernetes:latest
-  nodeGroup: k8sm
-  displayName: Master
-  extip: false
-  env:
-    JELASTIC_EXPOSE: false
-  volumes:
-  - /var/lib/connect
-  volumeMounts:
-    /var/lib/connect:
-      readOnly: true
-      sourcePath: /var/lib/connect
-      sourceNodeGroup: k8sm
 
-- count: ${settings.worker}
-  nodeGroup: cp
-  image: jelastic/kubernetes:latest
-  displayName: Workers
-  cloudlets: 32
-  extip: false
-  env:
-    JELASTIC_EXPOSE: false
-  volumes:
-  - /var/lib/connect
-  volumeMounts:
-    /var/lib/connect:
-      readOnly: true
-      sourcePath: /var/lib/connect
-      sourceNodeGroup: k8sm
+onBeforeInstall: |
+  var resp = {
+    result: 0, 
+    ssl: !!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value,
+    nodes: [{
+      count: ${settings.k8sm},
+      cloudlets: 32,
+      image: "jelastic/kubernetes:latest",
+      nodeGroup: "k8sm",
+      displayName: "Master",
+      extip: false,
+      env: {
+        JELASTIC_EXPOSE: false
+      },
+      volumes: [
+        "/var/lib/connect"
+      ],
+      volumeMounts: {
+        "/var/lib/connect": {
+          readOnly: true,
+          sourcePath: "/var/lib/connect",
+          sourceNodeGroup: "k8sm"
+        }
+      }
+    }, {
+      count: ${settings.worker},
+      nodeGroup: "cp",
+      image: "jelastic/kubernetes:latest",
+      displayName: "Workers",
+      cloudlets: 32,
+      extip: false,
+      env: {
+        JELASTIC_EXPOSE: false
+      },
+      volumes: [
+        "/var/lib/connect"
+      ],
+      volumeMounts: {
+        "/var/lib/connect": {
+          readOnly: true,
+          sourcePath: "/var/lib/connect",
+          sourceNodeGroup: "k8sm"
+        }
+      }
+    }]
+  }
+    
+  if (${settings.k8sm} > 1) {
+    resp.nodes.push({
+      count: 2,
+      nodeType: "haproxy",
+      cloudlets: 8,
+      displayName: "Mater Nodes Balancer",
+      nodeGroup: "mbl",
+      env: {
+        JELASTIC_PORTS: 6443
+      }
+    })
+  }
+  return resp;
 
+nodes: definedInOnBeforeInstall
+  
 skipNodeEmails: true
 
 onInstall:
-  - init-balancers: ${settings.mbl}
-  - init-masters:
-      id: ${nodes.k8sm.master.id}
-      ip: ${nodes.k8sm.master.intIP}
-      master: true
+  - block-masters-scaling
+  - init-main-master
   - forEach(node:nodes.k8sm):
       if (!${@node.ismaster}):
-        init-masters:
+        init-slave-master:
           id: ${@node.id}
           ip: ${@node.intIP}
-          master: false
 
-  - connect-workers
+  - connect-workers: cp
   - setup-overlay
   - install-components
   - install-helm
@@ -131,81 +149,59 @@ onInstall:
   - install-storage
   - deploy
 
-onAfterScaleOut[k8sm]:
-  - init-balancers
-  - forEach(event.response.nodes): init-masters
-
 onAfterScaleOut[cp]:
-  forEach(event.response.nodes): connect-workers
+  forEach(event.response.nodes): 
+    connect-workers: ${@i.id}
 
 actions:
-  init-balancers:          
-    - setGlobals:
-        apiEndpoint: mbl.${env.domain}:6443
-    - desiredBalancerCount: ${this:0}
-      currentBalancerCount: ${nodes.mbl.length:0}
-      masterCount: ${nodes.k8sm.length:0}
-      script: |
-            var nodes = [],
-                onAfterReturn = {};    
-            if (!currentBalancerCount) {
-              if (!desiredBalancerCount && masterCount > 1) desiredBalancerCount = 1;  
-              for (var i = 0; i < desiredBalancerCount; i++) {
-                nodes.push({
-                   nodeType: "haproxy",
-                   fixedCloudlets: 1,
-                   flexibleCloudlets: 8,
-                   displayName: "Master Balancer",
-                   nodeGroup: "mbl",
-                   metadata: {
-                      dockerEnvVars: {
-                        JELASTIC_PORTS: '6443'
-                      }
-                   }
-                });
-              } 
-              if (nodes.length > 0) onAfterReturn["env.control.AddNode"] = nodes;
-            } 
-            return { result: 0, onAfterReturn: onAfterReturn };
+  block-masters-scaling:
+    env.control.ApplyNodeGroupData[k8sm]:
+      data:
+        validation:
+          minCount: ${nodes.k8sm.length}
+          maxCount: ${nodes.k8sm.length}
+        
+  init-main-master:
+    - if (${nodes.mbl.length:0}):
+        cmd[mbl]: |-
+          sed -i '/^<\/mappings>.*/i \\t<pair frontend_port="6443" backend_port="6443" description="CPlane balancing" option="tcp-check" params="check fall 3 rise 2">' /etc/haproxy/tcpmaps/mappings.xml
+          echo '${nodes.k8sm.master.intIP}' > /etc/haproxy/hosts
+          jem balancer rebuildCommon
+        user: root
+    - cmd[${nodes.k8sm.master.id}]: |-
+        systemctl daemon-reload > /dev/null 2>&1
+        entryPoint=$((( ${nodes.mbl.length:0} > 0 )) && echo mbl || echo k8sm)
+        sed -i "s/^controlPlaneEndpoint:.*/controlPlaneEndpoint: \"${entryPoint}.${env.domain}:6443\"/g" /etc/kubernetes/custom-kubeadm.yaml
+        kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --experimental-upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
+        sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'experimental-control-plane' > /var/lib/connect/settings-master
+        sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'experimental-control-plane' > /var/lib/connect/settings
+    - configure-master: ${nodes.k8sm.master.id}
 
-
-  init-masters:
+  init-slave-master:
     - cmd[${this.id}]: |-
         systemctl daemon-reload > /dev/null 2>&1
+        $(cat /var/lib/connect/settings-master) --ignore-preflight-errors=swap > /dev/null 2>&1
+    - configure-master: ${this.id}
+    - cmd[mbl]: |-
+        echo '${this.ip}' >> /etc/haproxy/hosts
+        jem balancer rebuildCommon
+      user: root
 
-    - if (${this.master}):
-        - cmd[mbl]: |-
-            sed -i '/^<\/mappings>.*/i \\t<pair frontend_port="6443" backend_port="6443" description="CPlane balancing" option="tcp-check" params="check fall 3 rise 2">' /etc/haproxy/tcpmaps/mappings.xml
-            echo '${this.ip}' > /etc/haproxy/hosts
-            jem balancer rebuildCommon
-          user: root
-        - cmd[${this.id}]: |-
-            sed -i 's/^controlPlaneEndpoint:.*/controlPlaneEndpoint: "mbl.${env.domain}:6443"/g' /etc/kubernetes/custom-kubeadm.yaml
-            kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --experimental-upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
-            sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'experimental-control-plane' > /var/lib/connect/settings-master
-            sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'experimental-control-plane' > /var/lib/connect/settings
-    - if (!${this.master}):
-        - cmd[${this.id}]: |-
-            $(cat /var/lib/connect/settings-master) --ignore-preflight-errors=swap > /dev/null 2>&1
-        - cmd [mbl]: |-
-            echo '${this.ip}' >> /etc/haproxy/hosts
-            jem balancer rebuildCommon
-          user: root
-
-    - cmd[${this.id}]: |-
-        mkdir -p $HOME/.kube
-        cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-        chown root:root $HOME/.kube/config
-        iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-        service iptables save
-        systemctl enable kubelet.service
+  configure-master:
+    cmd[${this}]: |-
+      mkdir -p $HOME/.kube
+      cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+      chown root:root $HOME/.kube/config
+      iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+      service iptables save
+      systemctl enable kubelet.service
 
   manage-ingress-routes:
     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/dashboard-ingress.yaml
 
   connect-workers:
-    cmd[cp]: |-
+    cmd[${this}]: |-
       systemctl daemon-reload > /dev/null 2>&1
       $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap > /dev/null 2>&1
       sleep 5
@@ -246,8 +242,6 @@ actions:
       kubectl apply -f ${baseUrl}/addons/traefik-rbac.yaml
       kubectl apply -f ${baseUrl}/addons/traefik-ds.yaml
       kubectl apply -f ${baseUrl}/addons/traefik-ui.yaml
-      openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=traefik-ui.jelastic"
-      kubectl -n kube-system create secret tls traefik-ui-tls-cert --key=tls.key --cert=tls.crt
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
