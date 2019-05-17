@@ -40,8 +40,8 @@ settings:
     - name: topo
       type: radio-fieldset
       values:
-        0-dev: '<b>Development:</b> one Master (1) and one scalable Worker (1+)'
-        1-prod: '<b>Production:</b> multi Master (3) covered by HAProxy (2+) with two scalable Workers (2+)'
+        0-dev: '<b>Development:</b> one master (1) and one scalable worker (1+)'
+        1-prod: '<b>Production:</b> multi master (3) covered by API balancers (2+) with two scalable workers (2+)'
       default: 0-dev
   
     - type: checkbox
@@ -143,7 +143,6 @@ onBeforeInstall: |
       };
     }
   }
-  return {result: -1, k8smCount:k8smCount};
   return resp;
 
 nodes: definedInOnBeforeInstall
