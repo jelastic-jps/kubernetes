@@ -56,7 +56,7 @@ onBeforeInstall: |
     tags = toNative(new com.hivext.api.core.utils.Transport().get(url)).sort(), 
     latest = "latest";
   for (var i = 0; i < tags.length; i++) if (tags[i].name > latest) latest = tags[i].name;
-  var k8smCount = ${settings.topo} == '0-dev' ? 1 : 3,
+  var k8smCount = '${settings.topo}' == '0-dev' ? 1 : 3,
       workerCount = k8smCount > 1 ? 2 : 1;
   var resp = {
     result: 0, 
