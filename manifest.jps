@@ -4,7 +4,7 @@ id: kubernetes
 baseUrl: https://raw.githubusercontent.com/sych74/kubernetes/k8s-mmaster
 description:
   text: /text/description-kube.md
-  short: Jelastic Kubernetes as a Service (KaaS)
+  short: Kubernetes Cluster 
 categories:
   - apps/clusters
   - apps/dev-and-admin-tools
@@ -41,7 +41,7 @@ settings:
       type: radio-fieldset
       values:
         0-dev: '<b>Development:</b> one master (1) and one scalable worker (1+)'
-        1-prod: '<b>Production:</b> multi master (3) covered by API balancers (2+) with two scalable workers (2+)'
+        1-prod: '<b>Production:</b> multi master (3) with API balancers (2+) and scalable workers (2+)'
       default: 0-dev
   
     - type: checkbox
