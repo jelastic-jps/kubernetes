@@ -1,1 +1,1 @@
-Dedicated Kubernetes environment with automated clustering, scaling and cost efficient [pay-per-use](https://jelastic.com/pay-as-you-use-cloud-pricing/) pricing for building cloud-native microservice applications. The cluster can be used for dev (1 master) and prod (3+ masters) environments.
+Dedicated Kubernetes cluster with automated scaling and cost efficient [pay-per-use](https://jelastic.com/pay-as-you-use-cloud-pricing/) pricing for running cloud-native microservice applications. The cluster can be used for development and production environments.
