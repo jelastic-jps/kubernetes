@@ -1,1 +1,1 @@
-Easily containerize and migrate existing projects, run hyper scalable microservices and keep them resilient to failures, get extra savings due to efficient resource usage, implement CI/CD automation and develop applications at a higher speed.
+Dedicated Kubernetes cluster with automated scaling and cost efficient [pay-per-use](https://jelastic.com/pay-as-you-use-cloud-pricing/) pricing for running cloud-native microservice applications. The cluster can be used for development and production environments.

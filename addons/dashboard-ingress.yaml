@@ -9,7 +9,7 @@ metadata:
     traefik.frontend.rule.type: PathPrefixStrip
 spec:
   rules:
-  - http: 
+  - http:
       paths:
       - path: /kubernetes-dashboard
         backend:
