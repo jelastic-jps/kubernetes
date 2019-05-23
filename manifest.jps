@@ -231,7 +231,7 @@ actions:
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/weave-pack.yaml
-      wget https://github.com/weaveworks/weave/releases/download/v2.4.0/weave -O /usr/bin/weave
+      wget https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
       chmod +x /usr/bin/weave
 
   install-components:
