@@ -125,9 +125,6 @@ onBeforeInstall: |
       cloudlets: 8,
       displayName: "Storage",
       nodeGroup: "storage",
-      env: {
-        JELASTIC_PORTS: 6443
-      },
       volumes: [
         path
       ]      
