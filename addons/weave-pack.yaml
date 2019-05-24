@@ -128,7 +128,7 @@ items:
                       fieldPath: spec.nodeName
                 - name: IPALLOC_RANGE
                   value: 10.239.0.0/16
-              image: 'jelastic/weave-kube:latest'
+              image: 'devbeta/weave-kube:latest'
               livenessProbe:
                 httpGet:
                   host: 127.0.0.1
@@ -163,7 +163,7 @@ items:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
-              image: 'jelastic/weave-npc:latest'
+              image: 'devbeta/weave-npc:latest'
               resources:
                 requests:
                   cpu: 10m
