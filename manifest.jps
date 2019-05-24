@@ -181,6 +181,7 @@ actions:
     - if (${nodes.mbl.length:0}):
         cmd[mbl]: |-
           sed -i '/^<\/mappings>.*/i \\t<pair frontend_port="6443" backend_port="6443" description="CPlane balancing" option="tcp-check" params="check fall 3 rise 2">' /etc/haproxy/tcpmaps/mappings.xml
+          sed -i 's/^bind :::80/#bind :::80/g' /etc/haproxy/haproxy.cfg 
           echo '${nodes.k8sm.master.intIP}' > /etc/haproxy/hosts
           jem balancer rebuildCommon
         user: root
