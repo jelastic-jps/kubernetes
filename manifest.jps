@@ -279,7 +279,5 @@ actions:
     if (${settings.storage:false}):
       cmd[${nodes.k8sm.master.id}]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
 
-success: |
-   Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
-
-   ```${globals.token}```
+success: 
+  text: /text/success.md
