@@ -4,4 +4,4 @@ Use the access Token below to enter [Kubernetes dashboard](https://${env.domain}
    
 Press **Open in Browser** to view a default web page of your application.  
 
-To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation])(https://docs.jelastic.com/custom-domains)
+To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation](https://docs.jelastic.com/custom-domains)
