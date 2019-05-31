@@ -189,7 +189,7 @@ actions:
         systemctl daemon-reload > /dev/null 2>&1
         entryPoint=$((( ${nodes.mbl.length:0} > 0 )) && echo mbl || echo k8sm)
         sed -i "s/^controlPlaneEndpoint:.*/controlPlaneEndpoint: \"${entryPoint}.${env.domain}:6443\"/g" /etc/kubernetes/custom-kubeadm.yaml
-        kubeadm init --token-ttl 0 --config /etc/kubernetes/custom-kubeadm.yaml --experimental-upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
+        kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --experimental-upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
         sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'experimental-control-plane' > /var/lib/connect/settings-master
         sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'experimental-control-plane' > /var/lib/connect/settings
     - configure-master: ${nodes.k8sm.master.id}
