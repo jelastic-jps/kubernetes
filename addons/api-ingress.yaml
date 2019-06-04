@@ -11,9 +11,7 @@ spec:
   rules:
   - http:
       paths:
-      - path: /
+      - path: /api
         backend:
           serviceName: kubernetes
           servicePort: 443
-  - host: "APIHOST"
-    http: &http_rules

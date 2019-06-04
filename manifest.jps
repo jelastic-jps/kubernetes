@@ -49,6 +49,11 @@ settings:
       caption: Attach dedicated NFS Storage with dynamic volume provisioning
       value: true
 
+    - type: checkbox
+      name: api
+      caption: Enable Remote API Access
+      value: false
+
 ssl: true
 
 onBeforeInstall: |
@@ -193,6 +198,9 @@ actions:
         sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'experimental-control-plane' > /var/lib/connect/settings-master
         sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'experimental-control-plane' > /var/lib/connect/settings
     - configure-master: ${nodes.k8sm.master.id}
+    - if (${settings.api:true}):
+        cmd[${nodes.k8sm.master.id}]: |-
+           kubectl apply -f ${baseUrl}/addons/api-ingress.yaml 
 
   init-slave-master:
     - cmd[${this.id}]: |-
