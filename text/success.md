@@ -1,4 +1,4 @@
-Use the access Token below to enter [Kubernetes dashboard](https://${env.domain}/kubernetes-dashboard/):
+Use the access Token below to enter [Kubernetes dashboard](https://${env.domain}/kubernetes-dashboard/) or [Remote API Endpoint](https://${env.domain}/api/):
 
    ```${globals.token}```  
    
