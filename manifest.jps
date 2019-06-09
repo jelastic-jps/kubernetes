@@ -357,7 +357,7 @@ actions:
           execUpdate:
             - cmd[${nodes.k8sm.master.id}]: echo "${this.current} |  ${this.next} |  ${this.avail}"
             - script: |
-                var message = "Kubernetes Cluster has been successfuly updated! **Current version:** ${this.next}.  \nNo other updates are available.";
+                var message = "Kubernetes Cluster has been successfuly updated! **Current version:** ${this.next}.  \n\nNo other updates are available.";
                 if ("${this.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Update\" button to start the update process."; 
                 return {result:"info", message:message};
             
