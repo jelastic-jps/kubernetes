@@ -339,33 +339,26 @@ actions:
         actions:
           update:
             script: |
-              var image = "${nodes.k8sm.master.name}";
-              var url = "https://registry.hub.docker.com/v1/repositories/"+image+"/tags";
-              var tags = toNative(new com.hivext.api.core.utils.Transport().get(url)).sort();
-              var resp = jelastic.env.control.GetEnvInfo("${env.envName}", session);
+              var resp = jelastic.env.control.GetNodeInfo("${env.envName}", session, ${nodes.k8sm.master.id});
               if (resp.result != 0) return resp;
-              var nodes = resp.nodes;
-              var current = null;
-              for (var i = 0; i < nodes.length; i++) {
-                 if (nodes[i].name == image) {
-                     current = nodes[i].version;
-                     break;
-                 }
-              }
+              var version = resp.node.version;
+              var image = resp.node.name;
+              var url = "https://registry.hub.docker.com/v1/repositories/"+image+"/tags";                
+              var tags = toNative(new com.hivext.api.core.utils.Transport().get(url)).sort();
               var updates = [];
-              for (var i = 0; i < tags.length; i++) if (tags[i].name > current) updates.push(tags[i].name);                                
-              var message = "Current version " + current + " is the latest. No updates are available.";
+              for (var i = 0; i < tags.length; i++) if (tags[i].name > version) updates.push(tags[i].name);                                
+              var message = "Current version " + version + " is the latest. No updates are available.";
               if (updates.length) {
-                return {result:0, onAfterReturn:{execUpdate:{current:current, next:updates.shift(), avail:updates.join(", ")}}};              
+                return {result:0, onAfterReturn:{execUpdate:{current:version, next:updates.shift(), avail:updates.join(", ")}}};              
               } else {
                 return {result:"info", message:message};
-              }
+              }              
 
           execUpdate:
             - cmd[${nodes.k8sm.master.id}]: echo "${this.current} |  ${this.next} |  ${this.avail}"
             - script: |
-                var message = "Kubernetes Cluster has been successfuly updated! Current version is ${this.next}.";
-                if ("${this.avail}") message += "\n\nNext availbale updates: ${this.avail}. Press \"Update\" button to update the cluster to the next available version."; 
+                var message = "Kubernetes Cluster has been successfuly updated! **Current version:** ${this.next}.  \nNo other updates are available.";
+                if ("${this.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Update\" button to start the update process."; 
                 return {result:"info", message:message};
             
           remoteApi: 
