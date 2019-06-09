@@ -180,6 +180,8 @@ onBeforeScaleIn[cp]:
     removeWorker:
       workerHostname: node${@i.id}-${env.domain}
 
+onBeforeClone: stopEvent
+
 actions:
   block-masters-scaling:
     env.control.ApplyNodeGroupData[k8sm]:
