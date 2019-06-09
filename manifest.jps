@@ -169,6 +169,7 @@ onInstall:
   - generate-admin-token
   - connect-storage
   - deploy
+  - install-conf-addon
 
 onAfterScaleOut[cp]:
   forEach(event.response.nodes):
@@ -298,6 +299,77 @@ actions:
     cmd[${nodes.k8sm.master.id}]: |-
       /usr/bin/kubectl drain ${this.workerHostname} --ignore-daemonsets --delete-local-data || exit 8;
       /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
+
+  install-conf-addon:
+    install:  
+      envName: ${env.envName}
+      nodeGroup: k8sm  
+      jps: 
+        id: update-k8s-addon
+        type: update
+        baseUrl: ${baseUrl}
+        name: Kubernetes Cluster Configuration
+        description: Press "Remote API" to enable or disable remote access or "Update" to initiate update procedure. 
+        logo: /images/k8s-logo.png
+        settings:
+          fields: 
+            - type: displayfield
+              caption: Please update this text
+              name: dfremoteapi
+              hideLabel: true
+              markup: Add a clear description 
+            - type: checkbox
+              name: remote
+              caption: Enable Remote API Access
+              value: ${settings.api}
+        buttons:
+          - caption: Remote API
+            settings: main
+            action: remoteApi
+            loadingText: Updating... 
+            confirmText: Are you sure?
+            successText: Remote API Access was successfully updated!
+          - caption: Update
+            action: update
+            loadingText: Updating...
+            confirmText: Do you want to update Kubernetes Cluster?
+            successText: Kubernetes Cluster has been successfully updated!
+        actions:
+          update:
+            script: |
+              var image = "${nodes.k8sm.master.name}";
+              var url = "https://registry.hub.docker.com/v1/repositories/"+image+"/tags";
+              var tags = toNative(new com.hivext.api.core.utils.Transport().get(url)).sort();
+              var resp = jelastic.env.control.GetEnvInfo("${env.envName}", session);
+              if (resp.result != 0) return resp;
+              var nodes = resp.nodes;
+              var current = null;
+              for (var i = 0; i < nodes.length; i++) {
+                 if (nodes[i].name == image) {
+                     current = nodes[i].version;
+                     break;
+                 }
+              }
+              var updates = [];
+              for (var i = 0; i < tags.length; i++) if (tags[i].name > current) updates.push(tags[i].name);                                
+              var message = "Current version " + current + " is the latest. No updates are available.";
+              if (updates.length) {
+                return {result:0, onAfterReturn:{execUpdate:{current:current, next:updates.shift(), avail:updates.join(", ")}}};              
+              } else {
+                return {result:"info", message:message};
+              }
+
+          execUpdate:
+            - cmd[${nodes.k8sm.master.id}]: echo "${this.current} |  ${this.next} |  ${this.avail}"
+            - script: |
+                var message = "Kubernetes Cluster has been successfuly updated! Current version is ${this.next}.";
+                if ("${this.avail}") message += "\n\nNext availbale updates: ${this.avail}. Press \"Update\" button to update the cluster to the next available version."; 
+                return {result:"info", message:message};
+            
+          remoteApi: 
+            cmd[${nodes.k8sm.master.id}]: |-
+              action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
+              kubectl $action -f ${baseUrl}/addons/api-ingress.yaml    
 
 
 success: /text/success.md
