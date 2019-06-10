@@ -69,7 +69,7 @@ onBeforeInstall: |
     nodes: [{
       count: k8smCount,
       cloudlets: 32,
-      image: "jelastic/kubernetes:" + latest,
+      nodeType: "kubernetes",
       nodeGroup: "k8sm",
       displayName: "Master",
       extip: false,
@@ -89,7 +89,7 @@ onBeforeInstall: |
     }, {
       count: workerCount,
       nodeGroup: "cp",
-      image: "jelastic/kubernetes:" + latest,
+      nodeType: "kubernetes",
       displayName: "Workers",
       cloudlets: 32,
       extip: false,
