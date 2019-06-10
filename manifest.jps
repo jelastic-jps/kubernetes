@@ -303,23 +303,23 @@ actions:
       /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
 
   install-conf-addon:
-    install:  
+    install:
       envName: ${env.envName}
-      nodeGroup: k8sm  
-      jps: 
+      nodeGroup: k8sm
+      jps:
         id: update-k8s-addon
         type: update
         baseUrl: ${baseUrl}
         name: Kubernetes Cluster Configuration
-        description: Press "Remote API" to enable or disable remote access or "Update" to initiate update procedure. 
+        description: Press "Remote API" to enable or disable remote access or "Update" to initiate update procedure.
         logo: /images/k8s-logo.png
         settings:
-          fields: 
+          fields:
             - type: displayfield
               caption: Please update this text
               name: dfremoteapi
               hideLabel: true
-              markup: Add a clear description 
+              markup: Add a clear description
             - type: checkbox
               name: remote
               caption: Enable Remote API Access
@@ -328,7 +328,7 @@ actions:
           - caption: Remote API
             settings: main
             action: remoteApi
-            loadingText: Updating... 
+            loadingText: Updating...
             confirmText: Are you sure?
             successText: Remote API Access was successfully updated!
           - caption: Update
@@ -343,28 +343,67 @@ actions:
               if (resp.result != 0) return resp;
               var version = resp.node.version;
               var image = resp.node.name;
-              var url = "https://registry.hub.docker.com/v1/repositories/"+image+"/tags";                
+              var url = "https://registry.hub.docker.com/v1/repositories/"+image+"/tags";
               var tags = toNative(new com.hivext.api.core.utils.Transport().get(url)).sort();
               var updates = [];
-              for (var i = 0; i < tags.length; i++) if (tags[i].name > version) updates.push(tags[i].name);                                
+              for (var i = 0; i < tags.length; i++) if (tags[i].name > version) updates.push(tags[i].name);
               var message = "Current version " + version + " is the latest. No updates are available.";
               if (updates.length) {
-                return {result:0, onAfterReturn:{execUpdate:{current:version, next:updates.shift(), avail:updates.join(", ")}}};              
+                return {result:0, onAfterReturn:{execUpdate:{current:version, next:updates.shift(), avail:updates.join(", ")}}};
               } else {
                 return {result:"info", message:message};
-              }              
+              }
+
+          update-masters:
+            - environment.control.RedeployContainerById[${this.id}]:
+                tag: ${settings.targetVersion}
+                skipReinstall: true
+            - if (${this.master}):
+                - cmd [${this.id}]: |-
+                    /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=swap || exit 1
+                    /usr/bin/kubeadm upgrade apply ${this.version} || exit 1
+            - if (!${this.master}):
+                - cmd [${this.id}]: |-
+                    /usr/bin/kubeadm upgrade node experimental-control-plane ${this.version}  || exit 2
+            - cmd [${this.id}]: |-
+                service kubelet restart
+
+          update-workers:
+            - cmd[${nodes.k8sm.master.id}]: |-
+                /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
+            - environment.control.RedeployContainerById[${this.id}]:
+                  tag: ${settings.targetVersion}
+                  skipReinstall: true
+            - cmd [${this.id}]: |-
+                /usr/bin/kubeadm upgrade node config --kubelet-version ${this.version}  || exit 4
+                service kubelet restart
+            - cmd[${nodes.k8sm.master.id}]: |-
+                /usr/bin/kubectl uncordon ${this.hostname} || exit 5
 
           execUpdate:
             - cmd[${nodes.k8sm.master.id}]: echo "${this.current} |  ${this.next} |  ${this.avail}"
+            - update-masters:
+                id: ${nodes.k8sm.master.id}
+                master: true
+                version: ${this.next}
+            - forEach(node:nodes.k8sm):
+                if (!${@node.ismaster}):
+                  update-masters:
+                    id: ${@node.id}
+                    master: false
+            - forEach(node:nodes.cp):
+                update-workers:
+                  id: ${@node.id}
+                  hostname: node${@node.id}-${env.domain}
             - script: |
                 var message = "Kubernetes Cluster has been successfuly updated! **Current version:** ${this.next}.  \n\nNo other updates are available.";
-                if ("${this.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Update\" button to start the update process."; 
+                if ("${this.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Update\" button to start the update process.";
                 return {result:"info", message:message};
-            
-          remoteApi: 
+
+          remoteApi:
             cmd[${nodes.k8sm.master.id}]: |-
               action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
-              kubectl $action -f ${baseUrl}/addons/api-ingress.yaml    
+              kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
 
 
 success: /text/success.md
