@@ -205,6 +205,7 @@ actions:
         kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --experimental-upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
         sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'experimental-control-plane' > /var/lib/connect/settings-master
         sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'experimental-control-plane' > /var/lib/connect/settings
+        printf "0 1 * * * kubeadm token create --print-join-command  > /var/lib/connect/settings\n\n\n" > /var/spool/cron/root
     - configure-master: ${nodes.k8sm.master.id}
     - if (${settings.api:true}):
         cmd[${nodes.k8sm.master.id}]: |-
