@@ -340,16 +340,19 @@ actions:
         actions:
           update:
             script: |
-              var resp = jelastic.env.control.GetNodeInfo("${env.envName}", session, ${nodes.k8sm.master.id});
+              var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
+              var resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
               if (resp.result != 0) return resp;
               var version = resp.node.version;
               var image = resp.node.name;
-              var url = "https://registry.hub.docker.com/v1/repositories/"+image+"/tags";
-              var tags = toNative(new com.hivext.api.core.utils.Transport().get(url)).sort();
+              resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
+              if (resp.result != 0) return resp;
+              var tags = resp.object; 
               var updates = [];
-              for (var i = 0; i < tags.length; i++) if (tags[i].name > version) updates.push(tags[i].name);
+              for (var i = 0; i < tags.length; i++) if (tags[i] > version) updates.push(tags[i]);
               var message = "Current version " + version + " is the latest. No updates are available.";
               if (updates.length) {
+                updates.sort();
                 return {result:0, onAfterReturn:{execUpdate:{current:version, next:updates.shift(), avail:updates.join(", ")}}};
               } else {
                 return {result:"info", message:message};
