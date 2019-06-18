@@ -309,6 +309,7 @@ actions:
   remove-attr:
     cmd[*]: |-
       chattr -i -a /root/.bash_*
+    user: root
 
   install-conf-addon:
     install:
