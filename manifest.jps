@@ -94,7 +94,7 @@ onBeforeInstall: |
       tag: "v1.14.2",
       displayName: "Workers",
       cloudlets: 32,
-      extip: false,
+      extip: ${settings.extip:false},
       env: {
         JELASTIC_EXPOSE: false
       },
