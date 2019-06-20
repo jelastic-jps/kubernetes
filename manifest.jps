@@ -391,6 +391,7 @@ actions:
                 service kubelet restart
             - cmd[${nodes.k8sm.master.id}]: |-
                 /usr/bin/kubectl uncordon ${this.hostname} || exit 5
+                while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break ; done
 
           execUpdate:
             - cmd[${nodes.k8sm.master.id}]: echo "${this.current} |  ${this.next} |  ${this.avail}"
