@@ -367,26 +367,28 @@ actions:
               }
 
           update-masters:
-            - environment.control.RedeployContainerById[${this.id}]:
+            - env.control.RedeployContainers:
+                nodeId: ${this.id}
                 tag: ${this.version}
                 skipReinstall: true
             - if (${this.master}):
-                - cmd [${this.id}]: |-
+                - cmd[${this.id}]: |-
                     /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=swap || exit 1
                     /usr/bin/kubeadm upgrade apply ${this.version} || exit 1
+                    service kubelet restart
             - if (!${this.master}):
-                - cmd [${this.id}]: |-
+                - cmd[${this.id}]: |-
                     /usr/bin/kubeadm upgrade node experimental-control-plane ${this.version}  || exit 2
-            - cmd [${this.id}]: |-
-                service kubelet restart
-
+                    service kubelet restart
+                    
           update-workers:
             - cmd[${nodes.k8sm.master.id}]: |-
                 /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
-            - environment.control.RedeployContainerById[${this.id}]:
-                  tag: ${this.version}
-                  skipReinstall: true
-            - cmd [${this.id}]: |-
+            - env.control.RedeployContainers:
+                nodeId: ${this.id}
+                tag: ${this.version}
+                skipReinstall: true
+            - cmd[${this.id}]: |-
                 /usr/bin/kubeadm upgrade node config --kubelet-version ${this.version}  || exit 4
                 service kubelet restart
             - cmd[${nodes.k8sm.master.id}]: |-
@@ -394,21 +396,20 @@ actions:
                 while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break ; done
 
           execUpdate:
-            - cmd[${nodes.k8sm.master.id}]: echo "${this.current} |  ${this.next} |  ${this.avail}"
             - update-masters:
                 id: ${nodes.k8sm.master.id}
                 master: true
                 version: ${this.next}
-            - forEach(node:nodes.k8sm):
-                if (!${@node.ismaster}):
+            - forEach(nodes.k8sm):
+                if (!${@i.ismaster}):
                   update-masters:
-                    id: ${@node.id}
+                    id: ${@i.id}
                     master: false
                     version: ${this.next}
-            - forEach(node:nodes.cp):
+            - forEach(nodes.cp):
                 update-workers:
-                  id: ${@node.id}
-                  hostname: node${@node.id}-${env.domain}
+                  id: ${@i.id}
+                  hostname: node${@i.id}-${env.domain}
                   version: ${this.next}
             - script: |
                 var message = "Kubernetes Cluster has been successfuly updated! **Current version:** ${this.next}.  \n\nNo other updates are available.";
