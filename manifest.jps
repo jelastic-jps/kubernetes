@@ -70,7 +70,7 @@ onBeforeInstall: |
       count: k8smCount,
       cloudlets: 32,
       nodeType: "kubernetes",
-      tag: "v1.14.3",
+      tag: "v1.15.0",
       scalingMode: "stateless",
       nodeGroup: "k8sm",
       displayName: "Master",
@@ -92,7 +92,7 @@ onBeforeInstall: |
       count: workerCount,
       nodeGroup: "cp",
       nodeType: "kubernetes",
-      tag: "v1.14.3",
+      tag: "v1.15.0",
       scalingMode: "stateless",
       displayName: "Workers",
       cloudlets: 32,
@@ -200,6 +200,8 @@ actions:
         cmd[mbl]: |-
           sed -i '/^<\/mappings>.*/i \\t<pair frontend_port="6443" backend_port="6443" description="CPlane balancing" option="tcp-check" params="check fall 3 rise 2">' /etc/haproxy/tcpmaps/mappings.xml
           sed -i 's/^bind :::80/#bind :::80/g' /etc/haproxy/haproxy.cfg
+          sed -i '/^daemon$/a stats socket /var/run/haproxy.sock mode 660 level admin' /etc/haproxy/haproxy.cfg
+          sed -i '/^daemon$/a stats timeout 2m' /etc/haproxy/haproxy.cfg
           echo '${nodes.k8sm.master.intIP}' > /etc/haproxy/hosts
           jem balancer rebuildCommon
         user: root
@@ -207,9 +209,9 @@ actions:
         systemctl daemon-reload > /dev/null 2>&1
         entryPoint=$((( ${nodes.mbl.length:0} > 0 )) && echo mbl || echo k8sm)
         sed -i "s/^controlPlaneEndpoint:.*/controlPlaneEndpoint: \"${entryPoint}.${env.domain}:6443\"/g" /etc/kubernetes/custom-kubeadm.yaml
-        kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --experimental-upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
-        sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'experimental-control-plane' > /var/lib/connect/settings-master
-        sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'experimental-control-plane' > /var/lib/connect/settings
+        kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --upload-certs --ignore-preflight-errors=swap | tee /var/log/kubeadm-init.log
+        sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'control-plane' > /var/lib/connect/settings-master
+        sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane' > /var/lib/connect/settings
         printf "0 1 * * * kubeadm token create --print-join-command  > /var/lib/connect/settings\n\n\n" > /var/spool/cron/root
     - configure-master: ${nodes.k8sm.master.id}
     - if (${settings.api:true}):
@@ -233,6 +235,7 @@ actions:
       chown root:root $HOME/.kube/config
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
+      systemctl enable docker.service
       systemctl enable kubelet.service
 
   manage-ingress-routes:
@@ -246,6 +249,7 @@ actions:
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
+      systemctl enable docker.service
       systemctl enable kubelet.service
 
   setup-overlay:
