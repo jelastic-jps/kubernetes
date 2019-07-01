@@ -15,7 +15,7 @@ targetRegions:
   type: vz7
 
 settings:
-  fields:
+  fields:  
     - name: deploy
       type: radio-fieldset
       values:
@@ -53,6 +53,18 @@ settings:
       name: api
       caption: Enable Remote API Access
       value: false
+      
+    - type: list
+      name: version
+      inputType: hidden
+      caption: Kubernetes Version
+      values: 
+        v1.14.0: v1.14.0
+        v1.14.1: v1.14.1
+        v1.14.2: v1.14.2
+        v1.14.3: v1.14.3
+        v1.15.0: v1.15.0
+      default: v1.15.0
 
 ssl: true
 
@@ -62,7 +74,8 @@ onBeforeInstall: |
     latest = "latest";
   for (var i = 0; i < tags.length; i++) if (tags[i].name > latest) latest = tags[i].name;
   var k8smCount = '${settings.topo}' == '0-dev' ? 1 : 3,
-      workerCount = k8smCount > 1 ? 2 : 1;
+      workerCount = k8smCount > 1 ? 2 : 1, 
+      tag = "${settings.version}";
   var resp = {
     result: 0,
     ssl: !!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value,
@@ -70,7 +83,7 @@ onBeforeInstall: |
       count: k8smCount,
       cloudlets: 32,
       nodeType: "kubernetes",
-      tag: "v1.15.0",
+      tag: tag,
       scalingMode: "stateless",
       nodeGroup: "k8sm",
       displayName: "Master",
@@ -92,7 +105,7 @@ onBeforeInstall: |
       count: workerCount,
       nodeGroup: "cp",
       nodeType: "kubernetes",
-      tag: "v1.15.0",
+      tag: tag,
       scalingMode: "stateless",
       displayName: "Workers",
       cloudlets: 32,
@@ -130,7 +143,7 @@ onBeforeInstall: |
     var path = "/data";
     resp.nodes.push({
       count: 1,
-      image: "jelastic/storage",
+      nodeType: "storage",
       cloudlets: 8,
       displayName: "Storage",
       nodeGroup: "storage",
@@ -329,19 +342,18 @@ actions:
       envName: ${env.envName}
       nodeGroup: k8sm
       jps:
-        id: update-k8s-addon
+        id: upgrade-k8s-addon
         type: update
         baseUrl: ${baseUrl}
         name: Kubernetes Cluster Configuration
-        description: Press "Remote API" to enable or disable remote access or "Update" to initiate update procedure.
+        description: Press "Remote API" to enable or disable remote access or "Upgrade" to initiate upgrade procedure.
         logo: /images/k8s-logo.png
         settings:
           fields:
             - type: displayfield
-              caption: Please update this text
-              name: dfremoteapi
+              caption: Useful info
               hideLabel: true
-              markup: Add a clear description
+              markup: Access and manage the cluster remotely via API
             - type: checkbox
               name: remote
               caption: Enable Remote API Access
@@ -353,13 +365,13 @@ actions:
             loadingText: Updating...
             confirmText: Are you sure?
             successText: Remote API Access was successfully updated!
-          - caption: Update
-            action: update
+          - caption: Upgrade
+            action: upgrade
             loadingText: Updating...
-            confirmText: Do you want to update Kubernetes Cluster?
-            successText: Kubernetes Cluster has been successfully updated!
+            confirmText: Do you want to upgrade Kubernetes Cluster?
+            successText: Kubernetes Cluster has been successfully upgraded!
         actions:
-          update:
+          upgrade:
             script: |
               var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
               var resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
@@ -369,17 +381,17 @@ actions:
               resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
               if (resp.result != 0) return resp;
               var tags = resp.object;
-              var updates = [];
-              for (var i = 0; i < tags.length; i++) if (tags[i] > version) updates.push(tags[i]);
-              var message = "Current version " + version + " is the latest. No updates are available.";
-              if (updates.length) {
-                updates.sort();
-                return {result:0, onAfterReturn:{execUpdate:{current:version, next:updates.shift(), avail:updates.join(", ")}}};
+              var upgrades = [];
+              for (var i = 0; i < tags.length; i++) if (tags[i] > version) upgrades.push(tags[i]);
+              var message = "Current version " + version + " is the latest. No upgrades are available.";
+              if (upgrades.length) {
+                upgrades.sort();
+                return {result:0, onAfterReturn:{execUpgrade:{current:version, next:upgrades.shift(), avail:upgrades.join(", ")}}};
               } else {
                 return {result:"info", message:message};
               }
 
-          update-masters:
+          upgrade-masters:
             - env.control.RedeployContainers:
                 nodeId: ${this.id}
                 tag: ${this.version}
@@ -394,7 +406,7 @@ actions:
                     /usr/bin/kubeadm upgrade node experimental-control-plane ${this.version}  || exit 2
                     service kubelet restart
                     
-          update-workers:
+          upgrade-workers:
             - cmd[${nodes.k8sm.master.id}]: |-
                 /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
             - env.control.RedeployContainers:
@@ -408,25 +420,25 @@ actions:
                 /usr/bin/kubectl uncordon ${this.hostname} || exit 5
                 while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break ; done
 
-          execUpdate:
-            - update-masters:
+          execUpgrade:
+            - upgrade-masters:
                 id: ${nodes.k8sm.master.id}
                 master: true
                 version: ${this.next}
             - forEach(nodes.k8sm):
                 if (!${@i.ismaster}):
-                  update-masters:
+                  upgrade-masters:
                     id: ${@i.id}
                     master: false
                     version: ${this.next}
             - forEach(nodes.cp):
-                update-workers:
+                upgrade-workers:
                   id: ${@i.id}
                   hostname: node${@i.id}-${env.domain}
                   version: ${this.next}
             - script: |
-                var message = "Kubernetes Cluster has been successfuly updated! **Current version:** ${this.next}.  \n\nNo other updates are available.";
-                if ("${this.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Update\" button to start the update process.";
+                var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${this.next}.  \n\nNo other upgrades are available.";
+                if ("${this.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Upgrade\" button to start the upgrade process.";
                 return {result:"info", message:message};
 
           remoteApi:
