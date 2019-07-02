@@ -13,7 +13,7 @@ logo: /images/k8s-logo.png
 name: Kubernetes Cluster
 targetRegions:
   type: vz7
-
+  
 settings:
   fields:  
     - name: deploy
@@ -64,15 +64,12 @@ settings:
         v1.14.2: v1.14.2
         v1.14.3: v1.14.3
         v1.15.0: v1.15.0
+        v1.15.1: v1.15.1
       default: v1.15.0
 
 ssl: true
 
 onBeforeInstall: |
-  var url = "https://registry.hub.docker.com/v1/repositories/jelastic/kubernetes/tags",
-    tags = toNative(new com.hivext.api.core.utils.Transport().get(url)).sort(),
-    latest = "latest";
-  for (var i = 0; i < tags.length; i++) if (tags[i].name > latest) latest = tags[i].name;
   var k8smCount = '${settings.topo}' == '0-dev' ? 1 : 3,
       workerCount = k8smCount > 1 ? 2 : 1, 
       tag = "${settings.version}";
@@ -386,60 +383,28 @@ actions:
               var message = "Current version " + version + " is the latest. No upgrades are available.";
               if (upgrades.length) {
                 upgrades.sort();
-                return {result:0, onAfterReturn:{execUpgrade:{current:version, next:upgrades.shift(), avail:upgrades.join(", ")}}};
+                var next = upgrades.shift();                               
+                var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
+                var url = baseUrl+"/"+next+"/addons/upgrade.jps"
+                var huc = new java.net.URL(url).openConnection();
+                huc.setRequestMethod("HEAD");
+                var code = huc.getResponseCode();
+                if (code == 200){
+                  return {result:0, onAfterReturn:{execUpgrade:{current:version, next:next, avail:upgrades.join(", "), jps: url}}};
+                } else {
+                  message = "The next version is " + next + ". However, automated upgrade procedure is not available yet. Please check it later, or contact support team if upgrade is required urgently.";
+                  return {result:"info", message:message};
+                }                                                                
               } else {
                 return {result:"info", message:message};
               }
 
-          upgrade-masters:
-            - env.control.RedeployContainers:
-                nodeId: ${this.id}
-                tag: ${this.version}
-                skipReinstall: true
-            - if (${this.master}):
-                - cmd[${this.id}]: |-
-                    /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=swap || exit 1
-                    /usr/bin/kubeadm upgrade apply ${this.version} || exit 1
-                    service kubelet restart
-            - if (!${this.master}):
-                - cmd[${this.id}]: |-
-                    /usr/bin/kubeadm upgrade node experimental-control-plane ${this.version}  || exit 2
-                    service kubelet restart
-                    
-          upgrade-workers:
-            - cmd[${nodes.k8sm.master.id}]: |-
-                /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
-            - env.control.RedeployContainers:
-                nodeId: ${this.id}
-                tag: ${this.version}
-                skipReinstall: true
-            - cmd[${this.id}]: |-
-                /usr/bin/kubeadm upgrade node config --kubelet-version ${this.version}  || exit 4
-                service kubelet restart
-            - cmd[${nodes.k8sm.master.id}]: |-
-                /usr/bin/kubectl uncordon ${this.hostname} || exit 5
-                while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break ; done
-
           execUpgrade:
-            - upgrade-masters:
-                id: ${nodes.k8sm.master.id}
-                master: true
+            install: ${this.jps}
+            envName: ${env.envName}
+            settings:
                 version: ${this.next}
-            - forEach(nodes.k8sm):
-                if (!${@i.ismaster}):
-                  upgrade-masters:
-                    id: ${@i.id}
-                    master: false
-                    version: ${this.next}
-            - forEach(nodes.cp):
-                upgrade-workers:
-                  id: ${@i.id}
-                  hostname: node${@i.id}-${env.domain}
-                  version: ${this.next}
-            - script: |
-                var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${this.next}.  \n\nNo other upgrades are available.";
-                if ("${this.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Upgrade\" button to start the upgrade process.";
-                return {result:"info", message:message};
+                
 
           remoteApi:
             cmd[${nodes.k8sm.master.id}]: |-
