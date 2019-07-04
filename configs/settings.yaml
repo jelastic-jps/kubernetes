@@ -1,0 +1,47 @@
+fields:  
+  - name: deploy
+    type: radio-fieldset
+    values:
+      cc: Clean cluster with pre-deployed HelloWorld example
+      cmd: Deploy custom helm or stack via shell command
+    default: cc
+    showIf:
+      cmd:
+        name: cmd
+        type: text
+        height: 65
+        required: true
+        hideLabel: true
+        default: |-
+          helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
+          helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --version 1.6.0  --debug
+          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/openliberty.yaml
+
+  - name: label
+    caption: Topology
+    type: displayfield
+  - name: topo
+    type: radio-fieldset
+    values:
+      0-dev: '<b>Development:</b> one master (1) and one scalable worker (1+)'
+      1-prod: '<b>Production:</b> multi master (3) with API balancers (2+) and scalable workers (2+)'
+    default: 0-dev
+
+  - type: checkbox
+    name: storage
+    caption: Attach dedicated NFS Storage with dynamic volume provisioning
+    value: true
+
+  - type: checkbox
+    name: api
+    caption: Enable Remote API Access
+    value: false
+
+  - type: list
+    name: version
+    inputType: hidden
+    caption: Kubernetes Version
+    values: 
+      v1.15.0: v1.15.0
+      v1.15.1: v1.15.1
+    default: v1.15.0
