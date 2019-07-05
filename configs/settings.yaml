@@ -37,11 +37,8 @@ fields:
     caption: Enable Remote API Access
     value: false
 
-  - type: list
+  - type: string
     name: version
     inputType: hidden
     caption: Kubernetes Version
-    values: 
-      v1.15.0: v1.15.0
-      v1.15.1: v1.15.1
     default: v1.15.0
