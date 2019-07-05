@@ -27,46 +27,51 @@ onBeforeInit: |
       nodesPerDevEnvWOStorage = 2,
       nodesPerMasterNG = 3,
       nodesPerWorkerNG = 2,
-      err = null, cur = null, text = "used", prod = true, storage = true, dev = true;
+      markup = "", cur = null, text = "used", prod = true, storage = true, dev = true;
 
   var quotas = jelastic.billing.account.GetQuotas(perEnv + ";"+maxEnvs+";" + perNodeGroup).array;
   for (var i = 0; i < quotas.length; i++){
       var q = quotas[i], n = toNative(q.quota.name);
       if (n == maxEnvs && envsCount >= q.value){
-          err = q; cur = envsCount; prod = dev = storage = false; break;
+          err(q, "used", envsCount);
+          prod = dev = storage = false; break;
       } 
-      if (n == perEnv && nodesPerProdEnv >= q.value){
-          err = q; cur = nodesPerProdEnv; text = "required"; prod = false; 
+      if (n == perEnv && nodesPerProdEnv > q.value){
+          if (!markup) err(q, "required", nodesPerProdEnv);
+          prod = false; 
           if (nodesPerProdEnvWOStorage <= q.value) { 
             prod = true;
             storage = false;
           }
       }  
-      if (n == perEnv && nodesPerDevEnv >= q.value){
-          err = q; cur = nodesPerDevEnv; text = "required"; dev = false;
+      if (n == perEnv && nodesPerDevEnv > q.value){
+          err(q, "required", nodesPerDevEnv, true);
+          dev = false;
           if (nodesPerDevEnvWOStorage <= q.value) { 
             dev = true;
             storage = false;
           }
       }  
-      if (n == perNodeGroup && nodesPerMasterNG >= q.value){
-          err = q; cur = nodesPerMasterNG; text = "required"; prod = false;
+      if (n == perNodeGroup && nodesPerMasterNG > q.value){
+          if (!markup) err(q, "required", nodesPerMasterNG);
+          prod = false;
       }  
-      if (n == perNodeGroup && nodesPerWorkerNG >= q.value){
-          err = q; cur = nodesPerWorkerNG; text = "required"; dev = false;
+      if (n == perNodeGroup && nodesPerWorkerNG > q.value){
+          err(q, "required", nodesPerWorkerNG);
+          dev = false;
       } 
   }
   var resp = {result:0};
   var url = "https://raw.githubusercontent.com/sych74/kubernetes/master/configs/settings.yaml";
   resp.settings = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(url)));
-  if (err) {
+  if (markup) {
     var f = resp.settings.fields;
     f.push({
         "type": "displayfield",
         "cls": "warning",
         "height": 30,
         "hideLabel": true,
-        "markup": err.quota.description + " = " + err.value + ", " + text + " = " + cur + ". " + (!prod && dev  ? " Production topology is not available. " : "") + "Please upgrade your account."
+        "markup": (!prod && dev  ? "Production topology is not available. " : "") + markup + "Please upgrade your account."
     }); 
     if (!prod && !dev){
       f.push({
@@ -85,8 +90,12 @@ onBeforeInit: |
       if (!storage) f.splice(3, 1);    
     }
   }  
-  return resp;  
+  return resp;
   
+  function err(e, text, cur, override){
+    var m = e.quota.description + " - " + e.value + ", " + text + " - " + cur + ". ";
+    if (override) markup = m; else markup += m;
+  }
 onBeforeInstall: |
   var k8smCount = '${settings.topo}' == '0-dev' ? 1 : 3,
       workerCount = k8smCount > 1 ? 2 : 1, 
