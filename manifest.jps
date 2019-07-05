@@ -33,7 +33,8 @@ onBeforeInit: |
   for (var i = 0; i < quotas.length; i++){
       var q = quotas[i], n = toNative(q.quota.name);
       if (n == maxEnvs && envsCount >= q.value){
-          err(q, "used", envsCount);
+          err(q, "already used", envsCount, true);
+          markup = "Maximum allowed environments: " + markup;
           prod = dev = storage = false; break;
       } 
       if (n == perEnv && nodesPerProdEnv > q.value){
@@ -93,7 +94,7 @@ onBeforeInit: |
   return resp;
   
   function err(e, text, cur, override){
-    var m = e.quota.description + " - " + e.value + ", " + text + " - " + cur + ". ";
+    var m = (e.quota.description || e.quota.name) + " - " + e.value + ", " + text + " - " + cur + ". ";
     if (override) markup = m; else markup += m;
   }
 onBeforeInstall: |
