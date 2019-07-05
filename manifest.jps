@@ -64,14 +64,18 @@ onBeforeInit: |
     f.push({
         "type": "displayfield",
         "cls": "warning",
+        "height": 30,
         "hideLabel": true,
         "markup": err.quota.description + " = " + err.value + ", " + text + " = " + cur + ". " + (!prod && dev  ? " Production topology is not available. " : "") + "Please upgrade your account."
     }); 
     if (!prod && !dev){
       f.push({
           "type": "compositefield",
+          "height" : 0,
+          "hideLabel": true,
           "width": 0,
           "items": [{
+              "height" : 0,
               "type": "string",
               "required": true,
           }]
