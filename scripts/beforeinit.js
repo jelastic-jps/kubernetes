@@ -45,7 +45,7 @@ for (var i = 0; i < quotas.length; i++){
     } 
 }
 var resp = {result:0};
-var url = "https://raw.githubusercontent.com/sych74/kubernetes/master/configs/settings.yaml";
+var url = "https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/configs/settings.yaml";
 resp.settings = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(url)));
 if (markup) {
   var f = resp.settings.fields;
