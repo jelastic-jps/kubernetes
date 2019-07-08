@@ -69,7 +69,7 @@ if (markup) {
         }]
     });
   } else {
-    if (!pod) delete f[2].values["1-prod"];
+    if (!prod) delete f[2].values["1-prod"];
     if (!storage) f.splice(3, 1);    
   }
 }  
