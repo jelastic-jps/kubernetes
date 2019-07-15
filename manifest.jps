@@ -22,6 +22,9 @@ nodes: definedInOnBeforeInstall
 
 skipNodeEmails: true
 
+globals:
+    dashboardUrl:  https://${env.domain}/kubernetes-dashboard/
+
 onInstall:
   - block-masters-scaling
   - init-main-master
@@ -42,6 +45,10 @@ onInstall:
   - deploy
   - install-conf-addon
   - remove-attr
+  - if ('${env.protocol}' == 'http'):
+        setGlobals: 
+            dashboardUrl: https://${env.domain}:4910
+  
 
 onAfterScaleOut[cp]:
   forEach(event.response.nodes):
@@ -122,6 +129,7 @@ actions:
       $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap > /dev/null 2>&1
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+      iptables -t nat -I PREROUTING -p tcp --dport 4910 -j REDIRECT --to-port 30777
       service iptables save
       systemctl enable docker.service
       systemctl enable kubelet.service
@@ -267,6 +275,5 @@ actions:
             cmd[${nodes.k8sm.master.id}]: |-
               action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
               kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
-
 
 success: /text/success.md
