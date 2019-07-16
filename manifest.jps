@@ -46,9 +46,13 @@ onInstall:
   - install-conf-addon
   - remove-attr
   - if ('${env.protocol}' == 'http'):
-        setGlobals: 
-            dashboardUrl: https://${env.domain}:4910
-  
+      - api: env.control.AddEndpoint
+        nodeId: ${nodes.cp.master.id}
+        privatePort: 30777
+        protocol: TCP
+        name: Dashboard Self-Sighed HTTPS
+      - setGlobals: 
+          dashboardUrl: https://node${nodes.cp.master.id}-${env.domain}:${response.object.publicPort} 
 
 onAfterScaleOut[cp]:
   forEach(event.response.nodes):
@@ -129,7 +133,6 @@ actions:
       $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap > /dev/null 2>&1
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-      iptables -t nat -I PREROUTING -p tcp --dport 4910 -j REDIRECT --to-port 30777
       service iptables save
       systemctl enable docker.service
       systemctl enable kubelet.service
