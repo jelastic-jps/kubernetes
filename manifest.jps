@@ -129,7 +129,10 @@ actions:
 
   connect-workers:
     cmd[${this}]: |-
+      rm -f /etc/machine-id
+      systemd-machine-id-setup
       systemctl daemon-reload > /dev/null 2>&1
+      systemctl restart kubelet.service
       $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap > /dev/null 2>&1
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
