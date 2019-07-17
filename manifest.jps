@@ -172,9 +172,9 @@ actions:
 
   install-traefik:
      cmd[${nodes.k8sm.master.id}]: |-
-      kubectl apply -f ${baseUrl}/addons/traefik-rbac.yaml
-      kubectl apply -f ${baseUrl}/addons/traefik-ds.yaml
-      kubectl apply -f ${baseUrl}/addons/traefik-ui.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
