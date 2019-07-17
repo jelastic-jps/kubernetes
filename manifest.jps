@@ -52,7 +52,7 @@ onInstall:
         protocol: TCP
         name: Dashboard Self-Sighed HTTPS
       - setGlobals: 
-          dashboardUrl: https://node${nodes.cp.master.id}-${env.domain}:${response.object.publicPort} 
+          dashboardUrl: https://node${nodes.cp.master.id}-${env.domain}:${response.object.publicPort}/
 
 onAfterScaleOut[cp]:
   forEach(event.response.nodes):
