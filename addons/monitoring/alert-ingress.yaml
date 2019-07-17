@@ -1,0 +1,19 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: monitoring-prometheus-alertmanager
+  namespace: kubernetes-monitoring
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.frontend.rule.type: PathPrefixStrip
+    ingress.kubernetes.io/auth-type: basic
+    ingress.kubernetes.io/auth-secret: monitoring-prometheus
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /prometheus-alert
+        backend:
+          serviceName: monitoring-prometheus-alertmanager
+          servicePort: 80
