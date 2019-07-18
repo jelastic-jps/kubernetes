@@ -241,7 +241,6 @@ actions:
             action: monitoring
             loadingText: Installing...
             confirmText: Do you want to install Kubernetes Cluster Monitoring tools?
-            success: /text/success-monitoring.md
         actions:
           upgrade:
             script: |
@@ -311,5 +310,8 @@ actions:
             - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
             - setGlobals:
                 grafana_secret: ${response.out}
+            - return:
+                type: info
+                message: /text/success-monitoring.md
 
 success: /text/success.md
