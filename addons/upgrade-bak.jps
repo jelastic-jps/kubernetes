@@ -1,0 +1,73 @@
+version: 1.5
+type: update
+id: kubernetes-upgrade-to-1.15.1
+name: Kubernetes Upgrade to 1.15.1
+
+categories:
+- apps/dev-and-admin-tools
+
+homepage: https://github.com/jelastic-jps/kubernetes
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master
+logo: /images/k8s-logo.png
+
+description:
+  text: "K8s upgrade"
+  short: Kubernetes Upgrade
+
+onInstall:
+    - upgrade-masters:
+        id: ${nodes.k8sm.master.id}
+        master: true
+        version: ${settings.version}
+    - forEach(nodes.k8sm):
+        if (!${@i.ismaster}):
+          upgrade-masters:
+            id: ${@i.id}
+            master: false
+            version: ${settings.version}
+    - forEach(nodes.cp):
+        upgrade-workers:
+          id: ${@i.id}
+          hostname: node${@i.id}-${env.domain}
+          version: ${settings.version}
+    - script: |
+        var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.  \n\nNo other upgrades are available.";
+        if ("${this.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Upgrade\" button to start the upgrade process.";
+        return {result:"info", message:message};
+
+actions:
+  upgrade-masters:
+    - env.control.RedeployContainers:
+        nodeId: ${this.id}
+        tag: ${this.version}
+        skipReinstall: true
+    - cmd[${this.id}]: |-
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
+        sleep 5
+    - if (${this.master}):
+        - cmd[${this.id}]: |-
+            /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 1
+            /usr/bin/kubeadm upgrade apply ${this.version} || exit 1
+            service kubelet restart
+    - if (!${this.master}):
+        - cmd[${this.id}]: |-
+            /usr/bin/kubeadm upgrade node experimental-control-plane ${this.version}  || exit 2
+            service kubelet restart
+
+  upgrade-workers:
+    - cmd[${nodes.k8sm.master.id}]: |-
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
+        sleep 5
+        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
+    - env.control.RedeployContainers:
+        nodeId: ${this.id}
+        tag: ${this.version}
+        skipReinstall: true
+    - cmd[${this.id}]: |-
+        /usr/bin/kubeadm upgrade node config --kubelet-version ${this.version}  || exit 4
+        service kubelet restart
+    - cmd[${nodes.k8sm.master.id}]: |-
+        /usr/bin/kubectl uncordon ${this.hostname} || exit 5
+        while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break ; done
+
+success: "K8s upgrade complete"
