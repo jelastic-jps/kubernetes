@@ -96,7 +96,8 @@ actions:
         cmd[${nodes.k8sm.master.id}]: |-
            kubectl apply -f ${baseUrl}/addons/api-ingress.yaml
     - if (${settings.monitoring:true}):
-        monitoring
+        cmd[${nodes.k8sm.master.id}]: |-
+           echo monitoring should be there
 
   init-slave-master:
     - cmd[${this.id}]: |-
