@@ -1,0 +1,37 @@
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+
+datasources:
+ datasources.yaml:
+   apiVersion: 1
+   datasources:
+   - name: Prometheus
+     type: prometheus
+     url: http://monitoring-prometheus-server/prometheus/
+     access: proxy
+     isDefault: true
+
+dashboards:
+    default:
+      kube-prometeus-dashboard:
+        file: dashboards/kubernetes-prometeus-dashboard.json
+      kube-rchakra3-dashboard:
+        file: dashboards/kubernetes-rchakra3-dashboard.json
+      kube-vanniekerk-dashboard:
+        file: dashboards/kubernetes-vanniekerk-dashboard.json
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: 'default'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/default

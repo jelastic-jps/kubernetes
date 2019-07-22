@@ -111,9 +111,9 @@ actions:
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
-      wget -qO- https://github.com/derailed/k9s/releases/download/0.7.11/k9s_0.7.11_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
-      wget -qO- https://github.com/derailed/popeye/releases/download/v0.3.12/popeye_0.3.12_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
-      wget https://github.com/wercker/stern/releases/download/1.10.0/stern_linux_amd64 -O /usr/bin/stern
+      wget -qO- https://github.com/derailed/k9s/releases/download/0.7.12/k9s_0.7.12_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
+      wget -qO- https://github.com/derailed/popeye/releases/download/v0.3.13/popeye_0.3.13_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
+      wget https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
       chmod +x /usr/bin/stern
       kubectx_version=0.6.3
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
@@ -132,7 +132,6 @@ actions:
       rm -f /etc/machine-id
       systemd-machine-id-setup
       systemctl daemon-reload > /dev/null 2>&1
-      systemctl restart kubelet.service
       $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap > /dev/null 2>&1
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -172,9 +171,9 @@ actions:
 
   install-traefik:
      cmd[${nodes.k8sm.master.id}]: |-
-      kubectl apply -f ${baseUrl}/addons/traefik-rbac.yaml
-      kubectl apply -f ${baseUrl}/addons/traefik-ds.yaml
-      kubectl apply -f ${baseUrl}/addons/traefik-ui.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
@@ -199,7 +198,7 @@ actions:
     cmd[${nodes.k8sm.master.id}]: |-
       /usr/bin/kubectl drain ${this.workerHostname} --ignore-daemonsets --delete-local-data || exit 8;
       /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
-      
+
   remove-attr:
     cmd[*]: |-
       chattr -i -a /root/.bash_*
@@ -238,6 +237,10 @@ actions:
             loadingText: Updating...
             confirmText: Do you want to upgrade Kubernetes Cluster?
             successText: Kubernetes Cluster has been successfully upgraded!
+          - caption: Monitoring
+            action: monitoring
+            loadingText: Installing...
+            confirmText: Do you want to install Kubernetes Cluster Monitoring tools?
         actions:
           upgrade:
             script: |
@@ -254,7 +257,7 @@ actions:
               var message = "Current version " + version + " is the latest. No upgrades are available.";
               if (upgrades.length) {
                 upgrades.sort();
-                var next = upgrades.shift();                               
+                var next = upgrades.shift();
                 var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
                 var url = baseUrl+"/"+next+"/addons/upgrade.jps"
                 var huc = new java.net.URL(url).openConnection();
@@ -265,7 +268,7 @@ actions:
                 } else {
                   message = "The next version is " + next + ". However, automated upgrade procedure is not available yet. Please check it later, or contact support team if upgrade is required urgently.";
                   return {result:"info", message:message};
-                }                                                                
+                }
               } else {
                 return {result:"info", message:message};
               }
@@ -275,11 +278,40 @@ actions:
             envName: ${env.envName}
             settings:
                 version: ${this.next}
-                
 
           remoteApi:
             cmd[${nodes.k8sm.master.id}]: |-
               action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
               kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
+
+          monitoring:
+            - cmd[${nodes.k8sm.master.id}]: |-
+                helm repo update
+                helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
+                while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep prometheus-server && break ; done
+                sleep 5
+                helm fetch stable/grafana --untar
+                for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
+                  wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
+                done
+                helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
+                while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep grafana && break ; done
+                sleep 5
+                grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
+                kubectl create secret generic monitoring-prometheus --from-literal=auth="$(htpasswd -nb admin ${grafana_secret})" --namespace=kubernetes-monitoring
+                kubectl create -f ${baseUrl}/addons/monitoring/prometheus-ingress.yaml
+                kubectl create -f ${baseUrl}/addons/monitoring/alert-ingress.yaml
+                kubectl create -f ${baseUrl}/addons/monitoring/grafana-ingress.yaml
+                sleep 20
+                curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
+                dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Kubernetes+cluster+monitoring' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
+                curl -X POST -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}"
+                curl -X PUT -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences"
+            - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
+            - setGlobals:
+                grafana_secret: ${response.out}
+            - return:
+                type: info
+                message: /text/success-monitoring.md
 
 success: /text/success.md
