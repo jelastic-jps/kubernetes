@@ -33,7 +33,7 @@ fields:
     values:
       version1: Kubernetes Dashboard v1 (Stable)
       version2: Kubernetes Dashboard v2 (Beta)
-    default: version1
+    default: version2
     hideLabel: false
     editable: false
 
