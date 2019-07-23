@@ -39,7 +39,6 @@ onInstall:
   - install-components
   - install-helm
   - install-traefik
-  - manage-ingress-routes
   - generate-admin-token
   - connect-storage
   - deploy
@@ -126,10 +125,6 @@ actions:
       systemctl enable docker.service
       systemctl enable kubelet.service
 
-  manage-ingress-routes:
-    cmd[${nodes.k8sm.master.id}]: |-
-      kubectl apply -f ${baseUrl}/addons/dashboard-ingress.yaml
-
   connect-workers:
     cmd[${this}]: |-
       rm -f /etc/machine-id
@@ -163,9 +158,12 @@ actions:
     - if ('${settings.dashboard}' == 'version1'):
         cmd[${nodes.k8sm.master.id}]: |-
            kubectl create -f ${baseUrl}/addons/kubernetes-dashboard.yaml
+           kubectl create -f ${baseUrl}/addons/dashboard-ingress.yaml
+
     - if ('${settings.dashboard}' == 'version2'):
         cmd[${nodes.k8sm.master.id}]: |-
            kubectl create -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
+           kubectl create -f ${baseUrl}/addons/dashboard-ingress-beta.yaml
 
 
   install-helm:
