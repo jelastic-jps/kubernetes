@@ -160,12 +160,13 @@ actions:
         kubectl create -f ${baseUrl}/addons/create-admin.yaml
         kubectl create -f ${baseUrl}/addons/grant-privileges.yaml
 
-    - if (${settings.dashboard:version1}):
+    - if ('${settings.dashboard}' == 'version1'):
         cmd[${nodes.k8sm.master.id}]: |-
-           kubectl create-f ${baseUrl}/addons/kubernetes-dashboard.yaml
-    - if (${settings.dashboard:version2}):
+           kubectl create -f ${baseUrl}/addons/kubernetes-dashboard.yaml
+    - if ('${settings.dashboard}' == 'version2'):
         cmd[${nodes.k8sm.master.id}]: |-
-           kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
+           kubectl create -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
+
 
   install-helm:
     cmd[${nodes.k8sm.master.id}]: |-
