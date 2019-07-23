@@ -51,7 +51,7 @@ actions:
             service kubelet restart
     - if (!${this.master}):
         - cmd[${this.id}]: |-
-            /usr/bin/kubeadm upgrade node ${this.version}  || exit 2
+            /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 2
             service kubelet restart
 
   upgrade-workers:
