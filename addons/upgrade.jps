@@ -51,7 +51,7 @@ actions:
             service kubelet restart
     - if (!${this.master}):
         - cmd[${this.id}]: |-
-            /usr/bin/kubeadm upgrade node experimental-control-plane ${this.version}  || exit 2
+            /usr/bin/kubeadm upgrade node ${this.version}  || exit 2
             service kubelet restart
 
   upgrade-workers:
@@ -64,7 +64,7 @@ actions:
         tag: ${this.version}
         skipReinstall: true
     - cmd[${this.id}]: |-
-        /usr/bin/kubeadm upgrade node config --kubelet-version ${this.version}  || exit 4
+        /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
         service kubelet restart
     - cmd[${nodes.k8sm.master.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
