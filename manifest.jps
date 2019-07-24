@@ -335,3 +335,5 @@ addons:
           kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
 
 success: ${globals.default_success:} + ${globals.monitoring_success:}
+
+
