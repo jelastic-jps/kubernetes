@@ -13,10 +13,10 @@ logo: /images/k8s-logo.png
 name: Kubernetes Cluster
 targetRegions:
   type: vz7
-  
+
 ssl: true
-onBeforeInit: /scripts/beforeinit.js 
-onBeforeInstall: /scripts/beforeinstall.js 
+onBeforeInit: /scripts/beforeinit.js
+onBeforeInstall: /scripts/beforeinstall.js
 
 nodes: definedInOnBeforeInstall
 
@@ -42,15 +42,16 @@ onInstall:
   - generate-admin-token
   - connect-storage
   - deploy
-  - install-conf-addon
   - remove-attr
+  - if (${settings.monitoring:true}):
+        monitoring
   - if ('${env.protocol}' == 'http'):
       - api: env.control.AddEndpoint
         nodeId: ${nodes.cp.master.id}
         privatePort: 30777
         protocol: TCP
         name: Dashboard Self-Sighed HTTPS
-      - setGlobals: 
+      - setGlobals:
           dashboardUrl: https://node${nodes.cp.master.id}-${env.domain}:${response.object.publicPort}/
 
 onAfterScaleOut[cp]:
@@ -94,9 +95,6 @@ actions:
     - if (${settings.api:true}):
         cmd[${nodes.k8sm.master.id}]: |-
            kubectl apply -f ${baseUrl}/addons/api-ingress.yaml
-    - if (${settings.monitoring:true}):
-        cmd[${nodes.k8sm.master.id}]: |-
-           echo monitoring should be there
 
   init-slave-master:
     - cmd[${this.id}]: |-
@@ -212,114 +210,111 @@ actions:
       chattr -i -a /root/.bash_*
     user: root
 
-  install-conf-addon:
-    install:
-      envName: ${env.envName}
-      nodeGroup: k8sm
-      jps:
-        id: upgrade-k8s-addon
-        type: update
-        baseUrl: ${baseUrl}
-        name: Kubernetes Cluster Configuration
-        description: Press "Remote API" to enable or disable remote access or "Upgrade" to initiate upgrade procedure.
-        logo: /images/k8s-logo.png
+addons:
+
+  - id: conf-k8s-addon
+    type: update
+    baseUrl: ${baseUrl}
+    name: Kubernetes Cluster Configuration
+    description: Press "Remote API" to enable or disable remote access or "Upgrade" to initiate upgrade procedure.
+    logo: /images/k8s-logo.png
+    settings:
+      fields:
+        - type: displayfield
+          caption: Useful info
+          hideLabel: true
+          markup: Access and manage the cluster remotely via API
+        - type: checkbox
+          name: remote
+          caption: Enable Remote API Access
+          value: ${settings.api}
+    buttons:
+      - caption: Remote API
+        settings: main
+        action: remoteApi
+        loadingText: Updating...
+        confirmText: Are you sure?
+        successText: Remote API Access was successfully updated!
+      - caption: Upgrade
+        action: upgrade
+        loadingText: Updating...
+        confirmText: Do you want to upgrade Kubernetes Cluster?
+        successText: Kubernetes Cluster has been successfully upgraded!
+      - caption: Monitoring
+        action: monitoring
+        loadingText: Installing...
+        confirmText: Do you want to install Kubernetes Cluster Monitoring tools?
+    actions:
+      upgrade:
+        script: |
+          var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
+          var resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
+          if (resp.result != 0) return resp;
+          var version = resp.node.version;
+          var image = resp.node.name;
+          resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
+          if (resp.result != 0) return resp;
+          var tags = resp.object;
+          var upgrades = [];
+          for (var i = 0; i < tags.length; i++) if (tags[i] > version) upgrades.push(tags[i]);
+          var message = "Current version " + version + " is the latest. No upgrades are available.";
+          if (upgrades.length) {
+            upgrades.sort();
+            var next = upgrades.shift();
+            var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
+            var url = baseUrl+"/"+next+"/addons/upgrade.jps"
+            var huc = new java.net.URL(url).openConnection();
+            huc.setRequestMethod("HEAD");
+            var code = huc.getResponseCode();
+            if (code == 200){
+              return {result:0, onAfterReturn:{execUpgrade:{current:version, next:next, avail:upgrades.join(", "), jps: url}}};
+            } else {
+              message = "The next version is " + next + ". However, automated upgrade procedure is not available yet. Please check it later, or contact support team if upgrade is required urgently.";
+              return {result:"info", message:message};
+            }
+          } else {
+            return {result:"info", message:message};
+          }
+
+      execUpgrade:
+        install: ${this.jps}
+        envName: ${env.envName}
         settings:
-          fields:
-            - type: displayfield
-              caption: Useful info
-              hideLabel: true
-              markup: Access and manage the cluster remotely via API
-            - type: checkbox
-              name: remote
-              caption: Enable Remote API Access
-              value: ${settings.api}
-        buttons:
-          - caption: Remote API
-            settings: main
-            action: remoteApi
-            loadingText: Updating...
-            confirmText: Are you sure?
-            successText: Remote API Access was successfully updated!
-          - caption: Upgrade
-            action: upgrade
-            loadingText: Updating...
-            confirmText: Do you want to upgrade Kubernetes Cluster?
-            successText: Kubernetes Cluster has been successfully upgraded!
-          - caption: Monitoring
-            action: monitoring
-            loadingText: Installing...
-            confirmText: Do you want to install Kubernetes Cluster Monitoring tools?
-        actions:
-          upgrade:
-            script: |
-              var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
-              var resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
-              if (resp.result != 0) return resp;
-              var version = resp.node.version;
-              var image = resp.node.name;
-              resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
-              if (resp.result != 0) return resp;
-              var tags = resp.object;
-              var upgrades = [];
-              for (var i = 0; i < tags.length; i++) if (tags[i] > version) upgrades.push(tags[i]);
-              var message = "Current version " + version + " is the latest. No upgrades are available.";
-              if (upgrades.length) {
-                upgrades.sort();
-                var next = upgrades.shift();
-                var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
-                var url = baseUrl+"/"+next+"/addons/upgrade.jps"
-                var huc = new java.net.URL(url).openConnection();
-                huc.setRequestMethod("HEAD");
-                var code = huc.getResponseCode();
-                if (code == 200){
-                  return {result:0, onAfterReturn:{execUpgrade:{current:version, next:next, avail:upgrades.join(", "), jps: url}}};
-                } else {
-                  message = "The next version is " + next + ". However, automated upgrade procedure is not available yet. Please check it later, or contact support team if upgrade is required urgently.";
-                  return {result:"info", message:message};
-                }
-              } else {
-                return {result:"info", message:message};
-              }
+            version: ${this.next}
 
-          execUpgrade:
-            install: ${this.jps}
-            envName: ${env.envName}
-            settings:
-                version: ${this.next}
+      remoteApi:
+        cmd[${nodes.k8sm.master.id}]: |-
+          action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
+          kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
 
-          remoteApi:
-            cmd[${nodes.k8sm.master.id}]: |-
-              action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
-              kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
-
-          monitoring:
-            - cmd[${nodes.k8sm.master.id}]: |-
-                helm repo update
-                helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
-                while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep prometheus-server && break ; done
-                sleep 5
-                helm fetch stable/grafana --untar
-                for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
-                  wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
-                done
-                helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
-                while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep grafana && break ; done
-                sleep 5
-                grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
-                kubectl create secret generic monitoring-prometheus --from-literal=auth="$(htpasswd -nb admin ${grafana_secret})" --namespace=kubernetes-monitoring
-                kubectl create -f ${baseUrl}/addons/monitoring/prometheus-ingress.yaml
-                kubectl create -f ${baseUrl}/addons/monitoring/alert-ingress.yaml
-                kubectl create -f ${baseUrl}/addons/monitoring/grafana-ingress.yaml
-                sleep 20
-                curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
-                dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Kubernetes+cluster+monitoring' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
-                curl -X POST -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}"
-                curl -X PUT -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences"
-            - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
-            - setGlobals:
-                grafana_secret: ${response.out}
-            - return:
-                type: info
-                message: /text/success-monitoring.md
+      monitoring:
+        - cmd[${nodes.k8sm.master.id}]: |-
+            helm repo update
+            helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
+            while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep prometheus-server && break ; done
+            sleep 5
+            helm fetch stable/grafana --untar
+            for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
+              wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
+            done
+            helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
+            while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep grafana && break ; done
+            sleep 5
+            grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
+            kubectl create secret generic monitoring-prometheus --from-literal=auth="$(htpasswd -nb admin ${grafana_secret})" --namespace=kubernetes-monitoring
+            kubectl create -f ${baseUrl}/addons/monitoring/prometheus-ingress.yaml
+            kubectl create -f ${baseUrl}/addons/monitoring/alert-ingress.yaml
+            kubectl create -f ${baseUrl}/addons/monitoring/grafana-ingress.yaml
+            sleep 20
+            curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
+            dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Kubernetes+cluster+monitoring' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
+            curl -X POST -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}"
+            curl -X PUT -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences"
+        - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
+        - setGlobals:
+            grafana_secret: ${response.out}
+        - return:
+            type: info
+            message: /text/success-monitoring.md
 
 success: /text/success.md

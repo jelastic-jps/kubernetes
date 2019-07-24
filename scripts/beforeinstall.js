@@ -11,6 +11,7 @@ var resp = {
     tag: tag,
     scalingMode: "stateless",
     nodeGroup: "k8sm",
+    addons: ["conf-k8s-addon"],
     displayName: "Master",
     extip: false,
     env: {
