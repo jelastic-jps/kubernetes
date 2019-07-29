@@ -18,10 +18,6 @@ dashboards:
     default:
       kube-prometeus-dashboard:
         file: dashboards/kubernetes-prometeus-dashboard.json
-      kube-rchakra3-dashboard:
-        file: dashboards/kubernetes-rchakra3-dashboard.json
-      kube-vanniekerk-dashboard:
-        file: dashboards/kubernetes-vanniekerk-dashboard.json
 
 dashboardProviders:
   dashboardproviders.yaml:
