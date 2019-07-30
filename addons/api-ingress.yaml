@@ -2,10 +2,9 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: kubernetes-api
-  namespace: kube-system
+  namespace: default
   annotations:
     kubernetes.io/ingress.class: traefik
-    ingress.kubernetes.io/secure-backends: "true"
     traefik.frontend.rule.type: PathPrefixStrip
 spec:
   rules:
