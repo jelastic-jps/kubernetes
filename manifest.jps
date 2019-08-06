@@ -89,7 +89,7 @@ actions:
   init-kubernetes:
     cmd[master]: |-
       systemctl daemon-reload > /dev/null 2>&1
-      kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --ignore-preflight-errors=swap
+      kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --ignore-preflight-errors=swap,numcpu
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
@@ -107,7 +107,7 @@ actions:
   connect-workers:
     cmd[cp]: |-
       systemctl daemon-reload > /dev/null 2>&1
-      $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap > /dev/null 2>&1
+      $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap,numcpu > /dev/null 2>&1
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT      
       service iptables save
