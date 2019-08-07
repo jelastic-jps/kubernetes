@@ -91,7 +91,8 @@ actions:
      git clone ${globals.neo4jrepo}
      while $(! nc -vz ${globals.cluster-dns} 53) ;do sleep 1s; done
      sed -i '1s/^/nameserver 10.244.0.10\n /'  /etc/resolv.conf
-     cd kubernetes-neo4j && kubectl apply -f cores && kubectl apply -f read-replicas
+     cd kubernetes-neo4j && git reset --hard b6ef52277f601be6d7dad6a3f22db233c5aa0555
+     kubectl apply -f cores && kubectl apply -f read-replicas
      wget ${baseUrl}/neo4j-ingress.yaml -O /tmp/neo4j-ingress.yaml
      sed -i 's/*.demo.jelastic.com/${env.domain}/g' /tmp/neo4j-ingress.yaml
      kubectl apply -f /tmp/neo4j-ingress.yaml
