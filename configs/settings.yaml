@@ -1,4 +1,4 @@
-fields:  
+fields:
   - name: deploy
     type: radio-fieldset
     values:
@@ -56,6 +56,4 @@ fields:
     name: version
     inputType: hidden
     caption: Kubernetes Version
-    default: v1.15.1
-
-
+    default: v1.15.2
