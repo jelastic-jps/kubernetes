@@ -65,6 +65,9 @@ onBeforeScaleIn[cp]:
 
 onBeforeClone: stopEvent
 
+onBeforeRedeployContainer:
+  if (!${event.params.skipReinstall:false}): stopEvent
+
 actions:
   block-masters-scaling:
     env.control.ApplyNodeGroupData[k8sm]:
