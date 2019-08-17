@@ -132,8 +132,10 @@ actions:
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
+      systemctl start kube-postconf.service
       systemctl enable docker.service
       systemctl enable kubelet.service
+      systemctl enable kube-postconf.service
 
   connect-workers:
     cmd[${this}]: |-
@@ -144,8 +146,10 @@ actions:
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
+      systemctl start kube-postconf.service
       systemctl enable docker.service
       systemctl enable kubelet.service
+      systemctl enable kube-postconf.service
 
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
