@@ -350,5 +350,6 @@ addons:
           action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
           kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
 
-success: ${globals.default_success:} + ${globals.monitoring_success:}
-
+success: |
+  ${globals.default_success:}
+  ${globals.monitoring_success:}
