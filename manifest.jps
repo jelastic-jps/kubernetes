@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.2
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.3
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster
@@ -280,7 +280,7 @@ addons:
 
   - id: conf-k8s-addon
     type: update
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.2
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.3
     name: Kubernetes Cluster Configuration
     description: Press "Remote API" to enable or disable remote access or "Upgrade" to initiate upgrade procedure.
     logo: /images/k8s-logo.png
