@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/k8s-mmaster-test
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/k8s-test
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster
