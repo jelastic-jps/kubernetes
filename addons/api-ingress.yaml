@@ -1,17 +1,16 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: kubernetes-dashboard
-  namespace: kube-system
+  name: kubernetes-api
+  namespace: default
   annotations:
     kubernetes.io/ingress.class: traefik
-    ingress.kubernetes.io/secure-backends: "true"
     traefik.frontend.rule.type: PathPrefixStrip
 spec:
   rules:
   - http:
       paths:
-      - path: /kubernetes-dashboard
+      - path: /api
         backend:
-          serviceName: kubernetes-dashboard
+          serviceName: kubernetes
           servicePort: 443

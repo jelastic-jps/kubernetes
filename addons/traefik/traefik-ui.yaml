@@ -17,12 +17,15 @@ kind: Ingress
 metadata:
   name: traefik-web-ui
   namespace: kube-system
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    ingress.kubernetes.io/secure-backends: "true"
+    traefik.frontend.rule.type: PathPrefixStrip
 spec:
   rules:
-  - host: traefik-ui.minikube
-    http:
+  - http:
       paths:
-      - path: /
+      - path: /traefik-web-ui
         backend:
           serviceName: traefik-web-ui
-          servicePort: web
+          servicePort: "web"

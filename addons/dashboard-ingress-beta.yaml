@@ -2,7 +2,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: kubernetes-dashboard
-  namespace: kube-system
+  namespace: kubernetes-dashboard
   annotations:
     kubernetes.io/ingress.class: traefik
     ingress.kubernetes.io/secure-backends: "true"

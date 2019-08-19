@@ -1,17 +1,17 @@
+---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: kubernetes-dashboard
-  namespace: kube-system
+  name: monitoring-grafana
+  namespace: kubernetes-monitoring
   annotations:
     kubernetes.io/ingress.class: traefik
-    ingress.kubernetes.io/secure-backends: "true"
     traefik.frontend.rule.type: PathPrefixStrip
 spec:
   rules:
   - http:
       paths:
-      - path: /kubernetes-dashboard
+      - path: /grafana
         backend:
-          serviceName: kubernetes-dashboard
-          servicePort: 443
+          serviceName: monitoring-grafana
+          servicePort: 80

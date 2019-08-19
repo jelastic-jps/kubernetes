@@ -4,7 +4,7 @@ id: kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/k8s-mmaster-test
 description:
   text: /text/description-kube.md
-  short: Kubernetes Cluster 
+  short: Kubernetes Cluster
 categories:
   - apps/clusters
   - apps/dev-and-admin-tools
@@ -14,137 +14,16 @@ name: Kubernetes Cluster
 targetRegions:
   type: vz7
 
-settings:
-  fields:  
-    - name: deploy
-      type: radio-fieldset
-      values:
-        cc: Clean cluster with pre-deployed HelloWorld example
-        cmd: Deploy custom helm or stack via shell command
-      default: cc
-      showIf:
-        cmd:
-          name: cmd
-          type: text
-          height: 65
-          required: true
-          hideLabel: true
-          default: |-
-            helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
-            helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --version 1.6.0  --debug
-            kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/openliberty.yaml
-            
-    - name: label
-      caption: Topology
-      type: displayfield            
-    - name: topo
-      type: radio-fieldset
-      values:
-        0-dev: '<b>Development:</b> one master (1) and one scalable worker (1+)'
-        1-prod: '<b>Production:</b> multi master (3) with API balancers (2+) and scalable workers (2+)'
-      default: 0-dev
-  
-    - type: checkbox
-      name: storage
-      caption: Attach dedicated NFS Storage with dynamic volume provisioning
-      value: true
-
 ssl: true
-
-onBeforeInstall: |
-  var url = "https://registry.hub.docker.com/v1/repositories/jelastic/kubernetes/tags", 
-    tags = toNative(new com.hivext.api.core.utils.Transport().get(url)).sort(), 
-    latest = "latest";
-  for (var i = 0; i < tags.length; i++) if (tags[i].name > latest) latest = tags[i].name;
-  var k8smCount = '${settings.topo}' == '0-dev' ? 1 : 3,
-      workerCount = k8smCount > 1 ? 2 : 1;
-  var resp = {
-    result: 0, 
-    ssl: !!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value,
-    nodes: [{
-      count: k8smCount,
-      cloudlets: 32,
-      image: "devbeta/kubernetes:" + latest,
-      nodeGroup: "k8sm",
-      displayName: "Master",
-      extip: false,
-      env: {
-        JELASTIC_EXPOSE: false
-      },
-      volumes: [
-        "/var/lib/connect"
-      ],
-      volumeMounts: {
-        "/var/lib/connect": {
-          readOnly: true,
-          sourcePath: "/var/lib/connect",
-          sourceNodeGroup: "k8sm"
-        }
-      }
-    }, {
-      count: workerCount,
-      nodeGroup: "cp",
-      image: "devbeta/kubernetes:" + latest,
-      displayName: "Workers",
-      cloudlets: 32,
-      extip: false,
-      env: {
-        JELASTIC_EXPOSE: false
-      },
-      volumes: [
-        "/var/lib/connect"
-      ],
-      volumeMounts: {
-        "/var/lib/connect": {
-          readOnly: true,
-          sourcePath: "/var/lib/connect",
-          sourceNodeGroup: "k8sm"
-        }
-      }
-    }]
-  }
-    
-  if (k8smCount > 1) {
-    resp.nodes.push({
-      count: 2,
-      nodeType: "haproxy",
-      cloudlets: 8,
-      displayName: "API Balancer",
-      nodeGroup: "mbl",
-      env: {
-        JELASTIC_PORTS: 6443
-      }
-    })
-  }
-  
-  if (${settings.storage:false}) {
-    var path = "/data";
-    resp.nodes.push({
-      count: 1,
-      image: "jelastic/storage",
-      cloudlets: 8,
-      displayName: "Storage",
-      nodeGroup: "storage",
-      volumes: [
-        path
-      ]      
-    }) 
-    
-    for (var i = 0; i < 2; i++){
-      var n = resp.nodes[i];
-      n.volumes.push(path);
-      n.volumeMounts[path] = {
-          readOnly: false,
-          sourcePath: path,
-          sourceNodeGroup: "storage"    
-      };
-    }
-  }
-  return resp;
+onBeforeInit: /scripts/beforeinit.js
+onBeforeInstall: /scripts/beforeinstall.js
 
 nodes: definedInOnBeforeInstall
-  
+
 skipNodeEmails: true
+
+globals:
+    dashboardUrl:  https://${env.domain}/kubernetes-dashboard/
 
 onInstall:
   - block-masters-scaling
@@ -160,14 +39,43 @@ onInstall:
   - install-components
   - install-helm
   - install-traefik
-  - manage-ingress-routes
   - generate-admin-token
   - connect-storage
   - deploy
+  - remove-attr
+  - if (${settings.monitoring:true}):
+        - install_monitoring
+
+  - if ('${env.protocol}' == 'http'):
+      - api: env.control.AddEndpoint
+        nodeId: ${nodes.cp.master.id}
+        privatePort: 30777
+        protocol: TCP
+        name: Dashboard Self-Sighed HTTPS
+      - setGlobals:
+          dashboardUrl: https://node${nodes.cp.master.id}-${env.domain}:${response.object.publicPort}/
+
+  - setGlobals:
+        default_success: |
+             Enter [Kubernetes dashboard](${globals.dashboardUrl}) or [Remote API Endpoint](${env.protocol}://${env.domain}/api/) using the Access Token:
+
+             ```${globals.token}```
+             Press **Open in Browser** to view a default web page of your application.
+             To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation](https://docs.jelastic.com/custom-domains).
 
 onAfterScaleOut[cp]:
-  forEach(event.response.nodes): 
+  forEach(event.response.nodes):
     connect-workers: ${@i.id}
+
+onBeforeScaleIn[cp]:
+  forEach(event.response.nodes):
+    removeWorker:
+      workerHostname: node${@i.id}-${env.domain}
+
+onBeforeClone: stopEvent
+
+onBeforeRedeployContainer:
+  if (!${event.params.skipReinstall:false}): stopEvent
 
 actions:
   block-masters-scaling:
@@ -176,12 +84,14 @@ actions:
         validation:
           minCount: ${nodes.k8sm.length}
           maxCount: ${nodes.k8sm.length}
-        
+
   init-main-master:
     - if (${nodes.mbl.length:0}):
         cmd[mbl]: |-
           sed -i '/^<\/mappings>.*/i \\t<pair frontend_port="6443" backend_port="6443" description="CPlane balancing" option="tcp-check" params="check fall 3 rise 2">' /etc/haproxy/tcpmaps/mappings.xml
-          sed -i 's/^bind :::80/#bind :::80/g' /etc/haproxy/haproxy.cfg 
+          sed -i 's/^bind :::80/#bind :::80/g' /etc/haproxy/haproxy.cfg
+          sed -i '/^daemon$/a stats socket /var/run/haproxy.sock mode 660 level admin' /etc/haproxy/haproxy.cfg
+          sed -i '/^daemon$/a stats timeout 2m' /etc/haproxy/haproxy.cfg
           echo '${nodes.k8sm.master.intIP}' > /etc/haproxy/hosts
           jem balancer rebuildCommon
         user: root
@@ -192,7 +102,11 @@ actions:
         kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --upload-certs --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-init.log
         sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'control-plane' > /var/lib/connect/settings-master
         sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane' > /var/lib/connect/settings
+        printf "0 1 * * * kubeadm token create --print-join-command  > /var/lib/connect/settings\n\n\n" > /var/spool/cron/root
     - configure-master: ${nodes.k8sm.master.id}
+    - if (${settings.api:true}):
+        cmd[${nodes.k8sm.master.id}]: |-
+           kubectl apply -f ${baseUrl}/addons/api-ingress.yaml
 
   init-slave-master:
     - cmd[${this.id}]: |-
@@ -209,22 +123,33 @@ actions:
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
+      wget -qO- https://github.com/derailed/k9s/releases/download/0.7.13/k9s_0.7.13_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
+      wget -qO- https://github.com/derailed/popeye/releases/download/v0.3.13/popeye_0.3.13_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
+      wget https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
+      chmod +x /usr/bin/stern
+      kubectx_version=0.6.3
+      wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
+      wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
+      systemctl start kube-postconf.service
+      systemctl enable docker.service
       systemctl enable kubelet.service
-
-  manage-ingress-routes:
-    cmd[${nodes.k8sm.master.id}]: |-
-      kubectl apply -f ${baseUrl}/addons/dashboard-ingress.yaml
+      systemctl enable kube-postconf.service
 
   connect-workers:
     cmd[${this}]: |-
+      rm -f /etc/machine-id
+      systemd-machine-id-setup
       systemctl daemon-reload > /dev/null 2>&1
       $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap,numcpu > /dev/null 2>&1
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
+      systemctl start kube-postconf.service
+      systemctl enable docker.service
       systemctl enable kubelet.service
+      systemctl enable kube-postconf.service
 
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
@@ -241,25 +166,36 @@ actions:
         kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-deployment.yaml
         kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-service.yaml
         kubectl create -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
-        kubectl create -f ${baseUrl}/addons/kubernetes-dashboard.yaml
         kubectl create -f ${baseUrl}/addons/create-admin.yaml
         kubectl create -f ${baseUrl}/addons/grant-privileges.yaml
+
+    - if ('${settings.dashboard}' == 'version1'):
+        cmd[${nodes.k8sm.master.id}]: |-
+           kubectl create -f ${baseUrl}/addons/kubernetes-dashboard.yaml
+           kubectl create -f ${baseUrl}/addons/dashboard-ingress.yaml
+
+    - if ('${settings.dashboard}' == 'version2'):
+        cmd[${nodes.k8sm.master.id}]: |-
+           kubectl create -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
+           kubectl create -f ${baseUrl}/addons/dashboard-ingress-beta.yaml
+
 
   install-helm:
     cmd[${nodes.k8sm.master.id}]: |-
       curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
-      helm init
-      helm update
+      helm init --upgrade
+      helm repo update
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
       kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
       while true; do kubectl get pods --field-selector=status.phase=Running -n kube-system | grep tiller && break ; done
+      sleep 5
 
   install-traefik:
      cmd[${nodes.k8sm.master.id}]: |-
-      kubectl apply -f ${baseUrl}/addons/traefik-rbac.yaml
-      kubectl apply -f ${baseUrl}/addons/traefik-ds.yaml
-      kubectl apply -f ${baseUrl}/addons/traefik-ui.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
@@ -277,9 +213,147 @@ actions:
 
   connect-storage:
     if (${settings.storage:false}):
-      cmd[${nodes.k8sm.master.id}]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
+      cmd[${nodes.k8sm.master.id}]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
+
+
+  removeWorker:
+    cmd[${nodes.k8sm.master.id}]: |-
+      /usr/bin/kubectl drain ${this.workerHostname} --ignore-daemonsets --delete-local-data || exit 8;
+      /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
+
+  remove-attr:
+    cmd[*]: |-
+      chattr -i -a /root/.bash_*
+    user: root
+
+
+  install_monitoring:
+  - log: '${globals.monitoring_installed}'
+  - if ('${globals.monitoring_installed}' == 'true'):
+        return:
+            type: info
+            message: ${globals.monitoring_success}
+
+  - cmd[${nodes.k8sm.master.id}]: |-
+      [ ! -f /root/monitoring_is_installed ] && {
+      helm repo update
+      helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
+      while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep prometheus-server && break ; done
+      helm fetch stable/grafana --untar
+      for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
+        wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
+      done
+      sleep 5
+      helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
+      while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep grafana && break ; done
+      sleep 5
+      grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
+      kubectl create secret generic monitoring-prometheus --from-literal=auth="$(htpasswd -nb admin ${grafana_secret})" --namespace=kubernetes-monitoring
+      kubectl create -f ${baseUrl}/addons/monitoring/prometheus-ingress.yaml
+      kubectl create -f ${baseUrl}/addons/monitoring/alert-ingress.yaml
+      kubectl create -f ${baseUrl}/addons/monitoring/grafana-ingress.yaml
+      sleep 20
+      curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
+      dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Jelastic' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
+      curl -X POST -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}"
+      curl -X PUT -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences"
+      touch /root/monitoring_is_installed; } || echo "Already installed" ;
+  - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
+  - setGlobals:
+      grafana_secret: ${response.out}
+  - setGlobals:
+      monitoring_installed: true
+  - log: ${globals.monitoring_installed}
+
+  - setGlobals:
+      monitoring_success: |
+          Enter [Prometheus dashboard](${env.url}prometheus/), [Prometheus AlertManager](${env.url}prometheus-alert/)
+          and [Grafana dashboard](${env.url}grafana/), using login "admin" and password:
+
+          ```${globals.grafana_secret}```
+  - if (!${settings.monitoring:true}):
+      return:
+        type: info
+        message: ${globals.monitoring_success}
+
+addons:
+
+  - id: conf-k8s-addon
+    type: update
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.2
+    name: Kubernetes Cluster Configuration
+    description: Press "Remote API" to enable or disable remote access or "Upgrade" to initiate upgrade procedure.
+    logo: /images/k8s-logo.png
+    settings:
+      fields:
+        - type: displayfield
+          caption: Useful info
+          hideLabel: true
+          markup: Access and manage the cluster remotely via API
+        - type: checkbox
+          name: remote
+          caption: Enable Remote API Access
+          value: ${settings.api}
+    buttons:
+      - caption: Remote API
+        settings: main
+        action: remoteApi
+        loadingText: Updating...
+        confirmText: Are you sure?
+        successText: Remote API Access was successfully updated!
+      - caption: Upgrade
+        action: upgrade
+        loadingText: Updating...
+        confirmText: Do you want to upgrade Kubernetes Cluster?
+        successText: Kubernetes Cluster has been successfully upgraded!
+      - caption: Monitoring
+        action: install_monitoring
+        confirmText: Monitoring will be configured, OK?
+
+
+    actions:
+      upgrade:
+        script: |
+          var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
+          var resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
+          if (resp.result != 0) return resp;
+          var version = resp.node.version;
+          var image = resp.node.name;
+          resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
+          if (resp.result != 0) return resp;
+          var tags = resp.object;
+          var upgrades = [];
+          for (var i = 0; i < tags.length; i++) if (tags[i] > version) upgrades.push(tags[i]);
+          var message = "Current version " + version + " is the latest. No upgrades are available.";
+          if (upgrades.length) {
+            upgrades.sort();
+            var next = upgrades.shift();
+            var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
+            var url = baseUrl+"/"+next+"/addons/upgrade.jps"
+            var huc = new java.net.URL(url).openConnection();
+            huc.setRequestMethod("HEAD");
+            var code = huc.getResponseCode();
+            if (code == 200){
+              return {result:0, onAfterReturn:{execUpgrade:{current:version, next:next, avail:upgrades.join(", "), jps: url}}};
+            } else {
+              message = "The next version is " + next + ". However, automated upgrade procedure is not available yet. Please check it later, or contact support team if upgrade is required urgently.";
+              return {result:"info", message:message};
+            }
+          } else {
+            return {result:"info", message:message};
+          }
+
+      execUpgrade:
+        install: ${this.jps}
+        envName: ${env.envName}
+        settings:
+            version: ${this.next}
+
+      remoteApi:
+        cmd[${nodes.k8sm.master.id}]: |-
+          action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
+          kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
 
 success: |
-   Access Token to [Kubernetes UI](https://${env.domain}/kubernetes-dashboard/):
-
-   ```${globals.token}```
+  ${globals.default_success:}
+  ${globals.monitoring_success:}
