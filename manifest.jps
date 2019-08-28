@@ -206,6 +206,7 @@ actions:
     - if ('${settings.deploy}' == 'cc'):
         cmd[${nodes.k8sm.master.id}]: |-
           kubectl apply -f ${baseUrl}/addons/helloworld.yaml
+          kubectl apply -f ${baseUrl}/addons/helloworld-ingress.yaml
     - if ('${settings.deploy}' == 'cmd'):
         cmd[${nodes.k8sm.master.id}]: ${settings.cmd}
     - if ('${settings.deploy}' == 'yml'):
