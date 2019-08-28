@@ -57,7 +57,7 @@ onInstall:
 
   - setGlobals:
         default_success: |
-             Enter [Kubernetes dashboard](${globals.dashboardUrl}) or [Remote API Endpoint](${env.protocol}://${env.domain}/api/) using the Access Token:
+             Enter [Kubernetes dashboard](${globals.dashboardUrl}) ${globals.default_api:} using the Access Token:
 
              ```${globals.token}```
              Press **Open in Browser** to view a default web page of your application.
@@ -105,8 +105,10 @@ actions:
         printf "0 1 * * * kubeadm token create --print-join-command  > /var/lib/connect/settings\n\n\n" > /var/spool/cron/root
     - configure-master: ${nodes.k8sm.master.id}
     - if (${settings.api:true}):
-        cmd[${nodes.k8sm.master.id}]: |-
-           kubectl apply -f ${baseUrl}/addons/api-ingress.yaml
+        - cmd[${nodes.k8sm.master.id}]: |-
+            kubectl apply -f ${baseUrl}/addons/api-ingress.yaml
+        - setGlobals:
+            default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
   init-slave-master:
     - cmd[${this.id}]: |-
@@ -234,7 +236,7 @@ actions:
         return:
             type: info
             message: ${globals.monitoring_success}
-            
+
   - cmd[${nodes.k8sm.master.id}]: |-
       [ ! -f /root/monitoring_is_installed ] && {
       helm repo update
@@ -265,7 +267,7 @@ actions:
   - setGlobals:
       monitoring_installed: true
   - log: ${globals.monitoring_installed}
-      
+
   - setGlobals:
       monitoring_success: |
           Enter [Prometheus dashboard](${env.url}prometheus/), [Prometheus AlertManager](${env.url}prometheus-alert/)
@@ -311,7 +313,6 @@ addons:
         action: install_monitoring
         confirmText: Monitoring will be configured, OK?
 
-        
     actions:
       upgrade:
         script: |
