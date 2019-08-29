@@ -37,7 +37,13 @@ onInstall:
   - connect-workers: cp
   - setup-overlay
   - install-components
-  - install-helm
+
+  - install-helm-master
+  - forEach(node:nodes.k8sm):
+      if (!${@node.ismaster}):
+        install-helm-slave:
+          id: ${@node.id}
+
   - install-traefik
   - generate-admin-token
   - connect-storage
@@ -132,6 +138,8 @@ actions:
       kubectx_version=0.6.3
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
+      wget https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
+      chmod +x /usr/bin/weave
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
       systemctl start kube-postconf.service
@@ -156,8 +164,6 @@ actions:
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/weave-pack.yaml
-      wget https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
-      chmod +x /usr/bin/weave
 
   install-components:
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -181,8 +187,7 @@ actions:
            kubectl create -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
            kubectl create -f ${baseUrl}/addons/dashboard-ingress-beta.yaml
 
-
-  install-helm:
+  install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
       curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
       helm init --upgrade
@@ -192,6 +197,12 @@ actions:
       kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
       while true; do kubectl get pods --field-selector=status.phase=Running -n kube-system | grep tiller && break ; done
       sleep 5
+
+  install-helm-slave:
+    cmd[${this.id}]: |-
+      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
+      helm init --client-only
+      helm repo update
 
   install-traefik:
      cmd[${nodes.k8sm.master.id}]: |-
