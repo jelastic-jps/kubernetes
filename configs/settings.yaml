@@ -14,7 +14,7 @@ fields:
         hideLabel: true
         default: |-
           helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
-          helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 ibm-charts/ibm-open-liberty --version 1.6.0  --debug
+          helm install --name default --set autoscaling.enabled=true --set autoscaling.minReplicas=2 --set resources.constraints.enabled=true --set resources.requests.cpu=400m --set resources.limits.cpu=700m ibm-charts/ibm-open-liberty --version 1.6.0  --debug
           kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/addons/openliberty.yaml
 
   - name: label
