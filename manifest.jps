@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.3
+baseUrl: https://raw.githubusercontent.com/bianchi2/kubernetes/nginx
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster
@@ -36,9 +36,21 @@ onInstall:
 
   - connect-workers: cp
   - setup-overlay
+  - if ('${settings.ingress-controller}' == 'Nginx'):
+      - setGlobals:
+          ingress-dir: nginx
+      - install-nginx
+  - else:
+      - setGlobals:
+          ingress-dir: traefik
+      - install-traefik
+  - configure-remote-api
   - install-components
-  - install-helm
-  - install-traefik
+  - install-helm-master
+  - forEach(node:nodes.k8sm):
+      if (!${@node.ismaster}):
+        install-helm-slave:
+          id: ${@node.id}
   - generate-admin-token
   - connect-storage
   - deploy
@@ -57,7 +69,7 @@ onInstall:
 
   - setGlobals:
         default_success: |
-             Enter [Kubernetes dashboard](${globals.dashboardUrl}) or [Remote API Endpoint](${env.protocol}://${env.domain}/api/) using the Access Token:
+             Enter [Kubernetes dashboard](${globals.dashboardUrl}) ${globals.default_api:} using the Access Token:
 
              ```${globals.token}```
              Press **Open in Browser** to view a default web page of your application.
@@ -104,9 +116,6 @@ actions:
         sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane' > /var/lib/connect/settings
         printf "0 1 * * * kubeadm token create --print-join-command  > /var/lib/connect/settings\n\n\n" > /var/spool/cron/root
     - configure-master: ${nodes.k8sm.master.id}
-    - if (${settings.api:true}):
-        cmd[${nodes.k8sm.master.id}]: |-
-           kubectl apply -f ${baseUrl}/addons/api-ingress.yaml
 
   init-slave-master:
     - cmd[${this.id}]: |-
@@ -130,6 +139,8 @@ actions:
       kubectx_version=0.6.3
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
+      wget https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
+      chmod +x /usr/bin/weave
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
       systemctl start kube-postconf.service
@@ -154,8 +165,6 @@ actions:
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/weave-pack.yaml
-      wget https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
-      chmod +x /usr/bin/weave
 
   install-components:
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -172,15 +181,14 @@ actions:
     - if ('${settings.dashboard}' == 'version1'):
         cmd[${nodes.k8sm.master.id}]: |-
            kubectl create -f ${baseUrl}/addons/kubernetes-dashboard.yaml
-           kubectl create -f ${baseUrl}/addons/dashboard-ingress.yaml
+           kubectl create -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml
 
     - if ('${settings.dashboard}' == 'version2'):
         cmd[${nodes.k8sm.master.id}]: |-
            kubectl create -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
-           kubectl create -f ${baseUrl}/addons/dashboard-ingress-beta.yaml
+           kubectl create -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-beta.yaml
 
-
-  install-helm:
+  install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
       curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
       helm init --upgrade
@@ -191,11 +199,29 @@ actions:
       while true; do kubectl get pods --field-selector=status.phase=Running -n kube-system | grep tiller && break ; done
       sleep 5
 
+  install-helm-slave:
+    cmd[${this.id}]: |-
+      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
+      helm init --client-only
+      helm repo update
+
+  install-nginx:
+     cmd[${nodes.k8sm.master.id}]: |-
+      kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
+      kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
+
   install-traefik:
      cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
+
+  configure-remote-api:
+      - if (${settings.api:true}):
+          - cmd[${nodes.k8sm.master.id}]: |-
+              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
+          - setGlobals:
+              default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
@@ -206,8 +232,9 @@ actions:
     - if ('${settings.deploy}' == 'cc'):
         cmd[${nodes.k8sm.master.id}]: |-
           kubectl apply -f ${baseUrl}/addons/helloworld.yaml
+          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml
     - if ('${settings.deploy}' == 'cmd'):
-        cmd[${nodes.k8sm.master.id}]: ${settings.cmd}
+        cmd[${nodes.k8sm.master.id}]: ${settings.cmd} && if [ '${settings.ingress-controller}' == "Nginx" ]; then kubectl delete ingress/open-liberty-traefik || true; else kubectl delete ingress/open-liberty-nginx; fi
     - if ('${settings.deploy}' == 'yml'):
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
@@ -233,7 +260,7 @@ actions:
         return:
             type: info
             message: ${globals.monitoring_success}
-            
+
   - cmd[${nodes.k8sm.master.id}]: |-
       [ ! -f /root/monitoring_is_installed ] && {
       helm repo update
@@ -249,9 +276,9 @@ actions:
       sleep 5
       grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
       kubectl create secret generic monitoring-prometheus --from-literal=auth="$(htpasswd -nb admin ${grafana_secret})" --namespace=kubernetes-monitoring
-      kubectl create -f ${baseUrl}/addons/monitoring/prometheus-ingress.yaml
-      kubectl create -f ${baseUrl}/addons/monitoring/alert-ingress.yaml
-      kubectl create -f ${baseUrl}/addons/monitoring/grafana-ingress.yaml
+      kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
+      kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
+      kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml
       sleep 20
       curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
       dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Jelastic' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
@@ -264,7 +291,7 @@ actions:
   - setGlobals:
       monitoring_installed: true
   - log: ${globals.monitoring_installed}
-      
+
   - setGlobals:
       monitoring_success: |
           Enter [Prometheus dashboard](${env.url}prometheus/), [Prometheus AlertManager](${env.url}prometheus-alert/)
@@ -280,7 +307,7 @@ addons:
 
   - id: conf-k8s-addon
     type: update
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.3
+    baseUrl: https://raw.githubusercontent.com/bianchi2/kubernetes/nginx
     name: Kubernetes Cluster Configuration
     description: Press "Remote API" to enable or disable remote access or "Upgrade" to initiate upgrade procedure.
     logo: /images/k8s-logo.png
@@ -310,7 +337,6 @@ addons:
         action: install_monitoring
         confirmText: Monitoring will be configured, OK?
 
-        
     actions:
       upgrade:
         script: |
@@ -352,7 +378,7 @@ addons:
       remoteApi:
         cmd[${nodes.k8sm.master.id}]: |-
           action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
-          kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
+          kubectl $action -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
 
 success: |
   ${globals.default_success:}
