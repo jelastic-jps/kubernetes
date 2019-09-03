@@ -2,6 +2,7 @@ type: install
 version: 1.5
 id: kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/k8s-test
+
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster
@@ -37,7 +38,13 @@ onInstall:
   - connect-workers: cp
   - setup-overlay
   - install-components
-  - install-helm
+
+  - install-helm-master
+  - forEach(node:nodes.k8sm):
+      if (!${@node.ismaster}):
+        install-helm-slave:
+          id: ${@node.id}
+
   - install-traefik
   - generate-admin-token
   - connect-storage
@@ -57,7 +64,7 @@ onInstall:
 
   - setGlobals:
         default_success: |
-             Enter [Kubernetes dashboard](${globals.dashboardUrl}) or [Remote API Endpoint](${env.protocol}://${env.domain}/api/) using the Access Token:
+             Enter [Kubernetes dashboard](${globals.dashboardUrl}) ${globals.default_api:} using the Access Token:
 
              ```${globals.token}```
              Press **Open in Browser** to view a default web page of your application.
@@ -105,8 +112,10 @@ actions:
         printf "0 1 * * * kubeadm token create --print-join-command  > /var/lib/connect/settings\n\n\n" > /var/spool/cron/root
     - configure-master: ${nodes.k8sm.master.id}
     - if (${settings.api:true}):
-        cmd[${nodes.k8sm.master.id}]: |-
-           kubectl apply -f ${baseUrl}/addons/api-ingress.yaml
+        - cmd[${nodes.k8sm.master.id}]: |-
+            kubectl apply -f ${baseUrl}/addons/api-ingress.yaml
+        - setGlobals:
+            default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
   init-slave-master:
     - cmd[${this.id}]: |-
@@ -130,6 +139,8 @@ actions:
       kubectx_version=0.6.3
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
+      wget https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
+      chmod +x /usr/bin/weave
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
       systemctl start kube-postconf.service
@@ -154,8 +165,6 @@ actions:
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/weave-pack.yaml
-      wget https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
-      chmod +x /usr/bin/weave
 
   install-components:
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -179,8 +188,7 @@ actions:
            kubectl create -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
            kubectl create -f ${baseUrl}/addons/dashboard-ingress-beta.yaml
 
-
-  install-helm:
+  install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
       curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
       helm init --upgrade
@@ -190,6 +198,12 @@ actions:
       kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
       while true; do kubectl get pods --field-selector=status.phase=Running -n kube-system | grep tiller && break ; done
       sleep 5
+
+  install-helm-slave:
+    cmd[${this.id}]: |-
+      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
+      helm init --client-only
+      helm repo update
 
   install-traefik:
      cmd[${nodes.k8sm.master.id}]: |-
@@ -206,6 +220,7 @@ actions:
     - if ('${settings.deploy}' == 'cc'):
         cmd[${nodes.k8sm.master.id}]: |-
           kubectl apply -f ${baseUrl}/addons/helloworld.yaml
+          kubectl apply -f ${baseUrl}/addons/helloworld-ingress.yaml
     - if ('${settings.deploy}' == 'cmd'):
         cmd[${nodes.k8sm.master.id}]: ${settings.cmd}
     - if ('${settings.deploy}' == 'yml'):
@@ -280,7 +295,7 @@ addons:
 
   - id: conf-k8s-addon
     type: update
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.2
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.4
     name: Kubernetes Cluster Configuration
     description: Press "Remote API" to enable or disable remote access or "Upgrade" to initiate upgrade procedure.
     logo: /images/k8s-logo.png
@@ -309,7 +324,6 @@ addons:
       - caption: Monitoring
         action: install_monitoring
         confirmText: Monitoring will be configured, OK?
-
 
     actions:
       upgrade:
