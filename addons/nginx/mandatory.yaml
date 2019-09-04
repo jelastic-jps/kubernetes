@@ -223,6 +223,11 @@ spec:
             - --udp-services-configmap=$(POD_NAMESPACE)/udp-services
             - --publish-service=$(POD_NAMESPACE)/ingress-nginx
             - --annotations-prefix=nginx.ingress.kubernetes.io
+          resources:
+            limits:
+              memory: 3Gi
+            requests:
+              memory: 128Mi
           securityContext:
             allowPrivilegeEscalation: true
             capabilities:
