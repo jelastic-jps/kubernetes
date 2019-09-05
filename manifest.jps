@@ -385,6 +385,22 @@ addons:
       addon-remote-api:
       - log: '${this.api}'
       - setup-remote-api: ${this.api}
+      - if (${this.api:true}):
+          - setGlobals:
+              apiStatusMessage: enabled at ${env.url}api
+      - else:
+          - setGlobals:
+              apiStatusMessage: disabled
+      - jelastic.message.email.SendToUser:
+        login: "${user.email}"
+        subject: Remote API ${globals.apiStatusMessage} in Kubernetes Cluster ${env.name}
+        body: |-
+          <!DOCTYPE html>
+            <html>
+            <body>
+          Remote API has been ${globals.apiStatusMessage}
+            </body>
+            </html>
 
 success: |
   ${globals.default_success:}
