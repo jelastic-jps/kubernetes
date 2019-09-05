@@ -293,6 +293,20 @@ actions:
 
           ```${globals.grafana_secret}```
   - if (!${settings.monitoring:true}):
+      jelastic.message.email.SendToUser:
+            login: "${user.email}"
+            subject: Monitoring Installed in Kubernetes Cluster ${env.name}
+            body: |-
+              <!DOCTYPE html>
+                <html>
+                <body>
+              Monitoring Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
+              Prometheus Dashboard - ${env.url}prometheus/<br>
+              Prometheus AlertManager - ${env.url}prometheus-alert/ <br>
+              Grafana Dashboard - ${env.url}grafana/ <br>
+              Credentials - admin/${globals.grafana_secret}
+                </body>
+                </html>
       return:
         type: info
         message: ${globals.monitoring_success}
@@ -303,7 +317,7 @@ addons:
     type: update
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.4
     name: Kubernetes Cluster Configuration
-    description: Press "Remote API" to enable or disable remote access or "Upgrade" to initiate upgrade procedure.
+    description: Configure remote API access and monitoring tools or upgrade your Kubernetes cluster
     logo: /images/k8s-logo.png
     settings:
       fields:
@@ -328,7 +342,7 @@ addons:
         successText: Kubernetes Cluster has been successfully upgraded!
       - caption: Monitoring
         action: install-monitoring
-        confirmText: Monitoring will be configured, OK?
+        confirmText: Monitoring tools will be installed if missing. Continue?
 
     actions:
       addon-upgrade:
