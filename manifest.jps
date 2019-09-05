@@ -373,7 +373,7 @@ addons:
       - setup-remote-api: ${this.api}
       - if (${this.api:true}):
           - setGlobals:
-              apiStatusMessage: enabled
+              apiStatusMessage: enabled at ${env.url}api
       - else:
           - setGlobals:
               apiStatusMessage: disabled
@@ -384,7 +384,7 @@ addons:
           <!DOCTYPE html>
             <html>
             <body>
-          Remote API has been ${globals.apiStatusMessage} at ${env.url}api
+          Remote API has been ${globals.apiStatusMessage}
             </body>
             </html>
 
