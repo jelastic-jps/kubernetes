@@ -295,7 +295,7 @@ actions:
   - if (!${settings.monitoring:true}):
       jelastic.message.email.SendToUser:
             login: "${user.email}"
-            subject: Monitoring Installed in Kubernetes Cluster ${env.name}
+            subject: Monitoring Tools Successfully Installed in ${env.name}
             body: |-
               Monitoring Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
               Prometheus Dashboard - ${env.url}prometheus/<br>
@@ -388,7 +388,7 @@ addons:
               apiStatusMessage: disabled
       - jelastic.message.email.SendToUser:
           login: "${user.email}"
-          subject: Remote API ${globals.apiStatusMessage} in Kubernetes Cluster ${env.name}
+          subject: Remote API Access Successfully Updated in ${env.name}
           body: Remote API has been ${globals.apiStatusMessage}
 
 success: |
