@@ -297,16 +297,11 @@ actions:
             login: "${user.email}"
             subject: Monitoring Installed in Kubernetes Cluster ${env.name}
             body: |-
-              <!DOCTYPE html>
-                <html>
-                <body>
               Monitoring Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
               Prometheus Dashboard - ${env.url}prometheus/<br>
               Prometheus AlertManager - ${env.url}prometheus-alert/ <br>
               Grafana Dashboard - ${env.url}grafana/ <br>
-              Credentials - admin/${globals.grafana_secret}
-                </body>
-                </html>
+              Credentials - admin / ${globals.grafana_secret}
       return:
         type: info
         message: ${globals.monitoring_success}
@@ -392,15 +387,9 @@ addons:
           - setGlobals:
               apiStatusMessage: disabled
       - jelastic.message.email.SendToUser:
-        login: "${user.email}"
-        subject: Remote API ${globals.apiStatusMessage} in Kubernetes Cluster ${env.name}
-        body: |-
-          <!DOCTYPE html>
-            <html>
-            <body>
-          Remote API has been ${globals.apiStatusMessage}
-            </body>
-            </html>
+          login: "${user.email}"
+          subject: Remote API ${globals.apiStatusMessage} in Kubernetes Cluster ${env.name}
+          body: Remote API has been ${globals.apiStatusMessage}
 
 success: |
   ${globals.default_success:}
