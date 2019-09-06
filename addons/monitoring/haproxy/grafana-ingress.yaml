@@ -1,0 +1,17 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: monitoring-grafana
+  namespace: kubernetes-monitoring
+  annotations:
+    ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: haproxy
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /grafana
+        backend:
+          serviceName: monitoring-grafana
+          servicePort: 80
