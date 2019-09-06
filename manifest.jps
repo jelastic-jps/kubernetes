@@ -323,6 +323,9 @@ addons:
         - type: checkbox
           name: api
           caption: Remote API access is enabled
+        - type: string
+          name: monitoring
+          inputType: hidden
     buttons:
       - caption: Remote API
         settings: main
