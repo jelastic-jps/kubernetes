@@ -358,7 +358,7 @@ addons:
           var message = "Current version " + version + " is the latest. No upgrades are available.";
           if (upgrades.length) {
             upgrades.sort();
-            var next = upgrades.shift();
+            var next = upgrades.pop();
             var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
             var url = baseUrl+"/"+next+"/addons/upgrade.jps"
             var huc = new java.net.URL(url).openConnection();
