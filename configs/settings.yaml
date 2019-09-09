@@ -1,4 +1,4 @@
-:
+fields:
   - name: deploy
     type: radio-fieldset
     values:
