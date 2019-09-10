@@ -50,8 +50,12 @@ onInstall:
   - connect-storage
   - deploy
   - remove-attr
+
+  - if (${settings.api:true}):
+      - setup-remote-api: true
+
   - if (${settings.monitoring:true}):
-        - install_monitoring
+        - install-monitoring
 
   - if ('${env.protocol}' == 'http'):
       - api: env.control.AddEndpoint
@@ -112,8 +116,6 @@ actions:
         printf "0 1 * * * kubeadm token create --print-join-command  > /var/lib/connect/settings\n\n\n" > /var/spool/cron/root
     - configure-master: ${nodes.k8sm.master.id}
     - if (${settings.api:true}):
-        - cmd[${nodes.k8sm.master.id}]: |-
-            kubectl apply -f ${baseUrl}/addons/api-ingress.yaml
         - setGlobals:
             default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
@@ -132,11 +134,12 @@ actions:
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
-      wget -qO- https://github.com/derailed/k9s/releases/download/0.7.13/k9s_0.7.13_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
-      wget -qO- https://github.com/derailed/popeye/releases/download/v0.3.13/popeye_0.3.13_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
+      wget -qO- https://github.com/derailed/k9s/releases/download/0.8.4/k9s_0.8.4_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
+      wget -qO- https://github.com/derailed/popeye/releases/download/v0.4.3/popeye_0.4.3_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
       wget https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
       chmod +x /usr/bin/stern
-      kubectx_version=0.6.3
+      /usr/bin/stern --completion=bash > /etc/bash_completion.d/stern.bash
+      kubectx_version=0.7.0
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
       wget https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
@@ -230,7 +233,6 @@ actions:
     if (${settings.storage:false}):
       cmd[${nodes.k8sm.master.id}]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
 
-
   removeWorker:
     cmd[${nodes.k8sm.master.id}]: |-
       /usr/bin/kubectl drain ${this.workerHostname} --ignore-daemonsets --delete-local-data || exit 8;
@@ -241,8 +243,13 @@ actions:
       chattr -i -a /root/.bash_*
     user: root
 
+  setup-remote-api:
+  - log: '${this}'
+  - cmd[${nodes.k8sm.master.id}]: |-
+      action=$([ "${this}" == "true" ] && echo "apply" || echo "delete")
+      kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
 
-  install_monitoring:
+  install-monitoring:
   - log: '${globals.monitoring_installed}'
   - if ('${globals.monitoring_installed}' == 'true'):
         return:
@@ -287,6 +294,15 @@ actions:
 
           ```${globals.grafana_secret}```
   - if (!${settings.monitoring:true}):
+      jelastic.message.email.SendToUser:
+            login: "${user.email}"
+            subject: Monitoring Tools Successfully Installed in ${env.name}
+            body: |-
+              Monitoring Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
+              Prometheus Dashboard - ${env.url}prometheus/<br>
+              Prometheus AlertManager - ${env.url}prometheus-alert/ <br>
+              Grafana Dashboard - ${env.url}grafana/ <br>
+              Credentials - admin / ${globals.grafana_secret}
       return:
         type: info
         message: ${globals.monitoring_success}
@@ -297,7 +313,7 @@ addons:
     type: update
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.4
     name: Kubernetes Cluster Configuration
-    description: Press "Remote API" to enable or disable remote access or "Upgrade" to initiate upgrade procedure.
+    description: Configure remote API access and monitoring tools or upgrade your Kubernetes cluster
     logo: /images/k8s-logo.png
     settings:
       fields:
@@ -306,27 +322,29 @@ addons:
           hideLabel: true
           markup: Access and manage the cluster remotely via API
         - type: checkbox
-          name: remote
-          caption: Enable Remote API Access
-          value: ${settings.api}
+          name: api
+          caption: Remote API access is enabled
+        - type: string
+          name: monitoring
+          inputType: hidden
     buttons:
       - caption: Remote API
         settings: main
-        action: remoteApi
+        action: addon-remote-api
         loadingText: Updating...
         confirmText: Are you sure?
         successText: Remote API Access was successfully updated!
       - caption: Upgrade
-        action: upgrade
+        action: addon-upgrade
         loadingText: Updating...
         confirmText: Do you want to upgrade Kubernetes Cluster?
         successText: Kubernetes Cluster has been successfully upgraded!
       - caption: Monitoring
-        action: install_monitoring
-        confirmText: Monitoring will be configured, OK?
+        action: install-monitoring
+        confirmText: Monitoring tools will be installed if missing. Continue?
 
     actions:
-      upgrade:
+      addon-upgrade:
         script: |
           var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
           var resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
@@ -341,7 +359,7 @@ addons:
           var message = "Current version " + version + " is the latest. No upgrades are available.";
           if (upgrades.length) {
             upgrades.sort();
-            var next = upgrades.shift();
+            var next = upgrades.pop();
             var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
             var url = baseUrl+"/"+next+"/addons/upgrade.jps"
             var huc = new java.net.URL(url).openConnection();
@@ -363,10 +381,19 @@ addons:
         settings:
             version: ${this.next}
 
-      remoteApi:
-        cmd[${nodes.k8sm.master.id}]: |-
-          action=$([ "${settings.remote}" == "true" ] && echo "apply" || echo "delete")
-          kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
+      addon-remote-api:
+      - log: '${this.api}'
+      - setup-remote-api: ${this.api}
+      - if (${this.api:true}):
+          - setGlobals:
+              apiStatusMessage: enabled at ${env.url}api
+      - else:
+          - setGlobals:
+              apiStatusMessage: disabled
+      - jelastic.message.email.SendToUser:
+          login: "${user.email}"
+          subject: Remote API Access Successfully Updated in ${env.name}
+          body: Remote API has been ${globals.apiStatusMessage}
 
 success: |
   ${globals.default_success:}
