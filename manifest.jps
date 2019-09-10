@@ -51,7 +51,7 @@ onInstall:
         nodeId: ${nodes.cp.master.id}
         privatePort: 30777
         protocol: TCP
-        name: Dashboard Self-Sighed HTTPS
+        name: Dashboard Self-Signed HTTPS
       - setGlobals:
           dashboardUrl: https://node${nodes.cp.master.id}-${env.domain}:${response.object.publicPort}/
 
