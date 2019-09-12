@@ -46,6 +46,7 @@ actions:
         sleep 5
     - if (${this.master}):
         - cmd[${this.id}]: |-
+            /usr/bin/pkill -TERM unfsd && systemctl restart unfsd.service
             /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 1
             /usr/bin/kubeadm upgrade apply ${this.version} || exit 1
             service kubelet restart
