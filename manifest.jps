@@ -74,8 +74,8 @@ onInstall:
              To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation](https://docs.jelastic.com/custom-domains).
 
 onAfterScaleOut[cp]:
-  forEach(event.response.nodes):
-    connect-workers: ${@i.id}
+  - get-ids: event.response.nodes
+  - connect-workers: ${globals.ids}
 
 onBeforeScaleIn[cp]:
   forEach(event.response.nodes):
@@ -87,7 +87,7 @@ onBeforeClone: stopEvent
 onBeforeRedeployContainer:
   if (!${event.params.skipReinstall:false}): stopEvent
 
-actions:
+actions:      
   block-masters-scaling:
     env.control.ApplyNodeGroupData[k8sm]:
       data:
@@ -305,6 +305,18 @@ actions:
       return:
         type: info
         message: ${globals.monitoring_success}
+
+  get-ids:
+    - setGlobals: 
+        ids: ''
+        sep: ''
+    - forEach(${this}):
+        add-id: ${@i.id}
+
+  add-id:
+    setGlobals: 
+      ids: ${globals.ids:}${globals.sep:}${this}
+      sep: ','
 
 addons:
 
