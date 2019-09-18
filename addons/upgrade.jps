@@ -1,7 +1,7 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.15.4
-name: Kubernetes Upgrade to 1.15.4
+id: kubernetes-upgrade-to-1.16.0
+name: Kubernetes Upgrade to 1.16.0
 
 categories:
 - apps/dev-and-admin-tools
