@@ -184,7 +184,7 @@ metadata:
   namespace: ingress-controller
 spec:
   updateStrategy:
-    type: RollingUpdate
+    type: Recreate
   selector:
     matchLabels:
       run: haproxy-ingress
