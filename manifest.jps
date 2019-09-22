@@ -4,7 +4,7 @@ id: kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.0
 description:
   text: /text/description-kube.md
-  short: Kubernetes Cluster
+  short: /text/description-short.md
 categories:
   - apps/clusters
   - apps/dev-and-admin-tools
