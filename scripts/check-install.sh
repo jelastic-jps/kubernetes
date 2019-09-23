@@ -120,9 +120,13 @@ checkWeaveStatus() {
       NODES_NUMBER=$(kubectl get nodes --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
       END=`expr $NODES_NUMBER - 1`
       for ((i=0;i<=END;i++)); do
-        NODENAME=$(kubectl get pods -l=name=${CNI_PLUGIN_NAME} -n kube-system -o jsonpath="{.items[$i].spec.nodeName}")
-        PODNAME=$(kubectl get pods -l=name=${CNI_PLUGIN_NAME} -n kube-system -o jsonpath="{.items[$i].metadata.name}")
-        STATUS=$(kubectl get pods -l=name=${CNI_PLUGIN_NAME} -n kube-system -o jsonpath="{.items[$i].status.phase}")
+        NODENAME=$(kubectl get pods -l=name=${CNI_PLUGIN_NAME} -n kube-system -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)
+        if [ $? -ne 0 ]; then
+          printWarning "Failed to get node name because of array index out of bounds"
+          break
+        fi
+        PODNAME=$(kubectl get pods -l=name=${CNI_PLUGIN_NAME} -n kube-system -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
+        STATUS=$(kubectl get pods -l=name=${CNI_PLUGIN_NAME} -n kube-system -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
         printInfo "Checking status on Node $NODENAME"
         if [ "$STATUS" != "Running" ]; then
           printError "Failed ${CNI_PLUGIN_NAME} pod ${PODNAME} on $NODENAME"
@@ -197,7 +201,7 @@ checkTraefikIngressController() {
   # check if there is at least one running Traefik pod
   POD_STATUS=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[0]}" 2> /dev/null)
   if [ $? -ne 0 ]; then
-    printError "No traefic pods found. Either daemon set was not created or something prevented pods from scheduling"
+    printError "No traefik pods found. Either daemon set was not created or something prevented pods from scheduling"
     printError "Check K8s event in ${K8S_EVENTS_LOG_FILE} on a master node"
   else
   # get number of nodes and make sure there's the same number of Traefik pods in Running state
@@ -206,9 +210,13 @@ checkTraefikIngressController() {
   NODES=`expr $NODES_NUMBER - $MASTER_NODES`
   END=`expr $NODES - 1`
   for ((i=0;i<=END;i++)); do
-    NODENAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].spec.nodeName}")
-    PODNAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].metadata.name}")
-    STATUS=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].status.phase}")
+    NODENAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)
+    if [ $? -ne 0 ]; then
+      printWarning "Failed to get node name because of array index out of bounds"
+      break
+    fi
+    PODNAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
+    STATUS=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
     printInfo "Checking status on Node $NODENAME"
     if [ "$STATUS" != "Running" ]; then
       printError "Failed Traefik pod ${PODNAME} on $NODENAME"
@@ -295,7 +303,6 @@ checkIngressController() {
 }
 
 checkRemoteApi() {
-
   printInfo "Checking Remote API status"
   URL="http://${DOMAIN}/api"
   TOKEN=$(kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g')
@@ -306,6 +313,9 @@ checkRemoteApi() {
     REMOTEAPI_STATUS="WARNING. Check logs"
   elif [ $OUT -ne 0 ]; then
     printError "Remote API $URL is unavailable. cURL exit code is $OUT"
+    WITH_ERROR="true"
+  elif [ $STATUSCODE -ne 200 ]; then
+    printError "Remote API $URL is unavailable and returned ${STATUSCODE}"
     WITH_ERROR="true"
   else
     printInfo "Remote API $URL is available and returned ${STATUSCODE}"
