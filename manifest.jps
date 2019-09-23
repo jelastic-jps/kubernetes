@@ -72,6 +72,7 @@ onInstall:
              ```${globals.token}```
              Press **Open in Browser** to view a default web page of your application.
              To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation](https://docs.jelastic.com/custom-domains).
+  - check-health
 
 onAfterScaleOut[cp]:
   - get-ids: event.response.nodes
@@ -87,7 +88,7 @@ onBeforeClone: stopEvent
 onBeforeRedeployContainer:
   if (!${event.params.skipReinstall:false}): stopEvent
 
-actions:      
+actions:
   block-masters-scaling:
     env.control.ApplyNodeGroupData[k8sm]:
       data:
@@ -307,16 +308,19 @@ actions:
         message: ${globals.monitoring_success}
 
   get-ids:
-    - setGlobals: 
+    - setGlobals:
         ids: ''
         sep: ''
     - forEach(${this}):
         add-id: ${@i.id}
 
   add-id:
-    setGlobals: 
+    setGlobals:
       ids: ${globals.ids:}${globals.sep:}${this}
       sep: ','
+
+  check-health:
+      cmd[${nodes.k8sm.master.id}]: curl -s ${baseUrl}/scripts/check-install.sh | bash -s -- -i=traefik -app=${settings.deploy} -m=${settings.monitoring} -r=${settings.api} -s=${settings.storage} -d=${env.domain} || exit 1
 
 addons:
 
