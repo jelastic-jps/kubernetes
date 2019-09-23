@@ -118,7 +118,7 @@ checkWeaveStatus() {
     else
       # get number of nodes and make sure there's the same number of Traefik pods in Running state
       NODES_NUMBER=$(kubectl get nodes --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
-      END=`expr $NODES_NUMBER - 2`
+      END=`expr $NODES_NUMBER - 1`
       for ((i=0;i<=END;i++)); do
         NODENAME=$(kubectl get pods -l=name=${CNI_PLUGIN_NAME} -n kube-system -o jsonpath="{.items[$i].spec.nodeName}")
         PODNAME=$(kubectl get pods -l=name=${CNI_PLUGIN_NAME} -n kube-system -o jsonpath="{.items[$i].metadata.name}")
@@ -201,8 +201,10 @@ checkTraefikIngressController() {
     printError "Check K8s event in ${K8S_EVENTS_LOG_FILE} on a master node"
   else
   # get number of nodes and make sure there's the same number of Traefik pods in Running state
+  MASTER_NODES=$(kubectl get nodes -l=node-role.kubernetes.io/master="" --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
   NODES_NUMBER=$(kubectl get nodes --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
-  END=`expr $NODES_NUMBER - 2`
+  NODES=`expr $NODES_NUMBER - $MASTER_NODES`
+  END=`expr $NODES - 1`
   for ((i=0;i<=END;i++)); do
     NODENAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].spec.nodeName}")
     PODNAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].metadata.name}")
@@ -213,6 +215,7 @@ checkTraefikIngressController() {
       kubectl logs ${PODNAME} -n kube-system > /var/log/${PODNAME}.log
       printError "Check logs in /var/log/${PODNAME}.log"
       WITH_ERROR="true"
+      INGRESS_STATUS="FAIL"
     else
       printInfo "Traefik pod ${PODNAME} on $NODENAME successfully started"
       INGRESS_STATUS="OK"
@@ -225,6 +228,7 @@ checkNginxIngressController() {
   readyReplicas=$(kubectl get deployment/"${NGINX_DEPLOYMENT_NAME}" -o=jsonpath='{.status.readyReplicas}' -n ingress-nginx 2> /dev/null)
   if [ $? -ne 0 ]; then
     printError "${INGRESS_CONTROLLER} deployment not found. Check installation logs (CS) and K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+    INGRESS_STATUS="FAIL"
     WITH_ERROR="true"
   else
     if [ "${readyReplicas}" -lt 1 ]; then
@@ -232,12 +236,14 @@ checkNginxIngressController() {
       NGINX_POD=$(kubectl get pods -l=app.kubernetes.io/name=ingress-nginx -n ingress-nginx --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
       if [ -z $NGINX_POD ]; then
         printError "Failed to find ${NGINX_POD} pod"
+        INGRESS_STATUS="FAIL"
         WITH_ERROR="true"
       else
         printError "${NGINX_DEPLOYMENT_NAME} is not running"
         printError "${NGINX_DEPLOYMENT_NAME} pod logs are available in /var/log/${NGINX_POD}.log"
         printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE}"
         kubectl logs ${NGINX_POD} -n ingress-nginx > /var/log/${NGINX_POD}.log
+        INGRESS_STATUS="FAIL"
         WITH_ERROR="true"
       fi
     else
@@ -254,8 +260,12 @@ checkHaproxyIngressController() {
     DAEMON_SET=$(kubectl get ds/haproxy-ingress -n ingress-controller > /dev/null)
     if [ $? -ne 0 ]; then
       printError "Failed to find HAproxy pod because of a missing daemon set"
+      INGRESS_STATUS="FAIL"
+      WITH_ERROR="true"
     else
       printError "Failed to find HAproxy pod, though HAProxy daemon set was found"
+      INGRESS_STATUS="FAIL"
+      WITH_ERROR="true"
     fi
     printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
   else
@@ -264,6 +274,7 @@ checkHaproxyIngressController() {
       printError "HAProxy pod isn't in running state"
       kubectl logs ${PODNAME} -n ingress-controller > /var/log/${PODNAME}.log
       printError "Check logs in /var/log/${PODNAME}.log"
+      INGRESS_STATUS="FAIL"
       WITH_ERROR="true"
     else
       printInfo "HAProxy pod ${PODNAME} successfully started"
