@@ -320,7 +320,7 @@ actions:
       sep: ','
 
   check-health:
-      cmd[${nodes.k8sm.master.id}]: curl -s ${baseUrl}/scripts/check-install.sh | bash -s -- -i=traefik -app=${settings.deploy} -m=${settings.monitoring} -r=${settings.api} -s=${settings.storage} -d=${env.domain} || exit 1
+      cmd[${nodes.k8sm.master.id}]: curl -s ${baseUrl}/scripts/check-install.sh | bash -s -- -i=traefik -app=${settings.deploy} -m=${settings.monitoring} -r=${settings.api} -s=${settings.storage} -d=${env.domain}  &> /var/log/k8s-health-check.log
 
 addons:
 
