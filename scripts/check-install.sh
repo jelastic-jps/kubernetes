@@ -129,7 +129,7 @@ checkWeaveStatus() {
         STATUS=$(kubectl get pods -l=name=${CNI_PLUGIN_NAME} -n kube-system -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
         printInfo "Checking status on Node $NODENAME"
         if [ "$STATUS" != "Running" ]; then
-          printError "Failed ${CNI_PLUGIN_NAME} pod ${PODNAME} on $NODENAME"
+          printError "Failed ${CNI_PLUGIN_NAME} pod ${PODNAME} on $NODENAME with status ${STATUS}"
           kubectl logs ${PODNAME} -n kube-system > /var/log/${PODNAME}.log
           printError "Check logs in /var/log/${PODNAME}.log"
           WITH_ERROR="true"
@@ -156,7 +156,8 @@ checkMetricsServer() {
         printError "Failed to find ${METRICS_SERVER_NAME} pod"
         WITH_ERROR="true"
       else
-        printError "Metrics server is not running"
+        STATUS=$(kubectl get pods/${METRICS_SERVER_POD} -n kube-system -o jsonpath="{.status.phase}" 2> /dev/null)
+        printError "Metrics server is not running and currently in status ${STATUS}"
         printError "${METRICS_SERVER_NAME} pod logs are available in /var/log/metrics-server.log"
         printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE}"
         kubectl logs ${METRICS_SERVER_POD} -n kube-system > /var/log/metrics-server.log
@@ -184,7 +185,8 @@ checkDashboard() {
         printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
         WITH_ERROR="true"
       else
-        printError "Kubernetes Dashboard is not running"
+        DASHBOARD_POD_STATUS=$(kubectl get pods/$KUBERNETES_DASHBOARD_POD -n kubernetes-dashboard -o jsonpath="{.status.phase}" 2> /dev/null)
+        printError "Kubernetes Dashboard is not running. Current status is: ${DASHBOARD_POD_STATUS}"
         printError "${DASHBOARD_DEPLOYMENT_NAME} pod logs are available in /var/log/kubernetes-dashboard.log"
         printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
         kubectl logs ${KUBERNETES_DASHBOARD_POD} -n ${DASHBOARD_DEPLOYMENT_NAME} > /var/log/kubernetes-dashboard.log
@@ -279,7 +281,7 @@ checkHaproxyIngressController() {
   else
     HAPROXY_POD_STATUS=$(kubectl get pods -l=run=haproxy-ingress -n ingress-controller -o jsonpath='{.items[0].status.phase}' 2> /dev/null)
     if [ "$HAPROXY_POD_STATUS" != "Running" ]; then
-      printError "HAProxy pod isn't in running state"
+      printError "HAProxy pod isn't in running state. Current status: $HAPROXY_POD_STATUS"
       kubectl logs ${PODNAME} -n ingress-controller > /var/log/${PODNAME}.log
       printError "Check logs in /var/log/${PODNAME}.log"
       INGRESS_STATUS="FAIL"
@@ -343,7 +345,7 @@ checkSampleApp() {
 fi
   printInfo "Checking ${APP}"
   if [ "${SAMPLE_APP}" == "cmd" ]; then
-    OPEN_LIBERY_INGRESS=$(kubectl get ingress/open-liberty -n default --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' 2> /dev/null)
+    OPEN_LIBERTY_INGRESS=$(kubectl get ingress/open-liberty -n default --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' 2> /dev/null)
     if [ $? -ne 0 ]; then
       printWarning "Default OpenLiberty ingress not found. Perhaps CMD command was modified"
       printWarning "Disregard this warning if you modified a custom cmd command"
@@ -370,7 +372,7 @@ checkNfsStorage() {
     fi
     STATUS=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
     if [ "$STATUS" != "Running" ]; then
-      printError "Failed pod ${PODNAME}"
+      printError "Failed pod ${PODNAME} with status $STATUS"
       kubectl logs ${PODNAME} -n default > /var/log/${PODNAME}.log
       printError "Check logs in /var/log/${PODNAME}.log"
       WITH_ERROR="true"
@@ -472,34 +474,44 @@ generateReport() {
   echo -e "
 Cluster Health Check Report
 
-[Weave CNI Plugin]  : ${WEAVE_STATUS:-"FAIL"}
-[Ingres Controller] : ${INGRESS_STATUS:-"FAIL"}
-[Metrics Server]    : ${METRICS_STATUS:-"FAIL"}
-[Monitoring Tools]  : ${MONITORING_STATUS:-${CURRENT_STATUS}}
-[Remote API]        : ${REMOTEAPI_STATUS:-${CURRENT_STATUS}}
-[NFS Storage]       : ${NFS_STORAGE_STATUS:-${CURRENT_STATUS}}
-[Sample App]        : ${APP_STATUS:-"FAIL"}
+[Weave CNI Plugin]    : ${WEAVE_STATUS:-"FAIL"}
+[Ingres Controller]   : ${INGRESS_STATUS:-"FAIL"}
+[Metrics Server]      : ${METRICS_STATUS:-"FAIL"}
+[Kubernetes Dahboard] : ${DASHBOARD_STATUS:-"FAIL"}
+[Monitoring Tools]    : ${MONITORING_STATUS:-${CURRENT_STATUS}}
+[Remote API]          : ${REMOTEAPI_STATUS:-${CURRENT_STATUS}}
+[NFS Storage]         : ${NFS_STORAGE_STATUS:-${CURRENT_STATUS}}
+[Sample App]          : ${APP_STATUS:-"FAIL"}
   "
 
 }
 
-checkWeaveStatus
-checkIngressController
-checkMetricsServer
-if [ "${REMOTE_API}" == "true" ]; then
-  checkRemoteApi
-fi
+runCheck() {
+  checkWeaveStatus
+  checkIngressController
+  checkMetricsServer
+  if [ "${REMOTE_API}" == "true" ]; then
+    checkRemoteApi
+  fi
   checkDashboard
-if [ "${MONITORING}" == "true" ]; then
-  checkMonitoring
-fi
-if [ "${STORAGE}" == "true" ]; then
-  checkNfsStorage
-fi
-checkSampleApp
-printEvents
-generateReport
-
+  if [ "${MONITORING}" == "true" ]; then
+    checkMonitoring
+  fi
+  if [ "${STORAGE}" == "true" ]; then
+    checkNfsStorage
+  fi
+  checkSampleApp
+  printEvents
+  generateReport
+}
+runCheck
 if [ "${WITH_ERROR}" == "true" ] || [ "${MONIT_ERROR}" == "true" ]; then
-  exit 1
+  printWarning "Waiting for 60 seconds and retrying"
+  unset WITH_ERROR
+  unset MONIT_ERROR
+  sleep 60
+  runCheck
+  if [ "${WITH_ERROR}" == "true" ] || [ "${MONIT_ERROR}" == "true" ]; then
+    exit 1
+  fi
 fi
