@@ -221,7 +221,7 @@ checkTraefikIngressController() {
     STATUS=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
     printInfo "Checking status on Node $NODENAME"
     if [ "$STATUS" != "Running" ]; then
-      printError "Failed Traefik pod ${PODNAME} on $NODENAME"
+      printError "Failed Traefik pod ${PODNAME} on $NODENAME with status: $STATUS"
       kubectl logs ${PODNAME} -n kube-system > /var/log/${PODNAME}.log
       printError "Check logs in /var/log/${PODNAME}.log"
       WITH_ERROR="true"
@@ -457,6 +457,39 @@ checkMonitoring() {
   fi
 }
 
+checkNodeProblemDetector(){
+  POD_STATUS=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[0]}" 2> /dev/null)
+  if [ $? -ne 0 ]; then
+    printError "No node-problem detector pods found. Either daemon set was not created or something prevented pods from scheduling"
+    printError "Check K8s event in ${K8S_EVENTS_LOG_FILE} on a master node"
+  else
+  # get number of nodes and make sure there's the same number of pods in Running state
+  MASTER_NODES=$(kubectl get nodes -l=node-role.kubernetes.io/master="" --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
+  NODES_NUMBER=$(kubectl get nodes --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
+  NODES=`expr $NODES_NUMBER - $MASTER_NODES`
+  END=`expr $NODES - 1`
+  for ((i=0;i<=END;i++)); do
+    NODENAME=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)
+    if [ $? -ne 0 ]; then
+      printWarning "Failed to get node name because of array index out of bounds"
+      break
+    fi
+    PODNAME=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
+    STATUS=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
+    printInfo "Checking status on Node $NODENAME"
+    if [ "$STATUS" != "Runnin" ]; then
+      printError "Failed node-problem-detector pod ${PODNAME} on $NODENAME with status $STATUS"
+      kubectl logs ${PODNAME} -n default > /var/log/${PODNAME}.log
+      printError "Check logs in /var/log/${PODNAME}.log"
+      WITH_ERROR="true"
+    else
+      printInfo "Node-problem-detector pod ${PODNAME} on $NODENAME successfully started"
+      NODE_PROBLEM_DETECTOR_STATUS="OK"
+    fi
+  done
+fi
+}
+
 printEvents() {
   printInfo "Saving events to ${K8S_EVENTS_LOG_FILE}"
   kubectl get events --all-namespaces &> ${K8S_EVENTS_LOG_FILE}
@@ -474,14 +507,15 @@ generateReport() {
   echo -e "
 Cluster Health Check Report
 
-[Weave CNI Plugin]    : ${WEAVE_STATUS:-"FAIL"}
-[Ingres Controller]   : ${INGRESS_STATUS:-"FAIL"}
-[Metrics Server]      : ${METRICS_STATUS:-"FAIL"}
-[Kubernetes Dahboard] : ${DASHBOARD_STATUS:-"FAIL"}
-[Monitoring Tools]    : ${MONITORING_STATUS:-${CURRENT_STATUS}}
-[Remote API]          : ${REMOTEAPI_STATUS:-${CURRENT_STATUS}}
-[NFS Storage]         : ${NFS_STORAGE_STATUS:-${CURRENT_STATUS}}
-[Sample App]          : ${APP_STATUS:-"FAIL"}
+[Weave CNI Plugin]      : ${WEAVE_STATUS:-"FAIL"}
+[Ingres Controller]     : ${INGRESS_STATUS:-"FAIL"}
+[Metrics Server]        : ${METRICS_STATUS:-"FAIL"}
+[Kubernetes Dahboard]   : ${DASHBOARD_STATUS:-"FAIL"}
+[Node Problem Detector] : ${NODE_PROBLEM_DETECTOR_STATUS:-"FAIL"}
+[Monitoring Tools]      : ${MONITORING_STATUS:-${CURRENT_STATUS}}
+[Remote API]            : ${REMOTEAPI_STATUS:-${CURRENT_STATUS}}
+[NFS Storage]           : ${NFS_STORAGE_STATUS:-${CURRENT_STATUS}}
+[Sample App]            : ${APP_STATUS:-"FAIL"}
   "
 
 }
@@ -500,6 +534,7 @@ runCheck() {
   if [ "${STORAGE}" == "true" ]; then
     checkNfsStorage
   fi
+  checkNodeProblemDetector
   checkSampleApp
   printEvents
   generateReport
