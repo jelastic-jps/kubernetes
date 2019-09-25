@@ -462,6 +462,7 @@ checkNodeProblemDetector(){
   if [ $? -ne 0 ]; then
     printError "No node-problem detector pods found. Either daemon set was not created or something prevented pods from scheduling"
     printError "Check K8s event in ${K8S_EVENTS_LOG_FILE} on a master node"
+    WITH_ERROR="true"
   else
   # get number of nodes and make sure there's the same number of pods in Running state
   MASTER_NODES=$(kubectl get nodes -l=node-role.kubernetes.io/master="" --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
