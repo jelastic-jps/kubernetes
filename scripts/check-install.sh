@@ -219,7 +219,7 @@ checkTraefikIngressController() {
     fi
     PODNAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
     STATUS=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
-    printInfo "Checking status on Node $NODENAME"
+    printInfo "Checking Traefik pod status on Node $NODENAME"
     if [ "$STATUS" != "Running" ]; then
       printError "Failed Traefik pod ${PODNAME} on $NODENAME with status: $STATUS"
       kubectl logs ${PODNAME} -n kube-system > /var/log/${PODNAME}.log
@@ -477,7 +477,7 @@ checkNodeProblemDetector(){
       fi
       PODNAME=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
       STATUS=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
-      printInfo "Checking status on Node $NODENAME"
+      printInfo "Checking node-problem-detector pod status on Node $NODENAME"
       if [ "$STATUS" != "Running" ]; then
         printError "Failed node-problem-detector pod ${PODNAME} on $NODENAME with status $STATUS"
         kubectl logs ${PODNAME} -n default > /var/log/${PODNAME}.log

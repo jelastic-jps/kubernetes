@@ -45,6 +45,7 @@ onInstall:
           id: ${@node.id}
 
   - install-traefik
+  - install-node-problem-detector
   - generate-admin-token
   - connect-storage
   - deploy
@@ -73,7 +74,6 @@ onInstall:
              Press **Open in Browser** to view a default web page of your application.
              To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation](https://docs.jelastic.com/custom-domains).
   - check-health
-  - install-node-problem-detector
 
 onAfterScaleOut[cp]:
   - get-ids: event.response.nodes
