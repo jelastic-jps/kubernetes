@@ -101,6 +101,10 @@ printError() {
   echo "[ERROR]: ${1}"
 }
 
+writeLog() {
+  echo -e "\n[TIME]    : $(date)\n[COMMAND] : ${1}:\n[LOG START]:\n\n$(${1})\n[LOG END]\n" >> ${2}
+}
+
 checkWeaveStatus() {
   printInfo "Checking Weave CNI Plugin status..."
   command -v weave >/dev/null 2>&1
@@ -193,7 +197,7 @@ checkDashboard() {
         WITH_ERROR="true"
       fi
     else
-      printInfo "Kubernetes Dahboard is running"
+      printInfo "Kubernetes Dashboard is running"
       DASHBOARD_STATUS="OK"
     fi
   fi
@@ -458,11 +462,24 @@ checkMonitoring() {
 }
 
 checkNodeProblemDetector(){
+  printInfo "Checking Node problem detector deployment"
   POD_STATUS=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[0]}" 2> /dev/null)
   if [ $? -ne 0 ]; then
-    printError "No node-problem detector pods found. Either daemon set was not created or something prevented pods from scheduling"
-    printError "Check K8s event in ${K8S_EVENTS_LOG_FILE} on a master node"
-    WITH_ERROR="true"
+    kubectl get ds/node-problem-detector -o yaml &>> /var/log/node-problem-detector.yaml
+    if [ $? -ne 0 ]; then
+      printError "Node-problem detector daemon set not found"
+      printError "Check available DaemonSets in /var/log/daemonsets-default-ns.log"
+      writeLog "kubectl get ds" "/var/log/daemonsets.log"
+      WITH_ERROR="true"
+    else
+      DEFAULT_NS_PODS_LOG_FILE="/var/log/pods-default-ns.log"
+      NODE_PROBLEM_DETECTOR_PODS_LOG_FILE="/var/log/node-problem-detector-pods.log"
+      writeLog "kubectl get pods -n default" ${DEFAULT_NS_PODS_LOG_FILE}
+      writeLog "kubectl get pods -l=app=node-problem-detector -n default" ${NODE_PROBLEM_DETECTOR_PODS_LOG_FILE}
+      printError "No node-problem-detector pods found. Daemon set has been created but no pods have been scheduled yet"
+      printError "Check ${NODE_PROBLEM_DETECTOR_PODS_LOG_FILE}, ${DEFAULT_NS_PODS_LOG_FILE}, /var/log/node-problem-detector.yaml, and K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+      WITH_ERROR="true"
+    fi
   else
     # get number of nodes and make sure there's the same number of pods in Running state
     MASTER_NODES=$(kubectl get nodes -l=node-role.kubernetes.io/master="" --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
@@ -480,7 +497,7 @@ checkNodeProblemDetector(){
       printInfo "Checking node-problem-detector pod status on Node $NODENAME"
       if [ "$STATUS" != "Running" ]; then
         printError "Failed node-problem-detector pod ${PODNAME} on $NODENAME with status $STATUS"
-        kubectl logs ${PODNAME} -n default > /var/log/${PODNAME}.log
+        writeLog "kubectl logs ${PODNAME} -n default" "/var/log/${PODNAME}.log"
         printError "Check logs in /var/log/${PODNAME}.log"
         WITH_ERROR="true"
       else
@@ -493,7 +510,7 @@ checkNodeProblemDetector(){
 
 printEvents() {
   printInfo "Saving events to ${K8S_EVENTS_LOG_FILE}"
-  kubectl get events --all-namespaces &> ${K8S_EVENTS_LOG_FILE}
+  writeLog "kubectl get events --all-namespaces" ${K8S_EVENTS_LOG_FILE}
 }
 
 generateReport() {
@@ -511,7 +528,7 @@ Cluster Health Check Report
 [Weave CNI Plugin]      : ${WEAVE_STATUS:-"FAIL"}
 [Ingres Controller]     : ${INGRESS_STATUS:-"FAIL"}
 [Metrics Server]        : ${METRICS_STATUS:-"FAIL"}
-[Kubernetes Dahboard]   : ${DASHBOARD_STATUS:-"FAIL"}
+[Kubernetes Dashboard]  : ${DASHBOARD_STATUS:-"FAIL"}
 [Node Problem Detector] : ${NODE_PROBLEM_DETECTOR_STATUS:-"FAIL"}
 [Monitoring Tools]      : ${MONITORING_STATUS:-${CURRENT_STATUS}}
 [Remote API]            : ${REMOTEAPI_STATUS:-${CURRENT_STATUS}}

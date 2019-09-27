@@ -43,9 +43,8 @@ onInstall:
       if (!${@node.ismaster}):
         install-helm-slave:
           id: ${@node.id}
-
-  - install-traefik
   - install-node-problem-detector
+  - install-traefik
   - generate-admin-token
   - connect-storage
   - deploy
