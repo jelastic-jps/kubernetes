@@ -5,7 +5,7 @@ Usage:
  $0 [options]
 Options:
  -d=,   --domain=            environment domain without protocol (e.g. mykube.jelastic.com), mandatory, no defaults
- -i=,   --ingress=           ingress controller name
+ -i=,   --ingress=           ingress controller name, possible values: Nginx, HAProxy, Traefik
  -m=,   --monitoring=        check monitoring tools, defaults to false
  -r=,   --remote-api=        check remote api availability, defaults to false
  -s=,   --storage=           check NFS storage, defaults to false
@@ -81,7 +81,7 @@ SAMPLE_APP=${SAMPLE_APP:-${DEFAULT_SAMPLE_APP}}
 DEFAULT_MONITORING="false"
 MONITORING=${MONITORING:-${DEFAULT_MONITORING}}
 
-DEFAULT_INGRESS_CONTROLLER="traefik"
+DEFAULT_INGRESS_CONTROLLER="Nginx"
 INGRESS_CONTROLLER=${INGRESS_CONTROLLER:-${DEFAULT_INGRESS_CONTROLLER}}
 
 DEFAULT_REMOTE_API="false"
@@ -299,9 +299,9 @@ checkHaproxyIngressController() {
 
 checkIngressController() {
   printInfo "Checking ${INGRESS_CONTROLLER} ingress controller"
-  if [ ${INGRESS_CONTROLLER} == "traefik" ]; then
+  if [ ${INGRESS_CONTROLLER} == "Traefik" ]; then
     checkTraefikIngressController
-  elif [ ${INGRESS_CONTROLLER} == "nginx" ]; then
+  elif [ ${INGRESS_CONTROLLER} == "Nginx" ]; then
     checkNginxIngressController
   else
     checkHaproxyIngressController
