@@ -46,7 +46,7 @@ onInstall:
       - install-haproxy
   - else:
       - setGlobals:
-          ingress-dir: Traefik
+          ingress-dir: traefik
       - install-traefik
   - configure-remote-api
   - install-components
