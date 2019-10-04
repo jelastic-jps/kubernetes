@@ -18,14 +18,8 @@ var resp = {
       JELASTIC_EXPOSE: false
     },
     volumes: [
-      "/var/lib/connect"
     ],
     volumeMounts: {
-      "/var/lib/connect": {
-        readOnly: true,
-        sourcePath: "/var/lib/connect",
-        sourceNodeGroup: "k8sm"
-      }
     }
   }, {
     count: workerCount,
@@ -40,14 +34,8 @@ var resp = {
       JELASTIC_EXPOSE: false
     },
     volumes: [
-      "/var/lib/connect"
     ],
     volumeMounts: {
-      "/var/lib/connect": {
-        readOnly: true,
-        sourcePath: "/var/lib/connect",
-        sourceNodeGroup: "k8sm"
-      }
     }
   }]
 }
