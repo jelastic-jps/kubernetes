@@ -16,10 +16,6 @@ var resp = {
     extip: false,
     env: {
       JELASTIC_EXPOSE: false
-    },
-    volumes: [
-    ],
-    volumeMounts: {
     }
   }, {
     count: workerCount,
@@ -32,10 +28,6 @@ var resp = {
     extip: ${settings.extip:false},
     env: {
       JELASTIC_EXPOSE: false
-    },
-    volumes: [
-    ],
-    volumeMounts: {
     }
   }]
 }
@@ -68,7 +60,8 @@ if (${settings.storage:false}) {
 
   for (var i = 0; i < 2; i++){
     var n = resp.nodes[i];
-    n.volumes.push(path);
+    n.volumes = [path];
+    n.volumeMounts = {};
     n.volumeMounts[path] = {
         readOnly: false,
         sourcePath: path,
