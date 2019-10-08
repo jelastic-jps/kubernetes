@@ -4,5 +4,11 @@ metadata:
   name: jaeger
   namespace: observability
 spec:
+  allInOne:
+    options:
+      query:
+        base-path: /jaeger
   annotations:
     kubernetes.io/ingress.class: traefik
+    ingress.kubernetes.io/auth-type: basic
+    ingress.kubernetes.io/auth-secret: observability-jaeger

@@ -63,6 +63,11 @@ fields:
     caption: Install Prometheus & Grafana
     value: false
 
+  - type: checkbox
+    name: jaeger
+    caption: Install Jaeger tracing tools
+    value: false
+
   - type: string
     name: version
     inputType: hidden

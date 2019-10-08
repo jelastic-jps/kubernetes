@@ -10,3 +10,5 @@ spec:
         base-path: /jaeger
   annotations:
     kubernetes.io/ingress.class: haproxy
+    ingress.kubernetes.io/auth-type: basic
+    ingress.kubernetes.io/auth-secret: observability-jaeger
