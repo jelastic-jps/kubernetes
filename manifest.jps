@@ -404,7 +404,7 @@ actions:
      - cmd[${nodes.k8sm.master.id}]: helm install stable/node-problem-detector --name node-problem-detector --set image.tag=v0.7.0
 
   check-health:
-      cmd[${nodes.k8sm.master.id}]: curl -s ${baseUrl}/scripts/check-install.sh | bash -s -- -i=${settings.ingress-controller} -app=${settings.deploy} -m=${settings.monitoring} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger} -d=${env.domain}  &> /var/log/k8s-health-check.log || echo "*Warning! Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on master node and contact support.*"
+      cmd[${nodes.k8sm.master.id}]: mkdir -p /var/log/kubernetes && curl -s ${baseUrl}/scripts/check-install.sh | bash -s -- -i=${settings.ingress-controller} -app=${settings.deploy} -m=${settings.monitoring} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger} -d=${env.domain}  &> /var/log/kubernetes/k8s-health-check.log || echo "*Warning! Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on master node and contact support.*"
       setGlobals:
          check_message: ${response.out}
 
