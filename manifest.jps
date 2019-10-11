@@ -288,50 +288,46 @@ actions:
       kubectl $action -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
 
   install-monitoring:
-  - log: '${globals.monitoring_installed}'
-  - if ('${globals.monitoring_installed}' == 'true'):
-        return:
-            type: info
-            message: ${globals.monitoring_success}
-
-  - cmd[${nodes.k8sm.master.id}]: |-
-      [ ! -f /root/monitoring_is_installed ] && {
-      helm repo update
-      helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
-      while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep prometheus-server && break ; done
-      helm fetch stable/grafana --untar
-      for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
-        wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
-      done
-      sleep 5
-      helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
-      while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep grafana && break ; done
-      sleep 5
-      grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
-      if [ "${settings.ingress-controller}" == "HAProxy" ]; then export crypt="-d"; fi
-      kubectl create secret generic monitoring-prometheus --from-literal=auth="$(htpasswd ${crypt} -nb admin ${grafana_secret})" --namespace=kubernetes-monitoring
-      kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
-      kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
-      kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml
-      sleep 20
-      curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
-      dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Jelastic' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
-      curl -X POST -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}"
-      curl -X PUT -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences"
-      touch /root/monitoring_is_installed; } || echo "Already installed" ;
+  - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana &>/dev/null && echo "true" || echo "false"
+  - setGlobals:
+      monitoring_installed: ${response.out}
+  - if ('${globals.monitoring_installed}' == 'false'):
+      - cmd[${nodes.k8sm.master.id}]: |-
+          helm repo update
+          helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
+          while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep prometheus-server && break ; done
+          helm fetch stable/grafana --untar
+          for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
+            wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
+          done
+          sleep 5
+          helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
+          while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep grafana && break ; done
+          sleep 5
+          grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
+          [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
+          kubectl create secret generic monitoring-prometheus --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${grafana_secret})" --namespace=kubernetes-monitoring
+          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
+          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
+          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml
+          sleep 20
+          curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
+          dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Jelastic' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
+          curl -X POST -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}"
+          curl -X PUT -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences"
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
   - setGlobals:
       grafana_secret: ${response.out}
-  - setGlobals:
-      monitoring_installed: true
-  - log: ${globals.monitoring_installed}
-
   - setGlobals:
       monitoring_success: |
           Enter [Prometheus dashboard](${env.url}prometheus/), [Prometheus AlertManager](${env.url}prometheus-alert/)
           and [Grafana dashboard](${env.url}grafana/), using login "admin" and password:
 
           ```${globals.grafana_secret}```
+  - if ('${globals.monitoring_installed}' == 'true'):
+      return:
+        type: info
+        message: ${globals.monitoring_success}
   - if (!${settings.monitoring:true}):
       jelastic.message.email.SendToUser:
             login: "${user.email}"
@@ -425,9 +421,6 @@ addons:
         - type: checkbox
           name: api
           caption: Remote API access is enabled
-        - type: string
-          name: monitoring
-          inputType: hidden
         - type: string
           name: ingress-controller
           inputType: hidden
