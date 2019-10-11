@@ -346,21 +346,20 @@ actions:
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret observability-jaeger-plain --namespace=observability &>/dev/null && echo "true" || echo "false"
   - setGlobals:
       jaeger_installed: ${response.out}
-  - cmd[${nodes.k8sm.master.id}]: |-
-      [ 'x${globals.jaeger_installed}' == 'xtrue' ] || {
-        kubectl create namespace observability
-        kubectl create -f ${baseUrl}/addons/jaeger/jaegertracing_v1_jaeger_crd.yaml
-        kubectl create -f ${baseUrl}/addons/jaeger/service_account.yaml
-        kubectl create -f ${baseUrl}/addons/jaeger/role.yaml
-        kubectl create -f ${baseUrl}/addons/jaeger/role_binding.yaml
-        kubectl create -f ${baseUrl}/addons/jaeger/operator.yaml
-        [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
-        jaeger_secret=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-        kubectl create secret generic observability-jaeger-plain --from-literal=auth="${jaeger_secret}" --namespace=observability
-        kubectl create secret generic observability-jaeger --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${jaeger_secret})" --namespace=observability
-        kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
-        kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
-      }
+  - if ('${globals.jaeger_installed}' == 'false'):
+      - cmd[${nodes.k8sm.master.id}]: |-
+          kubectl create namespace observability
+          kubectl create -f ${baseUrl}/addons/jaeger/jaegertracing_v1_jaeger_crd.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/service_account.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/role.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/role_binding.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/operator.yaml
+          [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
+          jaeger_secret=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+          kubectl create secret generic observability-jaeger-plain --from-literal=auth="${jaeger_secret}" --namespace=observability
+          kubectl create secret generic observability-jaeger --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${jaeger_secret})" --namespace=observability
+          kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
+          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace=observability observability-jaeger-plain -o jsonpath='{.data.auth}' | base64 --decode
   - setGlobals:
       jaeger_secret: ${response.out}
