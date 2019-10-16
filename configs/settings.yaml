@@ -72,4 +72,4 @@ fields:
     name: version
     inputType: hidden
     caption: Kubernetes Version
-    default: v1.15.4
+    default: v1.15.5
