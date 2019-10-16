@@ -16,16 +16,6 @@ var resp = {
     extip: false,
     env: {
       JELASTIC_EXPOSE: false
-    },
-    volumes: [
-      "/var/lib/connect"
-    ],
-    volumeMounts: {
-      "/var/lib/connect": {
-        readOnly: true,
-        sourcePath: "/var/lib/connect",
-        sourceNodeGroup: "k8sm"
-      }
     }
   }, {
     count: workerCount,
@@ -38,16 +28,6 @@ var resp = {
     extip: ${settings.extip:false},
     env: {
       JELASTIC_EXPOSE: false
-    },
-    volumes: [
-      "/var/lib/connect"
-    ],
-    volumeMounts: {
-      "/var/lib/connect": {
-        readOnly: true,
-        sourcePath: "/var/lib/connect",
-        sourceNodeGroup: "k8sm"
-      }
     }
   }]
 }
@@ -80,7 +60,8 @@ if (${settings.storage:false}) {
 
   for (var i = 0; i < 2; i++){
     var n = resp.nodes[i];
-    n.volumes.push(path);
+    n.volumes = [path];
+    n.volumeMounts = {};
     n.volumeMounts[path] = {
         readOnly: false,
         sourcePath: path,
