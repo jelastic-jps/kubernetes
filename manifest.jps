@@ -296,13 +296,13 @@ actions:
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo update
           helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
-          kubectl -n kubernetes-monitoring wait --for=condition=Ready pod -l app=prometheus,component=server --timeout=300s || exit 1
+          kubectl -n kubernetes-monitoring wait --for=condition=Ready pod -l app=prometheus,component=server --timeout=-1s
           helm fetch stable/grafana --untar
           for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
             wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
           done
           helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
-          kubectl -n kubernetes-monitoring wait --for=condition=Ready pod -l app=grafana,release=monitoring-grafana --timeout=300s || exit 1
+          kubectl -n kubernetes-monitoring wait --for=condition=Ready pod -l app=grafana,release=monitoring-grafana --timeout=-1s
           grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
           [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
           kubectl create secret generic monitoring-prometheus --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${grafana_secret})" --namespace=kubernetes-monitoring
@@ -327,9 +327,9 @@ actions:
       return:
         type: info
         message: ${globals.monitoring_success}
-  - if (!${settings.monitoring:true}):
-      jelastic.message.email.SendToUser:
-            login: "${user.email}"
+  - if (!${settings.monitoring:false}):
+      message.email.send:
+            to: "${user.email}"
             subject: Monitoring Tools Successfully Installed in ${env.name}
             body: |-
               Monitoring Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
@@ -371,9 +371,9 @@ actions:
       return:
         type: info
         message: ${globals.jaeger_success}
-  - if (!${settings.jaeger:true}):
-      jelastic.message.email.SendToUser:
-          login: "${user.email}"
+  - if (!${settings.jaeger:false}):
+      message.email.send:
+          to: "${user.email}"
           subject: Jaeger Tracing Tools Successfully Installed in ${env.name}
           body: |-
               Jaeger Tracing Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
@@ -489,8 +489,8 @@ addons:
       - else:
           - setGlobals:
               apiStatusMessage: disabled
-      - jelastic.message.email.SendToUser:
-          login: "${user.email}"
+      - message.email.send:
+          to: "${user.email}"
           subject: Remote API Access Successfully Updated in ${env.name}
           body: Remote API has been ${globals.apiStatusMessage}
 
