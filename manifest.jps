@@ -377,6 +377,7 @@ actions:
           subject: Jaeger Tracing Tools Successfully Installed in ${env.name}
           body: |-
               Jaeger Tracing Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
+              Jaeger Dashboard - ${env.url}jaeger/ <br>
               Credentials - admin / ${globals.jaeger_secret}
       return:
         type: info
