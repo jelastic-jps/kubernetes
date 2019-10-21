@@ -136,13 +136,13 @@ actions:
       chown root:root $HOME/.kube/config
       wget -qO- https://github.com/derailed/k9s/releases/download/0.8.4/k9s_0.8.4_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
       wget -qO- https://github.com/derailed/popeye/releases/download/v0.4.3/popeye_0.4.3_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
-      wget https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
+      wget -nv https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
       chmod +x /usr/bin/stern
       /usr/bin/stern --completion=bash > /etc/bash_completion.d/stern.bash
       kubectx_version=0.7.0
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
-      wget https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
+      wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
       chmod +x /usr/bin/weave
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
