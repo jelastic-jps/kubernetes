@@ -239,8 +239,16 @@ actions:
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
       kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
-      for i in {1..3}; do
-        kubectl -n kube-system wait --for=condition=Ready pod -l app=helm,name=tiller --timeout=180s
+      sleep 5
+      while true; do
+        READY_REPLICAS=$(kubectl get deployment/tiller-deploy -o=jsonpath='{.status.readyReplicas}' -n kube-system)
+        if [ -z ${READY_REPLICAS} ]; then
+          echo "Waiting for Tiller" && sleep 10
+        else
+          if [ ${READY_REPLICAS} -eq 1 ]; then
+            echo "Tiller is ready" && break
+          fi
+        fi
       done
 
   install-helm-slave:
