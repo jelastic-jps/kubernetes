@@ -9,6 +9,7 @@ metadata:
     ingress.kubernetes.io/auth-type: basic
     ingress.kubernetes.io/auth-secret: monitoring-prometheus
     ingress.kubernetes.io/rewrite-target: /
+    ingress.kubernetes.io/ssl-redirect: 'false'
 spec:
   rules:
   - http:

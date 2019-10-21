@@ -12,3 +12,4 @@ spec:
     kubernetes.io/ingress.class: haproxy
     ingress.kubernetes.io/auth-type: basic
     ingress.kubernetes.io/auth-secret: observability-jaeger
+    ingress.kubernetes.io/ssl-redirect: 'false'

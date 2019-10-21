@@ -56,6 +56,7 @@ metadata:
     ingress.kubernetes.io/rewrite-target: /
     ingress.kubernetes.io/secure-backends: 'true'
     kubernetes.io/ingress.class: haproxy
+    ingress.kubernetes.io/ssl-redirect: 'false'
 spec:
   rules:
    - http:

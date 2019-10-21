@@ -8,6 +8,7 @@ metadata:
     kubernetes.io/ingress.class: haproxy
     ingress.kubernetes.io/auth-type: basic
     ingress.kubernetes.io/auth-secret: monitoring-prometheus
+    ingress.kubernetes.io/ssl-redirect: 'false'
 spec:
   rules:
   - http:
