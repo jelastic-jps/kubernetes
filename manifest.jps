@@ -146,10 +146,10 @@ actions:
       sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
-      systemctl start kube-postconf.service
+      systemctl start kube-config.service
       systemctl enable docker.service
       systemctl enable kubelet.service
-      systemctl enable kube-postconf.service
+      systemctl enable kube-config.service
 
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
