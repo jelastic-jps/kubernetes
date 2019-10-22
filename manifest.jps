@@ -234,11 +234,10 @@ actions:
   install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
       curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
-      helm init --upgrade
-      helm repo update
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-      kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
+      helm init --upgrade --service-account tiller
+      helm repo update
       sleep 5
       while true; do
         READY_REPLICAS=$(kubectl get deployment/tiller-deploy -o=jsonpath='{.status.readyReplicas}' -n kube-system)
