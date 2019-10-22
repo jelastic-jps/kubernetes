@@ -220,6 +220,16 @@ actions:
         kubectl create -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         kubectl create -f ${baseUrl}/addons/create-admin.yaml
         kubectl create -f ${baseUrl}/addons/grant-privileges.yaml
+        while true; do
+          READY_REPLICAS=$(kubectl get deployment/metrics-server -o=jsonpath='{.status.readyReplicas}' -n kube-system)
+          if [ -z ${READY_REPLICAS} ]; then
+            echo "Waiting for metrics-server" && sleep 10
+          else
+            if [ ${READY_REPLICAS} -eq 1 ]; then
+              echo "Metrics server is ready" && break
+            fi
+          fi
+        done
 
     - if ('${settings.dashboard}' == 'version1'):
         cmd[${nodes.k8sm.master.id}]: |-
