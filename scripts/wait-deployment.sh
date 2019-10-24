@@ -19,7 +19,7 @@ DEFAULT_REQUIRED_COUNT=1
 REQUIRED_COUNT=${3:-${DEFAULT_REQUIRED_COUNT}}
 DEFAULT_TIMEOUT=300
 TIMEOUT=${4:-${DEFAULT_TIMEOUT}}
-echo "Waiting for deployment $DEPLOYMENT. Timeout in $TIMEOUT seconds"
+echo "Waiting for deployment $DEPLOYMENT. Expecting $REQUIRED_COUNT replicas. Timeout in $TIMEOUT seconds"
 CUNNRENT_COUNT=$(kubectl get deployment/$DEPLOYMENT -n $NAMESPACE -o=jsonpath='{.status.availableReplicas}')
 if [ $? -ne 0 ]; then
   echo "An error occurred. Exiting"
