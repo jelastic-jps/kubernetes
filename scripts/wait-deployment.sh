@@ -1,5 +1,5 @@
 #!/bin/bash
-# $1 is object name, $2 is namespace name, $3 is timeout
+# $1 is object name, $2 is namespace name, $3 is desired replica count, $4 is timeout
 
 printError() {
   echo "Failed to verify deployment $1. Current replicas is '${CUNNRENT_COUNT}'"
@@ -15,10 +15,11 @@ if [ -z $1 ] || [ -z $2 ]; then
 fi
 DEPLOYMENT=$1
 NAMESPACE=$2
+DEFAULT_REQUIRED_COUNT=1
+REQUIRED_COUNT=${3:-${DEFAULT_REQUIRED_COUNT}}
 DEFAULT_TIMEOUT=300
-TIMEOUT=${3:-${DEFAULT_TIMEOUT}}
+TIMEOUT=${4:-${DEFAULT_TIMEOUT}}
 echo "Waiting for deployment $DEPLOYMENT. Timeout in $TIMEOUT seconds"
-REQUIRED_COUNT=1
 CUNNRENT_COUNT=$(kubectl get deployment/$DEPLOYMENT -n $NAMESPACE -o=jsonpath='{.status.availableReplicas}')
 if [ $? -ne 0 ]; then
   echo "An error occurred. Exiting"
