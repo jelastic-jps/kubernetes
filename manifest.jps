@@ -2,7 +2,6 @@ type: install
 version: 1.5
 id: kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/k8s-test
-
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster
@@ -37,15 +36,26 @@ onInstall:
 
   - connect-workers: cp
   - setup-overlay
+  - if ('${settings.ingress-controller}' == 'Nginx'):
+      - setGlobals:
+          ingress-dir: nginx
+      - install-nginx
+  - elif ('${settings.ingress-controller}' == 'HAProxy'):
+      - setGlobals:
+          ingress-dir: haproxy
+      - install-haproxy
+  - else:
+      - setGlobals:
+          ingress-dir: traefik
+      - install-traefik
+  - configure-remote-api
   - install-components
-
   - install-helm-master
   - forEach(node:nodes.k8sm):
       if (!${@node.ismaster}):
         install-helm-slave:
           id: ${@node.id}
-
-  - install-traefik
+  - install-node-problem-detector
   - generate-admin-token
   - connect-storage
   - deploy
@@ -57,12 +67,15 @@ onInstall:
   - if (${settings.monitoring:true}):
         - install-monitoring
 
+  - if (${settings.jaeger:true}):
+        - install-jaeger
+
   - if ('${env.protocol}' == 'http'):
       - api: env.control.AddEndpoint
         nodeId: ${nodes.cp.master.id}
         privatePort: 30777
         protocol: TCP
-        name: Dashboard Self-Sighed HTTPS
+        name: Dashboard Self-Signed HTTPS
       - setGlobals:
           dashboardUrl: https://node${nodes.cp.master.id}-${env.domain}:${response.object.publicPort}/
 
@@ -73,10 +86,11 @@ onInstall:
              ```${globals.token}```
              Press **Open in Browser** to view a default web page of your application.
              To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation](https://docs.jelastic.com/custom-domains).
+  - check-health
 
 onAfterScaleOut[cp]:
-  forEach(event.response.nodes):
-    connect-workers: ${@i.id}
+  - get-ids: event.response.nodes
+  - connect-workers: ${globals.ids}
 
 onBeforeScaleIn[cp]:
   forEach(event.response.nodes):
@@ -111,10 +125,10 @@ actions:
         entryPoint=$((( ${nodes.mbl.length:0} > 0 )) && echo mbl || echo k8sm)
         sed -i "s/^controlPlaneEndpoint:.*/controlPlaneEndpoint: \"${entryPoint}.${env.domain}:6443\"/g" /etc/kubernetes/custom-kubeadm.yaml
         kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --upload-certs --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-init.log
-        sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'control-plane' > /var/lib/connect/settings-master
-        sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane' > /var/lib/connect/settings
-        printf "0 1 * * * kubeadm token create --print-join-command  > /var/lib/connect/settings\n\n\n" > /var/spool/cron/root
     - configure-master: ${nodes.k8sm.master.id}
+    - cmd[${nodes.k8sm.master.id}]: sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'control-plane'
+    - setGlobals:
+        master_join_cmd: ${response.out}
     - if (${settings.api:true}):
         - setGlobals:
             default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
@@ -122,7 +136,7 @@ actions:
   init-slave-master:
     - cmd[${this.id}]: |-
         systemctl daemon-reload > /dev/null 2>&1
-        $(cat /var/lib/connect/settings-master) --ignore-preflight-errors=swap,numcpu > /dev/null 2>&1
+        ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu > /dev/null 2>&1
     - configure-master: ${this.id}
     - cmd[mbl]: |-
         echo '${this.ip}' >> /etc/haproxy/hosts
@@ -142,32 +156,58 @@ actions:
       kubectx_version=0.7.0
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
-      wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
+      wget -nv https://github.com/weaveworks/weave/releases/download/v2.6.0/weave -O /usr/bin/weave
       chmod +x /usr/bin/weave
-      iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-      service iptables save
-      systemctl start kube-postconf.service
-      systemctl enable docker.service
-      systemctl enable kubelet.service
-      systemctl enable kube-postconf.service
+    configure-all-post: ${this}
 
   connect-workers:
+    - cmd[${nodes.k8sm.master.id}]: |-
+        token_age=$(expr $(date +%s) - $(stat /var/log/kubeadm-init.log -c %Y))
+        [ ${token_age} -lt $((20*60*60)) ] && { sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'; } || { kubeadm token create --print-join-command; }
+    - setGlobals:
+        worker_join_cmd: ${response.out}
+    - cmd[${this}]: |-
+        rm -f /etc/machine-id
+        systemd-machine-id-setup
+        systemctl daemon-reload > /dev/null 2>&1
+        ${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu > /dev/null 2>&1
+        sleep 5
+    - configure-all-post: ${this}
+
+  configure-all-post:
     cmd[${this}]: |-
-      rm -f /etc/machine-id
-      systemd-machine-id-setup
-      systemctl daemon-reload > /dev/null 2>&1
-      $(cat /var/lib/connect/settings) --ignore-preflight-errors=swap,numcpu > /dev/null 2>&1
-      sleep 5
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
-      systemctl start kube-postconf.service
+      systemctl start kube-config.service
       systemctl enable docker.service
       systemctl enable kubelet.service
-      systemctl enable kube-postconf.service
+      systemctl enable kube-config.service
 
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/weave-pack.yaml
+
+  install-nginx:
+     cmd[${nodes.k8sm.master.id}]: |-
+      kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
+      kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
+
+  install-haproxy:
+     cmd[${nodes.k8sm.master.id}]: |-
+      kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
+
+  install-traefik:
+     cmd[${nodes.k8sm.master.id}]: |-
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
+
+  configure-remote-api:
+      - if (${settings.api:true}):
+          - cmd[${nodes.k8sm.master.id}]: |-
+              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
+          - setGlobals:
+              default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
   install-components:
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -180,39 +220,51 @@ actions:
         kubectl create -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         kubectl create -f ${baseUrl}/addons/create-admin.yaml
         kubectl create -f ${baseUrl}/addons/grant-privileges.yaml
+        while true; do
+          READY_REPLICAS=$(kubectl get deployment/metrics-server -o=jsonpath='{.status.readyReplicas}' -n kube-system)
+          if [ -z ${READY_REPLICAS} ]; then
+            echo "Waiting for metrics-server" && sleep 10
+          else
+            if [ ${READY_REPLICAS} -eq 1 ]; then
+              echo "Metrics server is ready" && break
+            fi
+          fi
+        done
 
     - if ('${settings.dashboard}' == 'version1'):
         cmd[${nodes.k8sm.master.id}]: |-
            kubectl create -f ${baseUrl}/addons/kubernetes-dashboard.yaml
-           kubectl create -f ${baseUrl}/addons/dashboard-ingress.yaml
+           kubectl create -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml
 
     - if ('${settings.dashboard}' == 'version2'):
         cmd[${nodes.k8sm.master.id}]: |-
            kubectl create -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
-           kubectl create -f ${baseUrl}/addons/dashboard-ingress-beta.yaml
+           kubectl create -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-beta.yaml
 
   install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
       curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
-      helm init --upgrade
-      helm repo update
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-      kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
-      while true; do kubectl get pods --field-selector=status.phase=Running -n kube-system | grep tiller && break ; done
+      helm init --upgrade --service-account tiller
+      helm repo update
       sleep 5
+      while true; do
+        READY_REPLICAS=$(kubectl get deployment/tiller-deploy -o=jsonpath='{.status.readyReplicas}' -n kube-system)
+        if [ -z ${READY_REPLICAS} ]; then
+          echo "Waiting for Tiller" && sleep 10
+        else
+          if [ ${READY_REPLICAS} -eq 1 ]; then
+            echo "Tiller is ready" && break
+          fi
+        fi
+      done
 
   install-helm-slave:
     cmd[${this.id}]: |-
       curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
       helm init --client-only
       helm repo update
-
-  install-traefik:
-     cmd[${nodes.k8sm.master.id}]: |-
-      kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
-      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
-      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
@@ -223,9 +275,13 @@ actions:
     - if ('${settings.deploy}' == 'cc'):
         cmd[${nodes.k8sm.master.id}]: |-
           kubectl apply -f ${baseUrl}/addons/helloworld.yaml
-          kubectl apply -f ${baseUrl}/addons/helloworld-ingress.yaml
+          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml
     - if ('${settings.deploy}' == 'cmd'):
-        cmd[${nodes.k8sm.master.id}]: ${settings.cmd}
+        cmd[${nodes.k8sm.master.id}]: |-
+          ${settings.cmd}
+          if [ '${settings.ingress-controller}' == "Nginx" ]; then kubectl delete ingress/open-liberty-traefik ingress/open-liberty-haproxy || true; fi
+          if [ '${settings.ingress-controller}' == "HAProxy" ]; then kubectl delete ingress/open-liberty-traefik ingress/open-liberty-nginx || true; fi
+          if [ '${settings.ingress-controller}' == "Traefik" ]; then kubectl delete ingress/open-liberty-haproxy ingress/open-liberty-nginx || true; fi
     - if ('${settings.deploy}' == 'yml'):
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
@@ -247,55 +303,50 @@ actions:
   - log: '${this}'
   - cmd[${nodes.k8sm.master.id}]: |-
       action=$([ "${this}" == "true" ] && echo "apply" || echo "delete")
-      kubectl $action -f ${baseUrl}/addons/api-ingress.yaml
+      kubectl $action -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
 
   install-monitoring:
-  - log: '${globals.monitoring_installed}'
-  - if ('${globals.monitoring_installed}' == 'true'):
-        return:
-            type: info
-            message: ${globals.monitoring_success}
-
-  - cmd[${nodes.k8sm.master.id}]: |-
-      [ ! -f /root/monitoring_is_installed ] && {
-      helm repo update
-      helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
-      while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep prometheus-server && break ; done
-      helm fetch stable/grafana --untar
-      for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
-        wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
-      done
-      sleep 5
-      helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
-      while true; do kubectl get pods --field-selector=status.phase=Running -n kubernetes-monitoring | grep grafana && break ; done
-      sleep 5
-      grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
-      kubectl create secret generic monitoring-prometheus --from-literal=auth="$(htpasswd -nb admin ${grafana_secret})" --namespace=kubernetes-monitoring
-      kubectl create -f ${baseUrl}/addons/monitoring/prometheus-ingress.yaml
-      kubectl create -f ${baseUrl}/addons/monitoring/alert-ingress.yaml
-      kubectl create -f ${baseUrl}/addons/monitoring/grafana-ingress.yaml
-      sleep 20
-      curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
-      dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Jelastic' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
-      curl -X POST -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}"
-      curl -X PUT -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences"
-      touch /root/monitoring_is_installed; } || echo "Already installed" ;
+  - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana &>/dev/null && echo "true" || echo "false"
+  - setGlobals:
+      monitoring_installed: ${response.out}
+  - if ('${globals.monitoring_installed}' == 'false'):
+      - cmd[${nodes.k8sm.master.id}]: |-
+          helm repo update
+          helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
+          kubectl -n kubernetes-monitoring wait --for=condition=Ready pod -l app=prometheus,component=server --timeout=-1s
+          helm fetch stable/grafana --untar
+          for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
+            wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
+          done
+          helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
+          kubectl -n kubernetes-monitoring wait --for=condition=Ready pod -l app=grafana,release=monitoring-grafana --timeout=-1s
+          grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
+          [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
+          kubectl create secret generic monitoring-prometheus --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${grafana_secret})" --namespace=kubernetes-monitoring
+          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
+          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
+          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml
+          sleep 20
+          curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
+          dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Jelastic' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
+          curl -X POST -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}"
+          curl -X PUT -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences"
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
   - setGlobals:
       grafana_secret: ${response.out}
-  - setGlobals:
-      monitoring_installed: true
-  - log: ${globals.monitoring_installed}
-
   - setGlobals:
       monitoring_success: |
           Enter [Prometheus dashboard](${env.url}prometheus/), [Prometheus AlertManager](${env.url}prometheus-alert/)
           and [Grafana dashboard](${env.url}grafana/), using login "admin" and password:
 
           ```${globals.grafana_secret}```
-  - if (!${settings.monitoring:true}):
-      jelastic.message.email.SendToUser:
-            login: "${user.email}"
+  - if ('${globals.monitoring_installed}' == 'true'):
+      return:
+        type: info
+        message: ${globals.monitoring_success}
+  - if (!${settings.monitoring:false}):
+      message.email.send:
+            to: "${user.email}"
             subject: Monitoring Tools Successfully Installed in ${env.name}
             body: |-
               Monitoring Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
@@ -307,11 +358,73 @@ actions:
         type: info
         message: ${globals.monitoring_success}
 
+  install-jaeger:
+  - cmd[${nodes.k8sm.master.id}]: kubectl get secret observability-jaeger-plain --namespace=observability &>/dev/null && echo "true" || echo "false"
+  - setGlobals:
+      jaeger_installed: ${response.out}
+  - if ('${globals.jaeger_installed}' == 'false'):
+      - cmd[${nodes.k8sm.master.id}]: |-
+          kubectl create namespace observability
+          kubectl create -f ${baseUrl}/addons/jaeger/jaegertracing_v1_jaeger_crd.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/service_account.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/role.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/role_binding.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/operator.yaml
+          [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
+          jaeger_secret=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+          kubectl create secret generic observability-jaeger-plain --from-literal=auth="${jaeger_secret}" --namespace=observability
+          kubectl create secret generic observability-jaeger --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${jaeger_secret})" --namespace=observability
+          kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
+          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
+  - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace=observability observability-jaeger-plain -o jsonpath='{.data.auth}' | base64 --decode
+  - setGlobals:
+      jaeger_secret: ${response.out}
+  - setGlobals:
+      jaeger_success: |
+          Enter [Jaeger dashboard](${env.url}jaeger/), using login "admin" and password:
+
+          ```${globals.jaeger_secret}```
+  - if ('${globals.jaeger_installed}' == 'true'):
+      return:
+        type: info
+        message: ${globals.jaeger_success}
+  - if (!${settings.jaeger:false}):
+      message.email.send:
+          to: "${user.email}"
+          subject: Jaeger Tracing Tools Successfully Installed in ${env.name}
+          body: |-
+              Jaeger Tracing Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
+              Jaeger Dashboard - ${env.url}jaeger/ <br>
+              Credentials - admin / ${globals.jaeger_secret}
+      return:
+        type: info
+        message: ${globals.jaeger_success}
+
+  get-ids:
+    - setGlobals:
+        ids: ''
+        sep: ''
+    - forEach(${this}):
+        add-id: ${@i.id}
+
+  add-id:
+    setGlobals:
+      ids: ${globals.ids:}${globals.sep:}${this}
+      sep: ','
+
+  install-node-problem-detector:
+     - cmd[${nodes.k8sm.master.id}]: helm install stable/node-problem-detector --name node-problem-detector --set image.tag=v0.7.0
+
+  check-health:
+      cmd[${nodes.k8sm.master.id}]: mkdir -p /var/log/kubernetes && curl -s ${baseUrl}/scripts/check-install.sh | bash -s -- -i=${settings.ingress-controller} -app=${settings.deploy} -m=${settings.monitoring} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger} -d=${env.domain}  &> /var/log/kubernetes/k8s-health-check.log || echo "*Warning! Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on master node and contact support.*"
+      setGlobals:
+         check_message: ${response.out}
+
 addons:
 
   - id: conf-k8s-addon
     type: update
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.4
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/k8s-test
     name: Kubernetes Cluster Configuration
     description: Configure remote API access and monitoring tools or upgrade your Kubernetes cluster
     logo: /images/k8s-logo.png
@@ -325,8 +438,9 @@ addons:
           name: api
           caption: Remote API access is enabled
         - type: string
-          name: monitoring
+          name: ingress-controller
           inputType: hidden
+
     buttons:
       - caption: Remote API
         settings: main
@@ -342,6 +456,9 @@ addons:
       - caption: Monitoring
         action: install-monitoring
         confirmText: Monitoring tools will be installed if missing. Continue?
+      - caption: Jaeger
+        action: install-jaeger
+        confirmText: Jaeger will be installed if missing. Continue?
 
     actions:
       addon-upgrade:
@@ -390,11 +507,13 @@ addons:
       - else:
           - setGlobals:
               apiStatusMessage: disabled
-      - jelastic.message.email.SendToUser:
-          login: "${user.email}"
+      - message.email.send:
+          to: "${user.email}"
           subject: Remote API Access Successfully Updated in ${env.name}
           body: Remote API has been ${globals.apiStatusMessage}
 
 success: |
   ${globals.default_success:}
   ${globals.monitoring_success:}
+  ${globals.jaeger_success:}
+  ${globals.check_message:}

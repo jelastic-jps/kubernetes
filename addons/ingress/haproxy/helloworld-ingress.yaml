@@ -4,11 +4,14 @@ metadata:
   name: helloworld
   namespace: default
   annotations:
-    kubernetes.io/ingress.class: traefik
+    ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: haproxy
+    ingress.kubernetes.io/ssl-redirect: 'false'
 spec:
   rules:
-  - http: &http_rules
+  - http:
       paths:
-      - backend:
+      - path: /
+        backend:
           serviceName: hello-kubernetes
           servicePort: 80

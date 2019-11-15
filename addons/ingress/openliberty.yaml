@@ -1,0 +1,66 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: liberty-service
+spec:
+  selector:
+    app: default-ibm-open-liberty
+  ports:
+  - protocol: TCP
+    port: 443
+    targetPort: 9443
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: open-liberty-nginx
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  rules:
+   - http:
+      paths:
+      - backend:
+          serviceName: liberty-service
+          servicePort: 443
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: open-liberty-traefik
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    ingress.kubernetes.io/secure-backends: "true"
+spec:
+  rules:
+   - http:
+      paths:
+      - backend:
+          serviceName: liberty-service
+          servicePort: 443
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: open-liberty-haproxy
+  namespace: default
+  annotations:
+    ingress.kubernetes.io/rewrite-target: /
+    ingress.kubernetes.io/secure-backends: 'true'
+    kubernetes.io/ingress.class: haproxy
+    ingress.kubernetes.io/ssl-redirect: 'false'
+spec:
+  rules:
+   - http:
+      paths:
+      - backend:
+          serviceName: liberty-service
+          servicePort: 443

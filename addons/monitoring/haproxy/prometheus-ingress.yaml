@@ -1,0 +1,19 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: monitoring-prometheus-server
+  namespace: kubernetes-monitoring
+  annotations:
+    kubernetes.io/ingress.class: haproxy
+    ingress.kubernetes.io/auth-type: basic
+    ingress.kubernetes.io/auth-secret: monitoring-prometheus
+    ingress.kubernetes.io/ssl-redirect: 'false'
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /prometheus
+        backend:
+          serviceName: monitoring-prometheus-server
+          servicePort: 80

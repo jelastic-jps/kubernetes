@@ -1,0 +1,18 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: monitoring-grafana
+  namespace: kubernetes-monitoring
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /grafana(/|$)(.*)
+        backend:
+          serviceName: monitoring-grafana
+          servicePort: 80
