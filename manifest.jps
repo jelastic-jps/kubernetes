@@ -326,11 +326,15 @@ actions:
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml
-          sleep 20
-          curl -X POST -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login"
-          dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Jelastic' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
-          curl -X POST -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}"
-          curl -X PUT -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences"
+          for i in {1..10}; do
+            sleep 10
+            echo "Attempt ${i} of Grafana dashboard parameters setting"
+            curl -X POST -f -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login" || contunue
+            dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Jelastic' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
+            [ "${dash_id}" = "" ] && continue
+            curl -X POST -f -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}" || continue
+            curl -X PUT -f -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences" && break || continue
+          done
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
   - setGlobals:
       grafana_secret: ${response.out}
