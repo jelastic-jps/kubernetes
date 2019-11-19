@@ -5,7 +5,7 @@ metadata:
   name: liberty-service
 spec:
   selector:
-    app: default-ibm-open-liberty
+    release: open-liberty
   ports:
   - protocol: TCP
     port: 443
