@@ -15,7 +15,7 @@ fields:
         default: |-
           helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
           helm install --name open-liberty --set autoscaling.enabled=true --set autoscaling.minReplicas=2 --set resources.constraints.enabled=true ibm-charts/ibm-open-liberty --debug
-          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.6/addons/ingress/openliberty.yaml
+          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.3/addons/ingress/openliberty.yaml
 
   - name: label
     caption: Topology
@@ -72,4 +72,4 @@ fields:
     name: version
     inputType: hidden
     caption: Kubernetes Version
-    default: v1.15.6
+    default: v1.16.3

@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.6
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.3
 description:
   text: /text/description-kube.md
   short: Kubernetes Cluster
@@ -219,7 +219,6 @@ actions:
         kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-service.yaml
         kubectl create -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         kubectl create -f ${baseUrl}/addons/create-admin.yaml
-        kubectl create -f ${baseUrl}/addons/grant-privileges.yaml
         while true; do
           READY_REPLICAS=$(kubectl get deployment/metrics-server -o=jsonpath='{.status.readyReplicas}' -n kube-system)
           if [ -z ${READY_REPLICAS} ]; then
@@ -428,7 +427,7 @@ addons:
 
   - id: conf-k8s-addon
     type: update
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.3
     name: Kubernetes Cluster Configuration
     description: Configure remote API access and monitoring tools or upgrade your Kubernetes cluster
     logo: /images/k8s-logo.png
