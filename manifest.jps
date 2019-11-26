@@ -156,7 +156,7 @@ actions:
       kubectx_version=0.7.0
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
-      wget -nv https://github.com/weaveworks/weave/releases/download/v2.6.0/weave -O /usr/bin/weave
+      wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
       chmod +x /usr/bin/weave
     configure-all-post: ${this}
 

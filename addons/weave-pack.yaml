@@ -136,7 +136,7 @@ items:
                   value: '1'
                 - name: IPALLOC_RANGE
                   value: 10.239.0.0/16
-              image: 'jelastic/weave-kube:2.6.0'
+              image: 'jelastic/weave-kube:2.5.2'
               readinessProbe:
                 httpGet:
                   host: 127.0.0.1
@@ -170,7 +170,7 @@ items:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
-              image: 'jelastic/weave-npc:2.6.0'
+              image: 'jelastic/weave-npc:2.5.2'
               resources:
                 requests:
                   cpu: 10m
