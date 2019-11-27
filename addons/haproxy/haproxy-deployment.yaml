@@ -132,7 +132,7 @@ subjects:
     kind: User
     name: ingress-controller
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -175,7 +175,7 @@ metadata:
   name: haproxy-ingress
   namespace: ingress-controller
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
@@ -184,7 +184,7 @@ metadata:
   namespace: ingress-controller
 spec:
   updateStrategy:
-    type: OnDelete
+    type: RollingUpdate
   selector:
     matchLabels:
       run: haproxy-ingress
@@ -194,10 +194,12 @@ spec:
         run: haproxy-ingress
     spec:
       hostNetwork: true
+      nodeSelector:
+        role: ingress-controller
       serviceAccountName: ingress-controller
       containers:
       - name: haproxy-ingress
-        image: quay.io/jcmoraisjr/haproxy-ingress:v0.7.3
+        image: quay.io/jcmoraisjr/haproxy-ingress:v0.7.4
         args:
         - --default-backend-service=$(POD_NAMESPACE)/ingress-default-backend
         - --configmap=$(POD_NAMESPACE)/haproxy-ingress
