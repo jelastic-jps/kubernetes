@@ -195,7 +195,7 @@ spec:
     spec:
       hostNetwork: true
       nodeSelector:
-        role: ingress-controller
+        kubernetes.io/os: linux
       serviceAccountName: ingress-controller
       containers:
       - name: haproxy-ingress
