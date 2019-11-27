@@ -430,7 +430,7 @@ addons:
     type: update
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.6
     name: Kubernetes Cluster Configuration
-    description: Configure remote API access and monitoring tools or upgrade your Kubernetes cluster
+    description: Configure remote API access and install complementary tools
     logo: /images/k8s-logo.png
     settings:
       fields:
@@ -452,17 +452,42 @@ addons:
         loadingText: Updating...
         confirmText: Are you sure?
         successText: Remote API Access was successfully updated!
-      - caption: Upgrade
-        action: addon-upgrade
-        loadingText: Updating...
-        confirmText: Do you want to upgrade Kubernetes Cluster?
-        successText: Kubernetes Cluster has been successfully upgraded!
       - caption: Monitoring
         action: install-monitoring
         confirmText: Monitoring tools will be installed if missing. Continue?
       - caption: Jaeger
         action: install-jaeger
         confirmText: Jaeger will be installed if missing. Continue?
+
+    actions:
+      addon-remote-api:
+      - log: '${this.api}'
+      - setup-remote-api: ${this.api}
+      - if (${this.api:true}):
+          - setGlobals:
+              apiStatusMessage: enabled at ${env.url}api
+      - else:
+          - setGlobals:
+              apiStatusMessage: disabled
+      - message.email.send:
+          to: "${user.email}"
+          subject: Remote API Access Successfully Updated in ${env.name}
+          body: Remote API has been ${globals.apiStatusMessage}
+
+
+  - id: upgrade-k8s-addon
+    type: update
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.3
+    name: Kubernetes Cluster Upgrade
+    description: Upgrade Kubernetes cluster to a newer version
+    logo: /images/k8s-logo.png
+
+    buttons:
+      - caption: Start Cluster Upgrade
+        action: addon-upgrade
+        loadingText: Updating...
+        confirmText: Do you want to upgrade Kubernetes Cluster?
+        successText: Kubernetes Cluster has been successfully upgraded!
 
     actions:
       addon-upgrade:
@@ -502,19 +527,6 @@ addons:
         settings:
             version: ${this.next}
 
-      addon-remote-api:
-      - log: '${this.api}'
-      - setup-remote-api: ${this.api}
-      - if (${this.api:true}):
-          - setGlobals:
-              apiStatusMessage: enabled at ${env.url}api
-      - else:
-          - setGlobals:
-              apiStatusMessage: disabled
-      - message.email.send:
-          to: "${user.email}"
-          subject: Remote API Access Successfully Updated in ${env.name}
-          body: Remote API has been ${globals.apiStatusMessage}
 
 success: |
   ${globals.default_success:}
