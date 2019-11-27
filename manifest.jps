@@ -369,7 +369,7 @@ actions:
   - if ('${globals.jaeger_installed}' == 'false'):
       - cmd[${nodes.k8sm.master.id}]: |-
           kubectl create namespace observability
-          kubectl create -f ${baseUrl}/addons/jaeger/jaegertracing_v1_jaeger_crd.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/jaegertracing.io_jaegers_crd.yaml
           kubectl create -f ${baseUrl}/addons/jaeger/service_account.yaml
           kubectl create -f ${baseUrl}/addons/jaeger/role.yaml
           kubectl create -f ${baseUrl}/addons/jaeger/role_binding.yaml
