@@ -158,6 +158,8 @@ actions:
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
       wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
       chmod +x /usr/bin/weave
+      wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /root/wait-deployment.sh
+      chmod +x /root/wait-deployment.sh
     configure-all-post: ${this}
 
   connect-workers:
@@ -380,6 +382,26 @@ actions:
           kubectl create secret generic observability-jaeger --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${jaeger_secret})" --namespace=observability
           kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
           kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
+          while true; do
+            READY_REPLICAS=$(kubectl get deployment/jaeger-operator -o=jsonpath='{.status.readyReplicas}' -n observability)
+            if [ -z ${READY_REPLICAS} ]; then
+              echo "Waiting for jaeger-operator" && sleep 10
+            else
+              if [ ${READY_REPLICAS} -eq 1 ]; then
+                echo "jaeger-operator is ready" && break
+              fi
+            fi
+          done
+          while true; do
+            READY_REPLICAS=$(kubectl get deployment/jaeger -o=jsonpath='{.status.readyReplicas}' -n observability)
+            if [ -z ${READY_REPLICAS} ]; then
+              echo "Waiting for jaeger" && sleep 10
+            else
+              if [ ${READY_REPLICAS} -eq 1 ]; then
+                echo "jaeger is ready" && break
+              fi
+            fi
+          done
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace=observability observability-jaeger-plain -o jsonpath='{.data.auth}' | base64 --decode
   - setGlobals:
       jaeger_secret: ${response.out}
