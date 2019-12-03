@@ -172,6 +172,9 @@ actions:
         rm -f /etc/machine-id
         systemd-machine-id-setup
         systemctl daemon-reload > /dev/null 2>&1
+        local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
+        [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
+        [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
         ${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu > /dev/null 2>&1
         sleep 5
     - configure-all-post: ${this}
@@ -499,7 +502,7 @@ addons:
 
   - id: upgrade-k8s-addon
     type: update
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.3
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.6
     name: Kubernetes Cluster Upgrade
     description: Upgrade Kubernetes cluster to a newer version
     logo: /images/k8s-logo.png
