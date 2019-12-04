@@ -225,16 +225,7 @@ actions:
         kubectl create -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         kubectl create -f ${baseUrl}/addons/create-admin.yaml
         kubectl create -f ${baseUrl}/addons/grant-privileges.yaml
-        while true; do
-          READY_REPLICAS=$(kubectl get deployment/metrics-server -o=jsonpath='{.status.readyReplicas}' -n kube-system)
-          if [ -z ${READY_REPLICAS} ]; then
-            echo "Waiting for metrics-server" && sleep 10
-          else
-            if [ ${READY_REPLICAS} -eq 1 ]; then
-              echo "Metrics server is ready" && break
-            fi
-          fi
-        done
+        /root/wait-deployment.sh metrics-server kube-system 1 720
 
     - if ('${settings.dashboard}' == 'version1'):
         cmd[${nodes.k8sm.master.id}]: |-
@@ -253,17 +244,7 @@ actions:
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
       helm init --upgrade --service-account tiller
       helm repo update
-      sleep 5
-      while true; do
-        READY_REPLICAS=$(kubectl get deployment/tiller-deploy -o=jsonpath='{.status.readyReplicas}' -n kube-system)
-        if [ -z ${READY_REPLICAS} ]; then
-          echo "Waiting for Tiller" && sleep 10
-        else
-          if [ ${READY_REPLICAS} -eq 1 ]; then
-            echo "Tiller is ready" && break
-          fi
-        fi
-      done
+      /root/wait-deployment.sh tiller-deploy kube-system 1 720
 
   install-helm-slave:
     cmd[${this.id}]: |-
@@ -322,13 +303,13 @@ actions:
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo update
           helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
-          kubectl -n kubernetes-monitoring wait --for=condition=Ready pod -l app=prometheus,component=server --timeout=-1s
+          /root/wait-deployment.sh monitoring-prometheus-server kubernetes-monitoring 1 720
           helm fetch stable/grafana --untar
           for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
             wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
           done
           helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
-          kubectl -n kubernetes-monitoring wait --for=condition=Ready pod -l app=grafana,release=monitoring-grafana --timeout=-1s
+          /root/wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720
           grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
           [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
           kubectl create secret generic monitoring-prometheus --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${grafana_secret})" --namespace=kubernetes-monitoring
@@ -393,26 +374,8 @@ actions:
           kubectl create secret generic observability-jaeger --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${jaeger_secret})" --namespace=observability
           kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
           kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
-          while true; do
-            READY_REPLICAS=$(kubectl get deployment/jaeger-operator -o=jsonpath='{.status.readyReplicas}' -n observability)
-            if [ -z ${READY_REPLICAS} ]; then
-              echo "Waiting for jaeger-operator" && sleep 10
-            else
-              if [ ${READY_REPLICAS} -eq 1 ]; then
-                echo "jaeger-operator is ready" && break
-              fi
-            fi
-          done
-          while true; do
-            READY_REPLICAS=$(kubectl get deployment/jaeger -o=jsonpath='{.status.readyReplicas}' -n observability)
-            if [ -z ${READY_REPLICAS} ]; then
-              echo "Waiting for jaeger" && sleep 10
-            else
-              if [ ${READY_REPLICAS} -eq 1 ]; then
-                echo "jaeger is ready" && break
-              fi
-            fi
-          done
+          /root/wait-deployment.sh jaeger-operator observability 1 720
+          /root/wait-deployment.sh jaeger observability 1 720
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace=observability observability-jaeger-plain -o jsonpath='{.data.auth}' | base64 --decode
   - setGlobals:
       jaeger_secret: ${response.out}
