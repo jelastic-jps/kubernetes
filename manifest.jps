@@ -64,10 +64,10 @@ onInstall:
   - if (${settings.api:true}):
       - setup-remote-api: true
 
-  - if (${settings.monitoring:true}):
+  - if (${settings.monitoring:false}):
         - install-monitoring
 
-  - if (${settings.jaeger:true}):
+  - if (${settings.jaeger:false}):
         - install-jaeger
 
   - if ('${env.protocol}' == 'http'):
@@ -311,6 +311,10 @@ actions:
       kubectl $action -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
 
   install-monitoring:
+  - if (!${settings.storage:false}):
+      return:
+        type: warning
+        message: Monitoring components require Storage installed!
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana &>/dev/null && echo "true" || echo "false"
   - setGlobals:
       monitoring_installed: ${response.out}
@@ -368,6 +372,10 @@ actions:
         message: ${globals.monitoring_success}
 
   install-jaeger:
+  - if (!${settings.storage:false}):
+      return:
+        type: warning
+        message: Jaeger components require Storage installed!
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret observability-jaeger-plain --namespace=observability &>/dev/null && echo "true" || echo "false"
   - setGlobals:
       jaeger_installed: ${response.out}
@@ -468,6 +476,9 @@ addons:
           caption: Remote API access is enabled
         - type: string
           name: ingress-controller
+          inputType: hidden
+        - type: checkbox
+          name: storage
           inputType: hidden
 
     buttons:

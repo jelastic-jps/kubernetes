@@ -52,20 +52,34 @@ fields:
     name: storage
     caption: Attach dedicated NFS Storage with dynamic volume provisioning
     value: true
+    showIf:
+      true:
+      - type: checkbox
+        name: monitoring
+        caption: Install Prometheus & Grafana
+        value: false
+
+      - type: checkbox
+        name: jaeger
+        caption: Install Jaeger tracing tools
+        value: false
+
+      false:
+      - type: checkbox
+        name: monitoring
+        caption: Install Prometheus & Grafana
+        value: false
+        disabled: true
+
+      - type: checkbox
+        name: jaeger
+        caption: Install Jaeger tracing tools
+        value: false
+        disabled: true
 
   - type: checkbox
     name: api
     caption: Enable Remote API Access
-    value: false
-
-  - type: checkbox
-    name: monitoring
-    caption: Install Prometheus & Grafana
-    value: false
-
-  - type: checkbox
-    name: jaeger
-    caption: Install Jaeger tracing tools
     value: false
 
   - type: string
