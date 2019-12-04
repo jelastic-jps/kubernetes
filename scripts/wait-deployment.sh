@@ -21,19 +21,26 @@ DEFAULT_TIMEOUT=300
 TIMEOUT=${4:-${DEFAULT_TIMEOUT}}
 echo "Waiting for deployment $DEPLOYMENT. Expecting $REQUIRED_COUNT replicas. Timeout in $TIMEOUT seconds"
 CUNNRENT_COUNT=$(kubectl get deployment/$DEPLOYMENT -n $NAMESPACE -o=jsonpath='{.status.availableReplicas}')
-if [ $? -ne 0 ]; then
-  echo "An error occurred. Exiting"
-  exit 1
-fi
 SLEEP=5
 exit=$((SECONDS+TIMEOUT))
-while [ "${CUNNRENT_COUNT}" -ne "${REQUIRED_COUNT}" ] && [ ${SECONDS} -lt ${exit} ]; do
+while [ -z "${CUNNRENT_COUNT}" ] && [ ${SECONDS} -lt ${exit} ]; do
   CUNNRENT_COUNT=$(kubectl get deployment/$DEPLOYMENT -n $NAMESPACE -o=jsonpath='{.status.availableReplicas}')
   timeout_in=$((exit-SECONDS))
   sleep ${SLEEP}
 done
 
-if [ "${CUNNRENT_COUNT}" -ne "${REQUIRED_COUNT}"  ]; then
+if [ -z "${CUNNRENT_COUNT}" ]; then
+  printError $DEPLOYMENT $NAMESPACE
+  exit 1
+fi
+
+while [ "${CUNNRENT_COUNT}" -lt "${REQUIRED_COUNT}" ] && [ ${SECONDS} -lt ${exit} ]; do
+  CUNNRENT_COUNT=$(kubectl get deployment/$DEPLOYMENT -n $NAMESPACE -o=jsonpath='{.status.availableReplicas}')
+  timeout_in=$((exit-SECONDS))
+  sleep ${SLEEP}
+done
+
+if [ "${CUNNRENT_COUNT}" -lt "${REQUIRED_COUNT}"  ]; then
   printError $DEPLOYMENT $NAMESPACE
   exit 1
 elif [ ${SECONDS} -ge ${exit} ]; then
