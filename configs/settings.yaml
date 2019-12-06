@@ -2,8 +2,10 @@ fields:
   - name: deploy
     type: radio-fieldset
     values:
-      cc: Clean cluster with pre-deployed HelloWorld example
-      cmd: Deploy custom helm or stack via shell command
+        - value: cc
+          caption: Clean cluster with pre-deployed HelloWorld example
+        - value: cmd
+          caption: Deploy custom helm or stack via shell command
     default: cc
     showIf:
       cmd:
@@ -23,9 +25,18 @@ fields:
   - name: topo
     type: radio-fieldset
     values:
-      0-dev: '<b>Development:</b> one master (1) and one scalable worker (1+)'
-      1-prod: '<b>Production:</b> multi master (3) with API balancers (2+) and scalable workers (2+)'
+        - value: 0-dev
+          caption: '<b>Development:</b> one master (1) and one scalable worker (1+)'
+        - value: 1-prod
+          caption: '<b>Production:</b> multi master (3) with API balancers (2+) and scalable workers (2+)'
     default: 0-dev
+
+  - type: displayfield
+    cls: warning
+    height: 30
+    hideLabel: true
+    hidden: true
+    markup:
 
   - name: ingress-controller
     type: list
