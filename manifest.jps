@@ -560,56 +560,92 @@ addons:
     actions:
       addon-gitlab-config:
       - log: '${settings.envlist}'
-      - log: '${user.email}'
+      - cmd[${nodes.k8sm.master.id}]: kubectl get configmaps -n gitlab-managed-apps gitlab-configuration &>/dev/null && echo "true" || echo "false"
+      - setGlobals:
+          gitlab_installed: ${response.out}
+      - if ('${globals.gitlab_installed}' == 'true'):
+          return:
+            type: info
+            message: This cluster already has GitLab integration!
+      - cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${baseUrl}/addons/gitlab-service-account.yaml
+      - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep gitlab-admin | awk '{print $1}') | grep '^token:' | awk '{print $2}'
+      - setGlobals:
+          gitlab_token: ${response.out}
+      - cmd[${nodes.k8sm.master.id}]: kubectl cluster-info | sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" | grep 'Kubernetes master' | awk '/http/ {print $NF}'
+      - setGlobals:
+          gitlab_api_url: ${response.out}
+      - cmd[${nodes.k8sm.master.id}]: kubectl get secret $(kubectl get secrets | grep default-token | cut -d " " -f 1) -o jsonpath="{['data']['ca\.crt']}" | base64 --decode
+      - setGlobals:
+          gitlab_ca_cert: ${response.out}
       - cmd[${nodes.k8sm.master.id}]: |-
-          api_url=$(kubectl cluster-info | sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" | grep 'Kubernetes master' | awk '/http/ {print $NF}')
-          ca_cert=$(kubectl get secret $(kubectl get secrets | grep default-token | cut -d " " -f 1) -o jsonpath="{['data']['ca\.crt']}" | base64 --decode)
-          kubectl apply -f ${baseUrl}/addons/gitlab-service-account.yaml
-          gitlab_token=$(kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep gitlab-admin | awk '{print $1}') | grep '^token:' | awk '{print $2}')
+          # Login
           page_content=$(curl -sk -c gitlab-jar.txt  'https://${settings.envlist}:4848/users/sign_in')
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /new_user.*?authenticity_token"[[:blank:]]value="(.+?)"/' | sed -n 1p)
           echo "Sign-in CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 1
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "user[login]=root&user[password]=${settings.gitlab_pass}" --data-urlencode "authenticity_token=${csrf_token}" 'https://${settings.envlist}:4848/users/sign_in' || exit 1
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "user[login]=root&user[password]=${settings.gitlab_pass}" --data-urlencode "authenticity_token=${csrf_token}" 'https://${settings.envlist}:4848/users/sign_in'
+      - cmd[${nodes.k8sm.master.id}]: |-
+          # Settings
           page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt 'https://${settings.envlist}:4848/admin/application_settings/network')
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /meta[[:blank:]]name="csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Application settings CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 2
           curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "_method=patch&application_setting[allow_local_requests_from_web_hooks_and_services]=1&application_setting[allow_local_requests_from_system_hooks]=1&application_setting[dns_rebinding_protection_enabled]=1" --data-urlencode "authenticity_token=${csrf_token}" 'https://${settings.envlist}:4848/admin/application_settings/network' || exit 2
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  'https://${settings.envlist}:4848/admin/clusters/new')
-          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /new_cluster.*?authenticity_token"[[:blank:]]value="(.+?)"/' | sed -n 1p)
-          echo "Add cluster CSRF token: ${csrf_token}"
-          [ -n "${csrf_token}" ] || exit 3
-          page_content=$(curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "cluster[name]=Kubernetes&cluster[platform_kubernetes_attributes][authorization_type]=rbac&cluster[managed]=1" --data-urlencode "cluster[platform_kubernetes_attributes][api_url]=${api_url}" --data-urlencode "cluster[platform_kubernetes_attributes][ca_cert]=${ca_cert}" --data-urlencode "cluster[platform_kubernetes_attributes][token]=${gitlab_token}" --data-urlencode "authenticity_token=${csrf_token}" 'https://${settings.envlist}:4848/admin/clusters/create_user')
+          curl -sk -b gitlab-jar.txt -c gitlab-jar.txt -f 'https://${settings.envlist}:4848/admin/application_settings/network' &>/dev/null
+      - cmd[${nodes.k8sm.master.id}]: |-
+          # Cluster
+          for i in {1..5}; do
+            sleep 10
+            echo "Attempt ${i} of GitLab Kubernetes cluster creation"
+            page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  'https://${settings.envlist}:4848/admin/clusters/new')
+            csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /new_cluster.*?authenticity_token"[[:blank:]]value="(.+?)"/' | sed -n 1p)
+            echo "Add cluster CSRF token: ${csrf_token}"
+            [ -n "${csrf_token}" ] || continue
+            page_content=$(curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "cluster[name]=Kubernetes&cluster[platform_kubernetes_attributes][authorization_type]=rbac&cluster[managed]=1" --data-urlencode "cluster[platform_kubernetes_attributes][api_url]=${globals.gitlab_api_url}" --data-urlencode "cluster[platform_kubernetes_attributes][ca_cert]=${globals.gitlab_ca_cert}" --data-urlencode "cluster[platform_kubernetes_attributes][token]=${globals.gitlab_token}" --data-urlencode "authenticity_token=${csrf_token}" 'https://${settings.envlist}:4848/admin/clusters/create_user')
+            cluster_url=$(echo ${page_content} | perl -ne 'print "$1\n" if /You[[:blank:]]are[[:blank:]]being[[:blank:]]\<a[[:blank:]]href="(.+?)"\>redirected/' | sed -n 1p)
+            echo "Kubernetes GitLab cluster: ${cluster_url}"
+            [ -n "${cluster_url}" ] && break || continue
+          done
           echo "${page_content}"
-          cluster_url=$(echo ${page_content} | perl -ne 'print "$1\n" if /You[[:blank:]]are[[:blank:]]being[[:blank:]]\<a[[:blank:]]href="(.+?)"\>redirected/' | sed -n 1p)
-          echo "Kubernetes GitLab cluster: ${cluster_url}"
           [ -n "${cluster_url}" ] || exit 4
+          kubectl create ns gitlab-managed-apps
+          kubectl create configmap gitlab-configuration --from-literal cluster_url="${cluster_url}" -n gitlab-managed-apps
+      - cmd[${nodes.k8sm.master.id}]: kubectl get configmaps -n gitlab-managed-apps gitlab-configuration -o jsonpath='{.data.cluster_url}'
+      - setGlobals:
+          gitlab_cluster_url: ${response.out}
+      - cmd[${nodes.k8sm.master.id}]: |-
+          # Helm
           sleep 5
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  "${cluster_url}")
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  "${globals.gitlab_cluster_url}")
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Helm CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${cluster_url}/applications/helm" || exit 5
-          /root/wait-deployment.sh tiller-deploy gitlab-managed-apps 1 720
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${cluster_url}")
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${globals.gitlab_cluster_url}/applications/helm" || exit 5
+          wait-deployment.sh tiller-deploy gitlab-managed-apps 1 720
+      - cmd[${nodes.k8sm.master.id}]: |-
+          # Ingress
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${globals.gitlab_cluster_url}")
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Ingress CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${cluster_url}/applications/ingress" || exit 5
-          /root/wait-deployment.sh ingress-nginx-ingress-controller gitlab-managed-apps 1 720
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${cluster_url}")
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${globals.gitlab_cluster_url}/applications/ingress" || exit 5
+          wait-deployment.sh ingress-nginx-ingress-controller gitlab-managed-apps 1 720
+      - cmd[${nodes.k8sm.master.id}]: |-
+          # Cert manager
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${globals.gitlab_cluster_url}")
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Cert-manager CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "Content-Type: application/json" -H "X-CSRF-Token: ${csrf_token}" -d '{"email":"${user.email}"}' "${cluster_url}/applications/cert_manager" || exit 5
-          /root/wait-deployment.sh certmanager-webhook gitlab-managed-apps 1 720
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${cluster_url}")
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "Content-Type: application/json" -H "X-CSRF-Token: ${csrf_token}" -d '{"email":"${user.email}"}' "${globals.gitlab_cluster_url}/applications/cert_manager" || exit 5
+          wait-deployment.sh certmanager-webhook gitlab-managed-apps 1 720
+      - cmd[${nodes.k8sm.master.id}]: |-
+          # Runner
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${globals.gitlab_cluster_url}")
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Runner CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${cluster_url}/applications/runner" || exit 5
-          /root/wait-deployment.sh runner-gitlab-runner gitlab-managed-apps 1 720
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${globals.gitlab_cluster_url}/applications/runner" || exit 5
+          wait-deployment.sh runner-gitlab-runner gitlab-managed-apps 1 720
 
 success: |
   ${globals.default_success:}
