@@ -158,8 +158,8 @@ actions:
       wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
       wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
       chmod +x /usr/bin/weave
-      wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /root/wait-deployment.sh
-      chmod +x /root/wait-deployment.sh
+      wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /usr/local/sbin/wait-deployment.sh
+      chmod +x /usr/local/sbin/wait-deployment.sh
     configure-all-post: ${this}
 
   connect-workers:
@@ -224,7 +224,7 @@ actions:
         kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-service.yaml
         kubectl create -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         kubectl create -f ${baseUrl}/addons/admin-account.yaml
-        /root/wait-deployment.sh metrics-server kube-system 1 720
+        wait-deployment.sh metrics-server kube-system 1 720
 
     - if ('${settings.dashboard}' == 'version1'):
         cmd[${nodes.k8sm.master.id}]: |-
@@ -243,7 +243,7 @@ actions:
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
       helm init --upgrade --service-account tiller
       helm repo update
-      /root/wait-deployment.sh tiller-deploy kube-system 1 720
+      wait-deployment.sh tiller-deploy kube-system 1 720
 
   install-helm-slave:
     cmd[${this.id}]: |-
@@ -302,13 +302,13 @@ actions:
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo update
           helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
-          /root/wait-deployment.sh monitoring-prometheus-server kubernetes-monitoring 1 720
+          wait-deployment.sh monitoring-prometheus-server kubernetes-monitoring 1 720
           helm fetch stable/grafana --untar
           for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
             wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
           done
           helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
-          /root/wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720
+          wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720
           grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
           [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
           kubectl create secret generic monitoring-prometheus --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${grafana_secret})" --namespace=kubernetes-monitoring
@@ -373,8 +373,8 @@ actions:
           kubectl create secret generic observability-jaeger --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${jaeger_secret})" --namespace=observability
           kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
           kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
-          /root/wait-deployment.sh jaeger-operator observability 1 720
-          /root/wait-deployment.sh jaeger observability 1 720
+          wait-deployment.sh jaeger-operator observability 1 720
+          wait-deployment.sh jaeger observability 1 720
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace=observability observability-jaeger-plain -o jsonpath='{.data.auth}' | base64 --decode
   - setGlobals:
       jaeger_secret: ${response.out}
