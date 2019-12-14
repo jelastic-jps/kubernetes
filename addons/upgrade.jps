@@ -7,7 +7,7 @@ categories:
 - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/master
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.3
 logo: /images/k8s-logo.png
 
 description:
@@ -15,6 +15,7 @@ description:
   short: Kubernetes Upgrade
 
 onInstall:
+    - upgrade-configuration
     - upgrade-masters:
         id: ${nodes.k8sm.master.id}
         master: true
@@ -36,23 +37,86 @@ onInstall:
         return {result:"info", message:message};
 
 actions:
+  upgrade-configuration:
+    - cmd[${nodes.k8sm.master.id}]: |-
+        systemctl daemon-reload > /dev/null 2>&1
+        wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /usr/local/sbin/wait-deployment.sh
+        chmod +x /usr/local/sbin/wait-deployment.sh
+        kubectl get daemonset weave-net -n kube-system && {
+         kubectl apply -f ${baseUrl}/addons/weave-pack.yaml;
+         kubectl -n kube-system wait --for=condition=Ready pod -l name=weave-net --timeout=-1s; }
+    - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
+        kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
+        kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
+    - setGlobals:
+        ingress-dir: ${response.out}
+    - cmd[${nodes.k8sm.master.id}]: |-
+       case "x${globals.ingress-dir}" in
+         xtraefik)
+          kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
+          kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
+          kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
+          kubectl -n kube-system wait --for=condition=Ready pod -l name=traefik-ingress-lb --timeout=-1s
+          ;;
+         xnginx)
+          kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
+          kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
+          wait-deployment.sh nginx-ingress-controller ingress-nginx 1 720
+          ;;
+         xhaproxy)
+          kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
+          wait-deployment.sh ingress-default-backend ingress-controller 1 720
+          ;;
+         *)
+          echo "Invalid ingress controller used!"
+          exit 1
+          ;;
+         esac
+    - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl apply -f ${baseUrl}/addons/metrics-server/aggregated-metrics-reader.yaml
+        kubectl apply -f ${baseUrl}/addons/metrics-server/auth-delegator.yaml
+        kubectl apply -f ${baseUrl}/addons/metrics-server/auth-reader.yaml
+        kubectl apply -f ${baseUrl}/addons/metrics-server/metrics-apiservice.yaml
+        kubectl apply -f ${baseUrl}/addons/metrics-server/metrics-server-deployment.yaml
+        kubectl apply -f ${baseUrl}/addons/metrics-server/metrics-server-service.yaml
+        kubectl apply -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
+        wait-deployment.sh metrics-server kube-system 1 720
+    - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl get deploy kubernetes-dashboard -n kubernetes-dashboard && {
+         kubectl delete ns kubernetes-dashboard;
+         kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml;
+         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-beta.yaml; }
+    - cmd[${nodes.k8sm.master.id}]: |-
+        helm init --upgrade --service-account tiller
+        helm repo update
+        wait-deployment.sh tiller-deploy kube-system 1 720
+
   upgrade-masters:
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
         skipReinstall: true
     - cmd[${this.id}]: |-
+        wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
+        chmod +x /usr/bin/weave
+        wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /usr/local/sbin/wait-deployment.sh
+        chmod +x /usr/local/sbin/wait-deployment.sh
         while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
         sleep 5
     - if (${this.master}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 1
             /usr/bin/kubeadm upgrade apply ${this.version} || exit 1
-            service kubelet restart
     - if (!${this.master}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 2
-            service kubelet restart
+    - upgrade-master-post: ${this.id}
+
+  upgrade-master-post:
+    - cmd[${this}]: |-
+        service kubelet restart
+        helm repo update
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -65,6 +129,9 @@ actions:
         skipReinstall: true
     - cmd[${this.id}]: |-
         /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
+        local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
+        [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
+        [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
         service kubelet restart
     - cmd[${nodes.k8sm.master.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5

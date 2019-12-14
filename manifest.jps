@@ -233,8 +233,8 @@ actions:
 
     - if ('${settings.dashboard}' == 'version2'):
         cmd[${nodes.k8sm.master.id}]: |-
-           kubectl create -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
-           kubectl create -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-beta.yaml
+           kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
+           kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-beta.yaml
 
   install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
@@ -499,11 +499,15 @@ addons:
           if (resp.result != 0) return resp;
           var tags = resp.object;
           var upgrades = [];
-          for (var i = 0; i < tags.length; i++) if (tags[i] > version) upgrades.push(tags[i]);
+          var sig_version = ["v1.15.6"];
+          for (var i = 0; i < sig_version.length; i++) if (sig_version[i] > version) upgrades.push(sig_version[i]);
+          tags.sort();
+          var last_version = tags.pop();
+          if (last_version > version) upgrades.push(last_version);
           var message = "Current version " + version + " is the latest. No upgrades are available.";
           if (upgrades.length) {
             upgrades.sort();
-            var next = upgrades.pop();
+            var next = upgrades.shift();
             var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
             var url = baseUrl+"/"+next+"/addons/upgrade.jps"
             var huc = new java.net.URL(url).openConnection();
