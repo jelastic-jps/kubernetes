@@ -263,11 +263,21 @@ actions:
           kubectl apply -f ${baseUrl}/addons/helloworld.yaml
           kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml
     - if ('${settings.deploy}' == 'cmd'):
-        cmd[${nodes.k8sm.master.id}]: |-
-          ${settings.cmd}
-          if [ '${settings.ingress-controller}' == "Nginx" ]; then kubectl delete ingress/open-liberty-traefik ingress/open-liberty-haproxy || true; fi
-          if [ '${settings.ingress-controller}' == "HAProxy" ]; then kubectl delete ingress/open-liberty-traefik ingress/open-liberty-nginx || true; fi
-          if [ '${settings.ingress-controller}' == "Traefik" ]; then kubectl delete ingress/open-liberty-haproxy ingress/open-liberty-nginx || true; fi
+        - if ('${settings.helm_repo_url}' != ''):
+            cmd[${nodes.k8sm.master.id}]:
+                helm repo add ${settings.helm_repo_name} ${settings.helm_repo_url}
+        - if ('${settings.custom_namespace}' != 'default'):
+            cmd[${nodes.k8sm.master.id}]:
+                kubectl create namespace ${settings.custom_namespace}
+        - cmd[${nodes.k8sm.master.id}]:
+            helm install --name ${settings.custom_name} --namespace ${settings.custom_namespace} ${settings.extra_vars} ${settings.helm_repo_name}/${settings.helm_chart}
+        - if ('${settings.ingress_cmd}' != ''):
+            cmd[${nodes.k8sm.master.id}]:
+                ${settings.ingress_cmd}
+        - cmd[${nodes.k8sm.master.id}]: |-
+            if [ '${settings.ingress-controller}' == "Nginx" ]; then kubectl delete ingress/open-liberty-traefik ingress/open-liberty-haproxy || true; fi
+            if [ '${settings.ingress-controller}' == "HAProxy" ]; then kubectl delete ingress/open-liberty-traefik ingress/open-liberty-nginx || true; fi
+            if [ '${settings.ingress-controller}' == "Traefik" ]; then kubectl delete ingress/open-liberty-haproxy ingress/open-liberty-nginx || true; fi
     - if ('${settings.deploy}' == 'yml'):
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
