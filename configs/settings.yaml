@@ -7,15 +7,56 @@ fields:
     default: cc
     showIf:
       cmd:
-        name: cmd
-        type: text
-        height: 65
-        required: true
-        hideLabel: true
-        default: |-
-          helm repo add ibm-charts https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
-          helm install --name open-liberty --set autoscaling.enabled=true --set autoscaling.minReplicas=2 --set resources.constraints.enabled=true --set resources.requests.cpu=1000m --set resources.limits.cpu=3000m --set resources.requests.memory=512Mi --set resources.limits.memory=1Gi ibm-charts/ibm-open-liberty --debug 
-          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.6/addons/ingress/openliberty.yaml
+        - name: helm_repo_url
+          type: string
+          caption: helm repo url
+          required: false
+          default: https://raw.githubusercontent.com/IBM/charts/master/repo/stable/
+          tooltip:
+            text: The location where the charts index.yaml is hosted
+        - name: helm_repo_name
+          type: string
+          caption: helm repo name
+          required: true
+          default: ibm-charts
+          tooltip:
+            text: The name for this repo:</br> helm install <b>repo_name</b>/chart </br> <b>stable</b> for none
+        - name: helm_chart
+          type: string
+          caption: Chart to install
+          required: true
+          default: ibm-open-liberty
+          tooltip:
+            text: The chart to install:</br> helm install stabe/<b>chart_name</b>
+        - name: custom_name
+          type: string
+          caption: Custom name
+          required: true
+          default: open-liberty
+          tooltip:
+            text: The name of the chart deployed:</br> helm install --name <b>custom_name</b> repo/chart
+        - name: custom_namespace
+          type: string
+          caption: Custom namespace
+          required: true
+          default: default
+          tooltip:
+            text: Where to deploy the chart:</br> helm install --namespace <b>custom_namespace</b> repo/char
+        - name: extra_vars
+          type: text
+          caption: Additional install args
+          height: 50
+          required: false
+          default: --set autoscaling.enabled=true --set autoscaling.minReplicas=2 --set resources.constraints.enabled=true --set resources.requests.cpu=1000m --set resources.limits.cpu=3000m --set resources.requests.memory=512Mi --set resources.limits.memory=1Gi --debug
+          tooltip:
+            text: Additional vars for the install:</br> helm install <b>extra_vars</b> repo/chart
+        - name: ingress_cmd
+          type: string
+          caption: Apply ingress rules
+          required: false
+          default: kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.15.6/addons/ingress/openliberty.yaml
+          tooltip:
+            text: Ingress rules in yaml format to map external access to the deployed service.
 
   - name: label
     caption: Topology
