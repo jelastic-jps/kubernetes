@@ -471,12 +471,24 @@ addons:
           resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
           if (resp.result != 0) return resp;
           var tags = resp.object;
+          tags.sort();
           var upgrades = [];
-          for (var i = 0; i < tags.length; i++) if (tags[i] > version) upgrades.push(tags[i]);
+          var check_version = version;
+          var major_version = version.substr(0, version.lastIndexOf("."));
+          for (var i = 0; i < tags.length; i++) {
+            var major_tag = tags[i].substr(0, tags[i].lastIndexOf("."));
+            if (major_tag > major_version) {
+              check_version = tags[i];
+              upgrades.push(check_version);
+              major_version = major_tag;
+            }
+          }
+          var last_version = tags.pop();
+          if (last_version > check_version) upgrades.push(last_version);
           var message = "Current version " + version + " is the latest. No upgrades are available.";
           if (upgrades.length) {
             upgrades.sort();
-            var next = upgrades.pop();
+            var next = upgrades.shift();
             var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
             var url = baseUrl+"/"+next+"/addons/upgrade.jps"
             var huc = new java.net.URL(url).openConnection();
@@ -497,6 +509,7 @@ addons:
         envName: ${env.envName}
         settings:
             version: ${this.next}
+            avail: ${this.avail}
 
       addon-remote-api:
       - log: '${this.api}'
