@@ -33,7 +33,7 @@ onInstall:
           version: ${settings.version}
     - script: |
         var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.  \n\nNo other upgrades are available.";
-        if ("${this.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Upgrade\" button to start the upgrade process.";
+        if ("${settings.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Upgrade\" button to start the upgrade process.";
         return {result:"info", message:message};
 
 actions:
@@ -44,7 +44,7 @@ actions:
         chmod +x /usr/local/sbin/wait-deployment.sh
         kubectl get daemonset weave-net -n kube-system && {
          kubectl apply -f ${baseUrl}/addons/weave-pack.yaml;
-         kubectl -n kube-system wait --for=condition=Ready pod -l name=weave-net --timeout=-1s; }
+         kubectl -n kube-system wait --for=condition=Ready pod -l name=weave-net --timeout=-1s; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
         kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
@@ -83,14 +83,42 @@ actions:
         kubectl apply -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         wait-deployment.sh metrics-server kube-system 1 720
     - cmd[${nodes.k8sm.master.id}]: |-
-        kubectl get deploy kubernetes-dashboard -n kubernetes-dashboard && {
+        kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
          kubectl delete ns kubernetes-dashboard;
-         kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml;
-         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-beta.yaml; }
+         for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml && break; done;
+         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-beta.yaml; } ||:
+    - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl get deployment hello-kubernetes && {
+         kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
+         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         helm init --upgrade --service-account tiller
         helm repo update
         wait-deployment.sh tiller-deploy kube-system 1 720
+    - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl get secret --namespace kubernetes-monitoring monitoring-grafana && {
+         helm upgrade monitoring-prometheus stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus ;
+         wait-deployment.sh monitoring-prometheus-server kubernetes-monitoring 1 720;
+         helm fetch stable/grafana --untar;
+         helm upgrade monitoring-grafana --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/. ;
+         wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720;
+         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml;
+         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml;
+         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; } ||:
+    - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get NetworkPolicy,PodSecurityPolicy,DaemonSet,Deployment,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"extensions/v1beta1"')
+    - setGlobals:
+        k8s_deprecated_ext: ${response.out}
+    - if ('${globals.k8s_deprecated_ext}'):
+        return:
+          type: warning
+          message: Deprecated Kubernetes Extensions API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
+    - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get DaemonSet,Deployment,StatefulSet,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"apps/v1beta')
+    - setGlobals:
+        k8s_deprecated_app: ${response.out}
+    - if ('${globals.k8s_deprecated_app}'):
+        return:
+          type: warning
+          message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
 
   upgrade-masters:
     - env.control.RedeployContainers:
@@ -98,10 +126,14 @@ actions:
         tag: ${this.version}
         skipReinstall: true
     - cmd[${this.id}]: |-
-        wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
-        chmod +x /usr/bin/weave
+        kubectl get daemonset weave-net -n kube-system && {
+         wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave;
+         chmod +x /usr/bin/weave; } ||:
         wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /usr/local/sbin/wait-deployment.sh
         chmod +x /usr/local/sbin/wait-deployment.sh
+        [ -f "/root/wait-deployment.sh" ] && {
+         rm -f /root/wait-deployment.sh;
+         ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
         while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
         sleep 5
     - if (${this.master}):

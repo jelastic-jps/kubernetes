@@ -498,12 +498,20 @@ addons:
           resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
           if (resp.result != 0) return resp;
           var tags = resp.object;
-          var upgrades = [];
-          var sig_version = ["v1.15.6"];
-          for (var i = 0; i < sig_version.length; i++) if (sig_version[i] > version) upgrades.push(sig_version[i]);
           tags.sort();
+          var upgrades = [];
+          var check_version = version;
+          var major_version = version.substr(0, version.lastIndexOf("."));
+          for (var i = 0; i < tags.length; i++) {
+            var major_tag = tags[i].substr(0, tags[i].lastIndexOf("."));
+            if (major_tag > major_version) {
+              check_version = tags[i];
+              upgrades.push(check_version);
+              major_version = major_tag;
+            }
+          }
           var last_version = tags.pop();
-          if (last_version > version) upgrades.push(last_version);
+          if (last_version > check_version) upgrades.push(last_version);
           var message = "Current version " + version + " is the latest. No upgrades are available.";
           if (upgrades.length) {
             upgrades.sort();
@@ -528,6 +536,7 @@ addons:
         envName: ${env.envName}
         settings:
             version: ${this.next}
+            avail: ${this.avail}
 
   - id: gitlab-k8s-addon
     type: update
