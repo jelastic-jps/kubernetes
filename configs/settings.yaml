@@ -54,7 +54,7 @@ fields:
     caption: Kubernetes Dashboard
     values:
       version1: Kubernetes Dashboard v1 (Stable)
-      version2: Kubernetes Dashboard v2 (Beta)
+      version2: Kubernetes Dashboard v2 (RC)
     default: version2
     hideLabel: false
     editable: false
