@@ -496,7 +496,13 @@ addons:
 
     actions:
       addon-upgrade:
-        script: |
+      - forEach(node:env.nodes):
+          if ('${@node.nodeGroup}' == 'cp' || '${@node.nodeGroup}' == 'k8sm'):
+            if ('${nodes.k8sm.master.version}' != '${@node.version}'):
+              return:
+                type: warning
+                message: Cluster components have different Kubernetes version! Please contact support before upgrade.
+      - script: |
           var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
           var resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
           if (resp.result != 0) return resp;
