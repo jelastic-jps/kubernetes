@@ -4,7 +4,7 @@ id: kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.3
 description:
   text: /text/description-kube.md
-  short: Kubernetes Cluster
+  short: Kubernetes cluster with automated scaling & cost efficient pay-per-use pricing for running cloud-native microservices.
 categories:
   - apps/clusters
   - apps/dev-and-admin-tools
