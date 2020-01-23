@@ -441,7 +441,7 @@ addons:
           inputType: hidden
         - type: checkbox
           name: storage
-          inputType: hidden
+          hidden: true
 
     buttons:
       - caption: Remote API
