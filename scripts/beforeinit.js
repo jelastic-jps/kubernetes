@@ -20,7 +20,6 @@ for (var i = 0; i < quotas.length; i++){
 
     if (n == maxEnvs && envsCount >= q.value){
         err(q, "already used", envsCount, true);
-        markup = "Maximum allowed environments: " + markup;
         prod = dev = false; break;
     }
 
