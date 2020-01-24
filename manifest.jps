@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.3
+baseUrl: https://raw.githubusercontent.com/sych74/kubernetes/v1.16.3
 description:
   text: /text/description-kube.md
   short: Kubernetes cluster with automated scaling & cost efficient pay-per-use pricing for running cloud-native microservices.
