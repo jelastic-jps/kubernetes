@@ -32,8 +32,9 @@ onInstall:
           hostname: node${@i.id}-${env.domain}
           version: ${settings.version}
     - script: |
-        var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.  \n\nNo other upgrades are available.";
-        if ("${settings.avail}") message += "\n\n**Next version:** ${this.avail}.  \nPress \"Upgrade\" button to start the upgrade process.";
+        var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.";
+        if ("${settings.avail}") { message += "\n\n**Next version:** ${settings.avail}.  \nPress \"Upgrade\" button to start the upgrade process."; }
+        else { message += "\n\nNo other upgrades are available."; }
         return {result:"info", message:message};
 
 actions:
