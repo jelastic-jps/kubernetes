@@ -148,8 +148,8 @@ actions:
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
-      wget -qO- https://github.com/derailed/k9s/releases/download/v0.13.4/k9s_0.13.4_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
-      wget -qO- https://github.com/derailed/popeye/releases/download/v0.6.0/popeye_0.6.0_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
+      wget -qO- https://github.com/derailed/k9s/releases/download/v0.13.6/k9s_0.13.6_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
+      wget -qO- https://github.com/derailed/popeye/releases/download/v0.6.2/popeye_0.6.2_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
       wget -nv https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
       chmod +x /usr/bin/stern
       /usr/bin/stern --completion=bash > /etc/bash_completion.d/stern.bash
