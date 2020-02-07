@@ -219,7 +219,7 @@ spec:
         kubernetes.io/os: linux
       containers:
         - name: nginx-ingress-controller
-          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.26.1
+          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.28.0
           args:
             - /nginx-ingress-controller
             - --configmap=$(POD_NAMESPACE)/nginx-configuration
@@ -227,11 +227,6 @@ spec:
             - --udp-services-configmap=$(POD_NAMESPACE)/udp-services
             - --publish-service=$(POD_NAMESPACE)/ingress-nginx
             - --annotations-prefix=nginx.ingress.kubernetes.io
-          resources:
-            limits:
-              memory: 3Gi
-            requests:
-              memory: 128Mi
           securityContext:
             allowPrivilegeEscalation: true
             capabilities:
@@ -239,8 +234,8 @@ spec:
                 - ALL
               add:
                 - NET_BIND_SERVICE
-            # www-data -> 33
-            runAsUser: 33
+            # www-data -> 101
+            runAsUser: 101
           env:
             - name: POD_NAME
               valueFrom:
@@ -283,3 +278,19 @@ spec:
                   - /wait-shutdown
 
 ---
+
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ingress-nginx
+  namespace: ingress-nginx
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+spec:
+  limits:
+  - default:
+    min:
+      memory: 90Mi
+      cpu: 100m
+    type: Container
