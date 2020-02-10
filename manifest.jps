@@ -673,6 +673,57 @@ addons:
           curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${globals.gitlab_cluster_url}/applications/runner" || exit 5
           wait-deployment.sh runner-gitlab-runner gitlab-managed-apps 1 720
 
+  - id: certman-k8s-addon
+    type: update
+    requiredFeatures: extip
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
+    name: Kubernetes Certificate Manager
+    description: Kubernetes SSL Certificate Manager
+    logo: /images/k8s-logo.png
+    settings:
+      fields:
+        - type: displayfield
+          hideLabel: true
+          markup: This addon provides Kubernetes Certificate Manager installation. Please specify external DNS name to assign the certificate with.
+        - type: displayfield
+          hideLabel: true
+        - type: string
+          caption: External domain
+          name: certificate_domain
+    buttons:
+      - caption: Install Certificate Manager
+        settings: certman
+        action: addon-certman-config
+        loadingText: Installing...
+        confirmText: Do you want to install Certificate Manager?
+        successText: Certficate manager has been successfully installed!
+
+    actions:
+      addon-certman-config:
+      - cmd[${nodes.k8sm.master.id}]: kubectl -n cert-manager get deployment cert-manager &>/dev/null && echo "true" || echo "false"
+      - if ('${response.out}' == 'true'):
+          return:
+            type: warning
+            message: Kubernetes Certificate Manager is already configured! Please use Kubernetes Cluster settings!
+      - cmd[${nodes.k8sm.master.id}]: |-
+          certmanager_version=0.13.0
+          kubectl create namespace cert-manager
+          kubectl apply --validate=false -f https://raw.githubusercontent.com/jetstack/cert-manager/v${certmanager_version}/deploy/manifests/00-crds.yaml
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          helm install --name cert-manager --namespace cert-manager --version v${certmanager_version} jetstack/cert-manager
+          wait-deployment.sh cert-manager cert-manager 1 720
+          helm install stable/nginx-ingress --name cert-manager-nginx --namespace cert-manager --set controller.ingressClass=nginx-cert
+          wait-deployment.sh cert-manager-nginx-nginx-ingress-controller cert-manager 1 720
+          for issuer_name in "le-production-issuer" "le-staging-issuer"; do
+            wget "${baseUrl}/addons/cert-manager/${issuer_name}.yaml" -O "/tmp/${issuer_name}.yaml"
+            sed -i 's/user@example\.com/${user.email}/g' "/tmp/${issuer_name}.yaml"
+            kubectl create -f "/tmp/${issuer_name}.yaml"
+          done
+          wget "${baseUrl}/addons/cert-manager/helloworld-ingress.yaml" -O /tmp/helloworld-ingress.yaml
+          sed -i 's/example\.com/${settings.certificate_domain}/g' /tmp/helloworld-ingress.yaml
+          kubectl apply -f /tmp/helloworld-ingress.yaml
+
 success: |
   ${globals.default_success:}
   ${globals.monitoring_success:}
