@@ -11,7 +11,7 @@ Also, there are different topologies available out-of-box:
  
 The number of worker nodes can be changed after the initial installation is completed. All the newly added nodes are automatically connected to the cluster.
 
-<img src="https://jelastic.com/wp-content/themes/salient/img/templates/kubernetes-cloud-services/kube.webp" width="500" alt="Managed Kubernetes Hosting Multi-Cloud" />
+<img src="https://jelastic.com/wp-content/themes/salient/img/templates/kubernetes-cloud-services/kube.webp" width="400" alt="Managed Kubernetes Hosting Multi-Cloud" />
 
 ## Cloud Native Applications
 
