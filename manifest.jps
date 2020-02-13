@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.7
 description:
   text: /text/description-kube.md
   short: Kubernetes cluster with automated scaling & cost efficient pay-per-use pricing for running cloud-native microservices.
@@ -154,7 +154,7 @@ actions:
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
-      wget -qO- https://github.com/derailed/k9s/releases/download/v0.13.8/k9s_0.13.8_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
+      wget -qO- https://github.com/derailed/k9s/releases/download/v0.14.1/k9s_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
       wget -qO- https://github.com/derailed/popeye/releases/download/v0.6.2/popeye_0.6.2_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
       wget -nv https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
       chmod +x /usr/bin/stern
@@ -434,7 +434,7 @@ addons:
 
   - id: conf-k8s-addon
     type: update
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.7
     name: Kubernetes Cluster Configuration
     description: Configure remote API access and install complementary tools
     logo: /images/k8s-logo.png
@@ -486,7 +486,7 @@ addons:
 
   - id: upgrade-k8s-addon
     type: update
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.7
     name: Kubernetes Cluster Upgrade
     description: Upgrade Kubernetes cluster to a newer version
     logo: /images/k8s-logo.png
@@ -557,7 +557,7 @@ addons:
 
   - id: gitlab-k8s-addon
     type: update
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.7
     name: Kubernetes GitLab Integration
     description: Add Kubernetes GitLab integrations
     logo: /images/k8s-logo.png
@@ -676,7 +676,7 @@ addons:
   - id: certman-k8s-addon
     type: update
     requiredFeatures: extip
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.7
     name: Kubernetes Certificate Manager
     description: Kubernetes SSL Certificate Manager
     logo: /images/k8s-logo.png
