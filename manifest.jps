@@ -142,7 +142,7 @@ actions:
   init-slave-master:
     - cmd[${this.id}]: |-
         systemctl daemon-reload > /dev/null 2>&1
-        ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu > /dev/null 2>&1
+        ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
     - configure-master: ${this.id}
     - cmd[mbl]: |-
         echo '${this.ip}' >> /etc/haproxy/hosts
@@ -154,7 +154,7 @@ actions:
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
-      wget -qO- https://github.com/derailed/k9s/releases/download/v0.14.1/k9s_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
+      wget -qO- https://github.com/derailed/k9s/releases/download/v0.15.1/k9s_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
       wget -qO- https://github.com/derailed/popeye/releases/download/v0.6.2/popeye_0.6.2_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
       wget -nv https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
       chmod +x /usr/bin/stern
@@ -181,7 +181,7 @@ actions:
         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
         [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
         [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
-        ${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu > /dev/null 2>&1
+        ${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
         sleep 5
     - configure-all-post: ${this}
 
@@ -244,16 +244,19 @@ actions:
 
   install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
-      curl -s https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+      while true; do kubectl get serviceaccount tiller --namespace kube-system &> /dev/null && break; sleep 5; done
+      curl -s https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
+      while true; do [ -f /usr/local/bin/helm ] && break; sleep 2; done
       helm init --upgrade --service-account tiller
       helm repo update
       wait-deployment.sh tiller-deploy kube-system 1 720
 
   install-helm-slave:
     cmd[${this.id}]: |-
-      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
+      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
+      while true; do [ -f /usr/local/bin/helm ] && break; sleep 2; done
       helm init --client-only
       helm repo update
 
