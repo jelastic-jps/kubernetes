@@ -55,56 +55,6 @@ for (var i = 0; i < quotas.length; i++){
 var resp = {result:0};
 var url = "https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.3/configs/settings.yaml";
 resp.settings = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(url)));
-var f = resp.settings.fields;
-
-if (!prod && !dev){
-    for (var i = 0; i < f.length; i++) f[i].disabled = true;
-    f[3].hidden = false;
-    f[3].disabled = false;
-    f[3].markup =  "Production and Development topologies are not available. " + markup + "Please upgrade your account.";
-    f[3].height =  60;
-    f[6].value = false;
-
-    f.push({
-        "type": "compositefield",
-        "height": 0,
-        "hideLabel": true,
-        "width": 0,
-        "items": [{
-            "height": 0,
-            "type": "string",
-            "required": true,
-        }]
-    });
-}
-
-if (!prod && dev){
-    f[2].values[1].disabled = true;
-    f[3].hidden = false;
-    f[3].markup =  "Production topology is not available. " + markup + "Please upgrade your account.";
-    f[3].height =  50;
-    if (!devStorage){
-        f[6].disabled = true;
-        f[6].value = false;
-    }
-}
-
-if (prod && !prodStorage){
-    f[6].disabled = true;
-    f[6].value = false;
-}
-
-if (group.groupType == 'trial') {
-    f[6].showIf['true'].unshift({
-      type: "displayfield",
-      cls: "warning",
-      height: 30,
-      hideLabel: true,
-      markup: "Additional components are not available for " + group.groupType + " account. Please upgrade your account."
-    });
-    f[6].showIf['true'][1].disabled = true;
-    f[6].showIf['true'][2].disabled = true;
-}
 
 return resp;
 
