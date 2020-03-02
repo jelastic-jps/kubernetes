@@ -27,13 +27,9 @@ globals:
 
 onInstall:
   - block-masters-scaling
+  - prepare-instances
   - init-main-master
-  - forEach(node:nodes.k8sm):
-      if (!${@node.ismaster}):
-        init-slave-master:
-          id: ${@node.id}
-          ip: ${@node.intIP}
-
+  - init-slave-masters
   - connect-workers: cp
   - setup-overlay
   - if ('${settings.ingress-controller}' == 'Nginx'):
@@ -51,16 +47,11 @@ onInstall:
   - configure-remote-api
   - install-components
   - install-helm-master
-  - forEach(node:nodes.k8sm):
-      if (!${@node.ismaster}):
-        install-helm-slave:
-          id: ${@node.id}
-  - install-node-problem-detector
-  - install-metallb
+  - if ('${globals.k8sm-slave-ids}'):
+      install-helm-slave: ${globals.k8sm-slave-ids}
   - generate-admin-token
-  - connect-storage
+  - helm-components
   - deploy
-  - remove-attr
 
   - if (${settings.api:true}):
       - setup-remote-api: true
@@ -90,18 +81,31 @@ onInstall:
   - check-health
 
 onAfterScaleOut[cp]:
-  - get-ids: event.response.nodes
-  - connect-workers: ${globals.ids}
+  - cmd[${nodes.k8sm.master.id}]: |-
+      token_age=$(expr $(date +%s) - $(stat /var/log/kubeadm-init.log -c %Y))
+      [ ${token_age} -lt $((20*60*60)) ] && { sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'; } || { kubeadm token create --print-join-command; }
+  - setGlobals:
+      worker_join_cmd: ${response.out}
+  - set:
+      nodes: ${event.response.nodes.join(id,)}
+  - cmd [${this.nodes}]: init-instance.sh --type=worker --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
+  - connect-workers: ${this.nodes}
 
 onBeforeScaleIn[cp]:
   forEach(event.response.nodes):
     removeWorker:
       workerHostname: node${@i.id}-${env.domain}
 
-onBeforeClone: stopEvent
+onBeforeClone:
+  stopEvent:
+    type: warning
+    message: Kubernetes Cluster cloning is not supported yet!
 
 onBeforeRedeployContainer:
-  if (!${event.params.skipReinstall:false}): stopEvent
+  if (!${event.params.skipReinstall:false}):
+    stopEvent:
+      type: warning
+      message: Kubernetes Cluster redeploy is not supported. Please use 'Cluster Upgrade' add-on if you need to upgrade cluster version.
 
 onAfterSetExtIpCount[cp]:
   - log: 'attached ips: ${event.response.attachedIps.join(,)}, detached ips: ${event.response.detachedIps.join(,)}'
@@ -115,6 +119,17 @@ actions:
         validation:
           minCount: ${nodes.k8sm.length}
           maxCount: ${nodes.k8sm.length}
+
+  prepare-instances:
+    execCmd:
+      - nodeGroup: k8sm
+        commands: |-
+          init-instance.sh --type=master --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
+      - nodeGroup: cp
+        commands: |-
+          init-instance.sh --type=worker --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
+    user: root
+    sync: false
 
   init-main-master:
     - if (${nodes.mbl.length:0}):
@@ -135,45 +150,45 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'control-plane'
     - setGlobals:
         master_join_cmd: ${response.out}
+    - cmd[${nodes.k8sm.master.id}]: sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'
+    - setGlobals:
+        worker_join_cmd: ${response.out}
     - if (${settings.api:true}):
         - setGlobals:
             default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
-  init-slave-master:
-    - cmd[${this.id}]: |-
-        systemctl daemon-reload > /dev/null 2>&1
-        ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
-    - configure-master: ${this.id}
-    - cmd[mbl]: |-
-        echo '${this.ip}' >> /etc/haproxy/hosts
-        jem balancer rebuildCommon
-      user: root
+  init-slave-masters:
+    - script: |
+        return {
+          result : 0,
+          nodes: '${nodes.k8sm.join(id,)}'.replace(/\b${nodes.k8sm.master.id},?\b/, '').replace(/,$/, '').split(','),
+          ips: '${nodes.k8sm.join(intIP,)}'.replace(/\b${nodes.k8sm.master.intIP},?\b/, '').replace(/,/g, '\n')
+        };
+    - setGlobals:
+        k8sm-slave-ids: ${response.nodes.join(,)}
+        k8sm-slave-ips: ${response.ips}
+    - if ('${globals.k8sm-slave-ids}'):
+      - forEach(node:response.nodes):
+          - cmd[${@node}]: |-
+              systemctl daemon-reload > /dev/null 2>&1
+              ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
+      - configure-master: ${globals.k8sm-slave-ids}
+      - add-master-hosts-to-balancer: ${globals.k8sm-slave-ips}
+
+  add-master-hosts-to-balancer:
+    cmd [mbl]: |-
+      echo '${this}' >> /etc/haproxy/hosts
+      jem balancer rebuildCommon
+    user: root
 
   configure-master:
     cmd[${this}]: |-
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
-      wget -qO- https://github.com/derailed/k9s/releases/download/v0.15.1/k9s_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
-      wget -qO- https://github.com/derailed/popeye/releases/download/v0.6.2/popeye_0.6.2_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
-      wget -nv https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
-      chmod +x /usr/bin/stern
-      /usr/bin/stern --completion=bash > /etc/bash_completion.d/stern.bash
-      kubectx_version=0.7.1
-      wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
-      wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
-      wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave
-      chmod +x /usr/bin/weave
-      wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /usr/local/sbin/wait-deployment.sh
-      chmod +x /usr/local/sbin/wait-deployment.sh
     configure-all-post: ${this}
 
   connect-workers:
-    - cmd[${nodes.k8sm.master.id}]: |-
-        token_age=$(expr $(date +%s) - $(stat /var/log/kubeadm-init.log -c %Y))
-        [ ${token_age} -lt $((20*60*60)) ] && { sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'; } || { kubeadm token create --print-join-command; }
-    - setGlobals:
-        worker_join_cmd: ${response.out}
     - cmd[${this}]: |-
         rm -f /etc/machine-id
         systemd-machine-id-setup
@@ -181,18 +196,14 @@ actions:
         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
         [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
         [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
-        ${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
-        sleep 5
+        screen -d -m /usr/bin/bash -c '${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu 1>/var/log/kubeadm-join.log 2>/var/log/kubeadm-join-error.log'
     - configure-all-post: ${this}
 
   configure-all-post:
     cmd[${this}]: |-
       iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       service iptables save
-      systemctl start kube-config.service
-      systemctl enable docker.service
       systemctl enable kubelet.service
-      systemctl enable kube-config.service
 
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-
@@ -254,11 +265,8 @@ actions:
       wait-deployment.sh tiller-deploy kube-system 1 720
 
   install-helm-slave:
-    cmd[${this.id}]: |-
-      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
-      while true; do [ -f /usr/local/bin/helm ] && break; sleep 2; done
-      helm init --client-only
-      helm repo update
+    cmd[${this}]: |-
+      /usr/local/sbin/helm-slave.sh
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
@@ -279,19 +287,13 @@ actions:
     - if ('${settings.deploy}' == 'yml'):
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
-  connect-storage:
-    if (${settings.storage:false}):
-      cmd[${nodes.k8sm.master.id}]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
+  helm-components:
+    cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=${settings.storage:false} --nfs-server=${nodes.storage.master.address:NULL} --metallb=true --problem-detector=true
 
   removeWorker:
     cmd[${nodes.k8sm.master.id}]: |-
       /usr/bin/kubectl drain ${this.workerHostname} --ignore-daemonsets --delete-local-data || exit 8;
       /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
-
-  remove-attr:
-    cmd[*]: |-
-      chattr -i -a /root/.bash_*
-    user: root
 
   setup-remote-api:
   - log: '${this}'
@@ -336,7 +338,6 @@ actions:
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
   - setGlobals:
       grafana_secret: ${response.out}
-  - setGlobals:
       monitoring_success: |
           Enter [Prometheus dashboard](${env.url}prometheus/), [Prometheus AlertManager](${env.url}prometheus-alert/)
           and [Grafana dashboard](${env.url}grafana/), using login "admin" and password:
@@ -387,7 +388,6 @@ actions:
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace=observability observability-jaeger-plain -o jsonpath='{.data.auth}' | base64 --decode
   - setGlobals:
       jaeger_secret: ${response.out}
-  - setGlobals:
       jaeger_success: |
           Enter [Jaeger dashboard](${env.url}jaeger/), using login "admin" and password:
 
@@ -408,28 +408,8 @@ actions:
         type: info
         message: ${globals.jaeger_success}
 
-  get-ids:
-    - setGlobals:
-        ids: ''
-        sep: ''
-    - forEach(${this}):
-        add-id: ${@i.id}
-
-  add-id:
-    setGlobals:
-      ids: ${globals.ids:}${globals.sep:}${this}
-      sep: ','
-
-  install-node-problem-detector:
-     - cmd[${nodes.k8sm.master.id}]: helm install stable/node-problem-detector --name node-problem-detector --set image.tag=v0.7.0
-
-  install-metallb:
-     - cmd[${nodes.k8sm.master.id}]: |-
-          kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.8.3/manifests/metallb.yaml
-          kubectl apply -f ${baseUrl}/addons/metallb-config.yaml
-
   check-health:
-      cmd[${nodes.k8sm.master.id}]: mkdir -p /var/log/kubernetes && curl -s ${baseUrl}/scripts/check-install.sh | bash -s -- -i=${settings.ingress-controller} -app=${settings.deploy} -m=${settings.monitoring:false} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger:false} -d=${env.domain}  &> /var/log/kubernetes/k8s-health-check.log || echo "*Warning! Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on master node and contact support.*"
+      cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/check-install.sh -i=${settings.ingress-controller} -app=${settings.deploy} -m=${settings.monitoring:false} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger:false} -d=${env.domain}  &> /var/log/kubernetes/k8s-health-check.log || echo "*Warning! Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on master node and contact support.*"
       setGlobals:
          check_message: ${response.out}
 

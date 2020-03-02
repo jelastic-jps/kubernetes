@@ -41,8 +41,6 @@ actions:
   upgrade-configuration:
     - cmd[${nodes.k8sm.master.id}]: |-
         systemctl daemon-reload > /dev/null 2>&1
-        wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /usr/local/sbin/wait-deployment.sh
-        chmod +x /usr/local/sbin/wait-deployment.sh
         kubectl get daemonset weave-net -n kube-system && {
          kubectl apply -f ${baseUrl}/addons/weave-pack.yaml;
          kubectl -n kube-system wait --for=condition=Ready pod -l name=weave-net --timeout=-1s; } ||:
@@ -127,8 +125,7 @@ actions:
         tag: ${this.version}
         skipReinstall: true
     - cmd[${this.id}]: |-
-        wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /usr/local/sbin/wait-deployment.sh
-        chmod +x /usr/local/sbin/wait-deployment.sh
+        init-instance.sh --type=master --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
         [ -f "/root/wait-deployment.sh" ] && {
          rm -f /root/wait-deployment.sh;
          ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
@@ -147,17 +144,6 @@ actions:
     - cmd[${this}]: |-
         service kubelet restart
         helm repo update
-        wget -qO- https://github.com/derailed/k9s/releases/download/v0.15.1/k9s_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
-        wget -qO- https://github.com/derailed/popeye/releases/download/v0.6.2/popeye_0.6.2_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
-        wget -nv https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
-        chmod +x /usr/bin/stern
-        /usr/bin/stern --completion=bash > /etc/bash_completion.d/stern.bash
-        kubectx_version=0.7.1
-        wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=1 -C /usr/bin kubectx-${kubectx_version}/kubectx kubectx-${kubectx_version}/kubens
-        wget -qO- https://github.com/ahmetb/kubectx/archive/v${kubectx_version}.tar.gz | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${kubectx_version}/completion/kubens.bash kubectx-${kubectx_version}/completion/kubectx.bash
-        kubectl get daemonset weave-net -n kube-system && {
-         wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave;
-         chmod +x /usr/bin/weave; } ||:
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -169,6 +155,7 @@ actions:
         tag: ${this.version}
         skipReinstall: true
     - cmd[${this.id}]: |-
+        init-instance.sh --type=worker --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
         /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
         [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
