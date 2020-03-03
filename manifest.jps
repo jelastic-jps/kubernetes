@@ -392,9 +392,9 @@ addons:
   - id: conf-k8s-addon
     type: update
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.7
-    name: Kubernetes Cluster Configuration
+    name: Cluster Configuration
     description: Configure remote API access and install complementary tools
-    logo: /images/k8s-logo.png
+    logo: /images/k8s-config.png
     settings:
       fields:
         - type: displayfield
@@ -444,9 +444,9 @@ addons:
   - id: upgrade-k8s-addon
     type: update
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.7
-    name: Kubernetes Cluster Upgrade
+    name: Cluster Upgrade
     description: Upgrade Kubernetes cluster to a newer version
-    logo: /images/k8s-logo.png
+    logo: /images/k8s-upgrade.png
 
     buttons:
       - caption: Start Cluster Upgrade
@@ -515,9 +515,9 @@ addons:
   - id: gitlab-k8s-addon
     type: update
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.7
-    name: Kubernetes GitLab Integration
+    name: GitLab Integration
     description: Add Kubernetes GitLab integrations
-    logo: /images/k8s-logo.png
+    logo: /images/k8s-gitlab.png
     settings:
       fields:
         - type: displayfield
@@ -634,9 +634,9 @@ addons:
     type: update
     requiredFeatures: extip
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.7
-    name: Kubernetes Certificate Manager
+    name: Certificate Manager
     description: Kubernetes SSL Certificate Manager
-    logo: /images/k8s-logo.png
+    logo: /images/k8s-cert.png
     settings:
       fields:
         - type: displayfield
