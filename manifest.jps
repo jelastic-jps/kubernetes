@@ -186,7 +186,7 @@ actions:
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
-    configure-all-post: ${this}
+      systemctl enable kubelet.service
 
   connect-workers:
     - cmd[${this}]: |-
@@ -197,13 +197,7 @@ actions:
         [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
         [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
         screen -d -m /usr/bin/bash -c '${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu 1>/var/log/kubeadm-join.log 2>/var/log/kubeadm-join-error.log'
-    - configure-all-post: ${this}
-
-  configure-all-post:
-    cmd[${this}]: |-
-      iptables -I INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-      service iptables save
-      systemctl enable kubelet.service
+        systemctl enable kubelet.service
 
   setup-overlay:
     cmd[${nodes.k8sm.master.id}]: |-

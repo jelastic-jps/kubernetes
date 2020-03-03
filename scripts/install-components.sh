@@ -9,8 +9,8 @@ COREDNS="1.6.2"
 WEAVE="2.5.2"
 
 # components
-K9S="0.17.2"
-POPEYE="0.7.0"
+K9S="0.17.3"
+POPEYE="0.7.1"
 STERN="1.11.0"
 KUBECTX="0.8.0"
 
