@@ -4,7 +4,7 @@
 HELP="Usage:
 	$0 --base-url=<base64-encoded-url> --nfs-provisioner=(true|false) --nfs-server=<ip-address> --metallb=(true|false) --problem-detector=(true|false)
 Options:
-	--base-url            manifest baseUrl
+	--base-url=           manifest baseUrl
 	--nfs-provisioner=    install nfs-client-provisioner
 	--nfs-server=         nfs-client-provisioner NFS server address
 	--metallb=            install metallb-controller
@@ -55,7 +55,7 @@ if [ -z "${BASE_URL}" ]; then
 	exit 1
 fi
 
-( ( echo "$(date): Helm components started ---";
+( ( echo "$(date): --- Helm components started";
 
 	BASE_URL="$(echo ${BASE_URL} | base64 --decode)"
 
@@ -81,7 +81,7 @@ fi
 		echo "$(date): node-problem-detector installation skipped"
 	fi
 
-	echo "$(date): Helm components finished ---";
+	echo "$(date): --- Helm components finished";
 ) &>>/var/log/kubernetes/k8s-helm-components.log & )&
 
 echo "${HOSTNAME} Helm components spawned"

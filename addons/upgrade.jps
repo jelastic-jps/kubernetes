@@ -125,7 +125,7 @@ actions:
         tag: ${this.version}
         skipReinstall: true
     - cmd[${this.id}]: |-
-        init-instance.sh --type=master --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
+        init-instance.sh --type=master --script=$(echo '${baseUrl}/scripts/configure-instance.sh' | base64 -w 0)
         [ -f "/root/wait-deployment.sh" ] && {
          rm -f /root/wait-deployment.sh;
          ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
@@ -155,7 +155,7 @@ actions:
         tag: ${this.version}
         skipReinstall: true
     - cmd[${this.id}]: |-
-        init-instance.sh --type=worker --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
+        init-instance.sh --type=worker --script=$(echo '${baseUrl}/scripts/configure-instance.sh' | base64 -w 0)
         /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
         [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"

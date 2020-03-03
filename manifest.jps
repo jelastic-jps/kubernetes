@@ -88,7 +88,7 @@ onAfterScaleOut[cp]:
       worker_join_cmd: ${response.out}
   - set:
       nodes: ${event.response.nodes.join(id,)}
-  - cmd [${this.nodes}]: init-instance.sh --type=worker --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
+  - cmd [${this.nodes}]: init-instance.sh --type=worker --script=$(echo '${baseUrl}/scripts/configure-instance.sh' | base64 -w 0)
   - connect-workers: ${this.nodes}
 
 onBeforeScaleIn[cp]:
@@ -124,10 +124,10 @@ actions:
     execCmd:
       - nodeGroup: k8sm
         commands: |-
-          init-instance.sh --type=master --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
+          init-instance.sh --type=master --script=$(echo '${baseUrl}/scripts/configure-instance.sh' | base64 -w 0)
       - nodeGroup: cp
         commands: |-
-          init-instance.sh --type=worker --script=$(echo '${baseUrl}/scripts/install-components.sh' | base64 -w 0)
+          init-instance.sh --type=worker --script=$(echo '${baseUrl}/scripts/configure-instance.sh' | base64 -w 0)
     user: root
     sync: false
 
@@ -226,26 +226,7 @@ actions:
               default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
   install-components:
-    - cmd[${nodes.k8sm.master.id}]: |-
-        kubectl create -f ${baseUrl}/addons/metrics-server/aggregated-metrics-reader.yaml
-        kubectl create -f ${baseUrl}/addons/metrics-server/auth-delegator.yaml
-        kubectl create -f ${baseUrl}/addons/metrics-server/auth-reader.yaml
-        kubectl create -f ${baseUrl}/addons/metrics-server/metrics-apiservice.yaml
-        kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-deployment.yaml
-        kubectl create -f ${baseUrl}/addons/metrics-server/metrics-server-service.yaml
-        kubectl create -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
-        kubectl create -f ${baseUrl}/addons/admin-account.yaml
-        wait-deployment.sh metrics-server kube-system 1 720
-
-    - if ('${settings.dashboard}' == 'version1'):
-        cmd[${nodes.k8sm.master.id}]: |-
-           kubectl create -f ${baseUrl}/addons/kubernetes-dashboard.yaml
-           kubectl create -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml
-
-    - if ('${settings.dashboard}' == 'version2'):
-        cmd[${nodes.k8sm.master.id}]: |-
-           kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml
-           kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-beta.yaml
+    - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --admin-account=true --metrics-server=true --dashboard=${settings.dashboard:none} --ingress-name=${globals.ingress-dir}
 
   install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
@@ -259,8 +240,7 @@ actions:
       wait-deployment.sh tiller-deploy kube-system 1 720
 
   install-helm-slave:
-    cmd[${this}]: |-
-      /usr/local/sbin/helm-slave.sh
+    cmd[${this}]: /usr/local/sbin/helm-slave.sh
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'

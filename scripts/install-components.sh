@@ -1,25 +1,15 @@
 #!/bin/bash
 # set -x
 
-# core
-K8S="1.16.7"
-PAUSE="3.1"
-ETCD="3.3.15-0"
-COREDNS="1.6.2"
-WEAVE="2.5.2"
-
-# components
-K9S="0.17.3"
-POPEYE="0.7.1"
-STERN="1.11.0"
-KUBECTX="0.8.0"
-
 HELP="Usage:
-	$0 --type=(master|worker) --repo=<dockerhub-repo>
+	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metrics-server=(true|false) --dashboard=version(1|2) --ingress-name=<ingress-controller>
 Options:
-	--type=       instance type (values: master, worker)
-	--repo=       repository used (arbitrary)
-	-h, --help    show this help
+	--base-url=         manifest baseUrl
+	--admin-account=    setup admin account
+	--metrics-server=   install metrics-server
+	--dashboard=        install kubernetes-dashboard
+	--ingress-name=     ingress controller used
+	-h, --help          show this help
 "
 if [[ $# -eq 0 ]] ; then
 	echo -e "${HELP}"
@@ -28,12 +18,24 @@ fi
 
 for key in "$@"; do
 	case $key in
-	--type=*)
-		COMPTYPE="${key#*=}"
+	--base-url=*)
+		BASE_URL="${key#*=}"
 		shift
 		;;
-	--repo=*)
-		REPOSITORY="${key#*=}"
+	--admin-account=*)
+		ADMIN_ACCOUNT="${key#*=}"
+		shift
+		;;
+	--metrics-server=*)
+		METRICS_SERVER="${key#*=}"
+		shift
+		;;
+	--dashboard=*)
+		DASHBOARD="${key#*=}"
+		shift
+		;;
+	--ingress-name=*)
+		INGRESS_NAME="${key#*=}"
 		shift
 		;;
 	-h | --help)
@@ -48,68 +50,58 @@ for key in "$@"; do
 	esac
 done
 
-if [ -z "${COMPTYPE}" ]; then
-	echo -e "Missing mandatory argument --type=(master|worker)"
-	exit 1
-fi
-if [ "x${COMPTYPE}" != "xmaster" ] && [ "x${COMPTYPE}" != "xworker" ]; then
-	echo -e "Invalid argument value --type=${COMPTYPE}"
-	exit 1
-fi
-if [ -z "${REPOSITORY}" ]; then
-	echo -e "Missing mandatory argument --repo=<dockerhub-repo>"
+if [ -z "${BASE_URL}" ]; then
+	echo -e "Missing mandatory argument --base-url=<base64-encoded-url>"
 	exit 1
 fi
 
-# common
-docker pull ${REPOSITORY}/kube-proxy:v${K8S}
-[ -n "${PAUSE}" ] && docker pull ${REPOSITORY}/pause:${PAUSE}
+( ( echo "$(date): --- install components started";
 
-# kubernetes
-[ "x${COMPTYPE}" = "xmaster" ] && {
-	docker pull ${REPOSITORY}/kube-apiserver:v${K8S};
-	docker pull ${REPOSITORY}/kube-controller-manager:v${K8S};
-	docker pull ${REPOSITORY}/kube-scheduler:v${K8S};
-	[ -n "${ETCD}" ] && docker pull ${REPOSITORY}/etcd:${ETCD};
-	[ -n "${COREDNS}" ] && docker pull ${REPOSITORY}/coredns:${COREDNS};
-}
+	BASE_URL="$(echo ${BASE_URL} | base64 --decode)"
 
-# weave
-[ -n "${WEAVE}" ] && {
-	docker pull jelastic/weave-npc:${WEAVE};
-	docker pull jelastic/weave-kube:${WEAVE};
-}
+	if [ "x${ADMIN_ACCOUNT}" = "xtrue" ]; then
+		echo "$(date): setting admin account";
+		kubectl create -f "${BASE_URL}/addons/admin-account.yaml";
+	else
+		echo "$(date): admin account setting skipped"
+	fi
 
-# additional
-[ "x${COMPTYPE}" = "xmaster" ] && {
-	[ -n "${WEAVE}" ] && {
-		docker pull weaveworks/weaveexec:${WEAVE};
-		wget -nv "https://github.com/weaveworks/weave/releases/download/v${WEAVE}/weave" -O /usr/bin/weave;
-		chmod +x /usr/bin/weave;
-	};
+	if [ "x${METRICS_SERVER}" = "xtrue" ]; then
+		echo "$(date): installing metrics-server";
+		kubectl create -f "${BASE_URL}/addons/metrics-server/aggregated-metrics-reader.yaml";
+		kubectl create -f "${BASE_URL}/addons/metrics-server/auth-delegator.yaml";
+		kubectl create -f "${BASE_URL}/addons/metrics-server/auth-reader.yaml";
+		kubectl create -f "${BASE_URL}/addons/metrics-server/metrics-apiservice.yaml";
+		kubectl create -f "${BASE_URL}/addons/metrics-server/metrics-server-deployment.yaml";
+		kubectl create -f "${BASE_URL}/addons/metrics-server/metrics-server-service.yaml";
+		kubectl create -f "${BASE_URL}/addons/metrics-server/resource-reader.yaml";
+		wait-deployment.sh metrics-server kube-system 1 720
+	else
+		echo "$(date): metrics-server installation skipped"
+	fi
 
-	# scripts
-	BASE_URL="https://raw.githubusercontent.com/jelastic-jps/kubernetes/v${K8S}";
+	if [ -n "${DASHBOARD}" ] && [ -n "${INGRESS_NAME}" ]; then
+		echo "$(date): installing kubernetes-dashboard '${DASHBOARD}'";
+		case "${DASHBOARD}" in
+		version1)
+			kubectl create -f "${BASE_URL}/addons/kubernetes-dashboard.yaml";
+			kubectl create -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress.yaml";
+		;;
+		version2)
+			kubectl apply -f "${BASE_URL}/addons/kubernetes-dashboard-beta.yaml";
+			kubectl apply -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress-beta.yaml";
+		;;
+		*)
+			echo "$(date): unknown kubernetes-dashboard version '${DASHBOARD}', skipped"
+		;;
+		esac
+	else
+		echo "$(date): kubernetes-dashboard installation skipped"
+	fi
 
-	wget -nv "${BASE_URL}/scripts/helm-slave.sh" -O /usr/local/sbin/helm-slave.sh;
-	chmod +x /usr/local/sbin/helm-slave.sh;
-	wget -nv "${BASE_URL}/scripts/helm-components.sh" -O /usr/local/sbin/helm-components.sh;
-	chmod +x /usr/local/sbin/helm-components.sh;
-	wget -nv "${BASE_URL}/scripts/check-install.sh" -O /usr/local/sbin/check-install.sh;
-	chmod +x /usr/local/sbin/check-install.sh;
+	echo "$(date): --- install components finished";
+) &>>/var/log/kubernetes/k8s-install-components.log & )&
 
-	# utilities
-	[ -n "${K9S}" ] && { wget -O- "https://github.com/derailed/k9s/releases/download/v${K9S}/k9s_Linux_x86_64.tar.gz" | tar xz -C /usr/bin k9s; };
-	[ -n "${POPEYE}" ] && { wget -O- "https://github.com/derailed/popeye/releases/download/v${POPEYE}/popeye_${POPEYE}_Linux_x86_64.tar.gz" | tar xz -C /usr/bin popeye; };
-	[ -n "${STERN}" ] && {
-		wget -nv "https://github.com/wercker/stern/releases/download/${STERN}/stern_linux_amd64" -O /usr/bin/stern;
-		chmod +x /usr/bin/stern;
-		/usr/bin/stern --completion=bash > /etc/bash_completion.d/stern.bash;
-	};
-	[ -n "${KUBECTX}" ] && {
-		wget -O- "https://github.com/ahmetb/kubectx/archive/v${KUBECTX}.tar.gz" | tar xz --strip-components=1 -C /usr/bin kubectx-${KUBECTX}/kubectx kubectx-${KUBECTX}/kubens;
-		wget -O- "https://github.com/ahmetb/kubectx/archive/v${KUBECTX}.tar.gz" | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${KUBECTX}/completion/kubens.bash kubectx-${KUBECTX}/completion/kubectx.bash;
-	};
-}
+echo "${HOSTNAME} install components spawned"
 
 exit 0
