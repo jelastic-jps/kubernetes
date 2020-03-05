@@ -109,8 +109,8 @@ onBeforeRedeployContainer:
 
 onAfterSetExtIpCount[cp]:
   - log: 'attached ips: ${event.response.attachedIps.join(,)}, detached ips: ${event.response.detachedIps.join(,)}'
-  - cmd[${nodes.k8sm.master.id}]: |-
-      metallb-config -a '${event.response.attachedIps.join(,)}' -d '${event.response.detachedIps.join(,)}'
+  - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${event.response.attachedIps.join(,)}' -d '${event.response.detachedIps.join(,)}'
+  - cmd[cp]: systemctl restart kube-config.service
 
 actions:
   block-masters-scaling:
@@ -170,6 +170,7 @@ actions:
     - if ('${globals.k8sm-slave-ids}'):
       - forEach(node:response.nodes):
           - cmd[${@node}]: |-
+              sleep 5
               systemctl daemon-reload > /dev/null 2>&1
               ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
       - configure-master: ${globals.k8sm-slave-ids}
@@ -192,10 +193,12 @@ actions:
     - cmd[${this}]: |-
         rm -f /etc/machine-id
         systemd-machine-id-setup
-        systemctl daemon-reload > /dev/null 2>&1
         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
-        [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
-        [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
+        [ -n "${local_ip}" ] || exit 1
+        local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
+        /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
+        sed -i "/^KUBELET_EXTRA_ARGS/ s/\"$/ --node-ip=${local_ip}\"/" /etc/sysconfig/kubelet
+        systemctl daemon-reload > /dev/null 2>&1
         screen -d -m /usr/bin/bash -c '${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu 1>/var/log/kubeadm-join.log 2>/var/log/kubeadm-join-error.log'
         systemctl enable kubelet.service
 

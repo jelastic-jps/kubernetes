@@ -10,7 +10,7 @@ var envsCount = jelastic.env.control.GetEnvs({lazy: true}).infos.length,
     nodesPerDevEnvWOStorage = 2,
     nodesPerMasterNG = 3,
     nodesPerWorkerNG = 2,
-    maxCloudlets = 6,
+    maxCloudlets = 16,
     markup = "", cur = null, text = "used", prod = true, dev = true, prodStorage = true, devStorage = true, storage = false;
 
 var quotas = jelastic.billing.account.GetQuotas(perEnv + ";"+maxEnvs+";" + perNodeGroup + ";" + maxCloudletsPerRec).array;
