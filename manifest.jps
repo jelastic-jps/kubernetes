@@ -435,9 +435,9 @@ addons:
   - id: conf-k8s-addon
     type: update
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
-    name: Kubernetes Cluster Configuration
+    name: Cluster Configuration
     description: Configure remote API access and install complementary tools
-    logo: /images/k8s-logo.png
+    logo: /images/k8s-config.png
     settings:
       fields:
         - type: displayfield
@@ -487,9 +487,9 @@ addons:
   - id: upgrade-k8s-addon
     type: update
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
-    name: Kubernetes Cluster Upgrade
+    name: Cluster Upgrade
     description: Upgrade Kubernetes cluster to a newer version
-    logo: /images/k8s-logo.png
+    logo: /images/k8s-upgrade.png
 
     buttons:
       - caption: Start Cluster Upgrade
@@ -558,22 +558,20 @@ addons:
   - id: gitlab-k8s-addon
     type: update
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
-    name: Kubernetes GitLab Integration
+    name: GitLab Integration
     description: Add Kubernetes GitLab integrations
-    logo: /images/k8s-logo.png
+    logo: /images/k8s-gitlab.png
     settings:
       fields:
         - type: displayfield
           hideLabel: true
-          markup: This addon provides Kubernetes and GitLab integration. Please select the Gitlab environment from the list, and specify Gitlab 'root' password.
+          markup: This addon provides Kubernetes and GitLab integration. Please select the GitLab environment from the list:
         - type: displayfield
           hideLabel: true
         - type: envlist
           name: envlist
+          valueField: shortdomain
           caption: GitLab environment
-        - type: string
-          caption: Root password
-          name: gitlab_pass
 
     buttons:
       - caption: Configure
@@ -581,53 +579,78 @@ addons:
         action: addon-gitlab-config
         loadingText: Configuration...
         confirmText: Are you sure?
-        successText: Gitlab environment successfully configured!
+        successText: GitLab environment successfully configured!
+      - caption: Remove Integration
+        action: addon-gitlab-remove
+        confirmText: Any existing Kubernetes and GitLab integration will be removed. Continue?
+        successText: GitLab integration successfully removed!
 
     actions:
       addon-gitlab-config:
       - log: '${settings.envlist}'
       - cmd[${nodes.k8sm.master.id}]: kubectl get configmaps -n gitlab-managed-apps gitlab-configuration &>/dev/null && echo "true" || echo "false"
-      - setGlobals:
+      - set:
           gitlab_installed: ${response.out}
-      - if ('${globals.gitlab_installed}' == 'true'):
+      - if ('${this.gitlab_installed}' == 'true'):
           return:
             type: info
             message: This cluster already has GitLab integration!
+      - env.control.GetEnvInfo:
+          envName: ${settings.envlist}
+      - set:
+          gitlab_domain: ${response.env.domain}
+      - env.control.ExecCmdByGroup [cp]:
+          envName: ${settings.envlist}
+          commandList:
+            - command: echo ${ROOT_PASSWORD}
+      - set:
+          gitlab_pass: ${response.out}
+      - env.control.ExecCmdByGroup [cp]:
+          envName: ${settings.envlist}
+          commandList:
+            - command: echo ${HTTPS_PORT}
+      - set:
+          gitlab_port: ${response.out}
+          gitlab_http_endpoint: "https://${this.gitlab_domain}:${this.gitlab_port}"
+      - if ('${this.gitlab_pass}' == '' || '${this.gitlab_port}' == ''):
+          return:
+            type: warning
+            message: Cannot determine GitLab credentials!
       - cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${baseUrl}/addons/gitlab-service-account.yaml
       - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep gitlab-admin | awk '{print $1}') | grep '^token:' | awk '{print $2}'
-      - setGlobals:
+      - set:
           gitlab_token: ${response.out}
       - cmd[${nodes.k8sm.master.id}]: kubectl cluster-info | sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" | grep 'Kubernetes master' | awk '/http/ {print $NF}'
-      - setGlobals:
+      - set:
           gitlab_api_url: ${response.out}
       - cmd[${nodes.k8sm.master.id}]: kubectl get secret $(kubectl get secrets | grep default-token | cut -d " " -f 1) -o jsonpath="{['data']['ca\.crt']}" | base64 --decode
-      - setGlobals:
+      - set:
           gitlab_ca_cert: ${response.out}
       - cmd[${nodes.k8sm.master.id}]: |-
           # Login
-          page_content=$(curl -sk -c gitlab-jar.txt  'https://${settings.envlist}:4848/users/sign_in')
+          page_content=$(curl -sk -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/users/sign_in')
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /new_user.*?authenticity_token"[[:blank:]]value="(.+?)"/' | sed -n 1p)
           echo "Sign-in CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 1
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "user[login]=root&user[password]=${settings.gitlab_pass}" --data-urlencode "authenticity_token=${csrf_token}" 'https://${settings.envlist}:4848/users/sign_in'
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "user[login]=root&user[password]=${this.gitlab_pass}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/users/sign_in'
       - cmd[${nodes.k8sm.master.id}]: |-
           # Settings
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt 'https://${settings.envlist}:4848/admin/application_settings/network')
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt '${this.gitlab_http_endpoint}/admin/application_settings/network')
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /meta[[:blank:]]name="csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Application settings CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 2
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "_method=patch&application_setting[allow_local_requests_from_web_hooks_and_services]=1&application_setting[allow_local_requests_from_system_hooks]=1&application_setting[dns_rebinding_protection_enabled]=1" --data-urlencode "authenticity_token=${csrf_token}" 'https://${settings.envlist}:4848/admin/application_settings/network' || exit 2
-          curl -sk -b gitlab-jar.txt -c gitlab-jar.txt -f 'https://${settings.envlist}:4848/admin/application_settings/network' &>/dev/null
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "_method=patch&application_setting[allow_local_requests_from_web_hooks_and_services]=1&application_setting[allow_local_requests_from_system_hooks]=1&application_setting[dns_rebinding_protection_enabled]=1" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/admin/application_settings/network' || exit 2
+          curl -sk -b gitlab-jar.txt -c gitlab-jar.txt -f '${this.gitlab_http_endpoint}/admin/application_settings/network' &>/dev/null
       - cmd[${nodes.k8sm.master.id}]: |-
           # Cluster
           for i in {1..5}; do
             sleep 10
             echo "Attempt ${i} of GitLab Kubernetes cluster creation"
-            page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  'https://${settings.envlist}:4848/admin/clusters/new')
+            page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/new')
             csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /new_cluster.*?authenticity_token"[[:blank:]]value="(.+?)"/' | sed -n 1p)
             echo "Add cluster CSRF token: ${csrf_token}"
             [ -n "${csrf_token}" ] || continue
-            page_content=$(curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "cluster[name]=Kubernetes&cluster[platform_kubernetes_attributes][authorization_type]=rbac&cluster[managed]=1" --data-urlencode "cluster[platform_kubernetes_attributes][api_url]=${globals.gitlab_api_url}" --data-urlencode "cluster[platform_kubernetes_attributes][ca_cert]=${globals.gitlab_ca_cert}" --data-urlencode "cluster[platform_kubernetes_attributes][token]=${globals.gitlab_token}" --data-urlencode "authenticity_token=${csrf_token}" 'https://${settings.envlist}:4848/admin/clusters/create_user')
+            page_content=$(curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "cluster[name]=Kubernetes&cluster[platform_kubernetes_attributes][authorization_type]=rbac&cluster[managed]=1" --data-urlencode "cluster[platform_kubernetes_attributes][api_url]=${this.gitlab_api_url}" --data-urlencode "cluster[platform_kubernetes_attributes][ca_cert]=${this.gitlab_ca_cert}" --data-urlencode "cluster[platform_kubernetes_attributes][token]=${this.gitlab_token}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/create_user')
             cluster_url=$(echo ${page_content} | perl -ne 'print "$1\n" if /You[[:blank:]]are[[:blank:]]being[[:blank:]]\<a[[:blank:]]href="(.+?)"\>redirected/' | sed -n 1p)
             echo "Kubernetes GitLab cluster: ${cluster_url}"
             [ -n "${cluster_url}" ] && break || continue
@@ -637,49 +660,61 @@ addons:
           kubectl create ns gitlab-managed-apps
           kubectl create configmap gitlab-configuration --from-literal cluster_url="${cluster_url}" -n gitlab-managed-apps
       - cmd[${nodes.k8sm.master.id}]: kubectl get configmaps -n gitlab-managed-apps gitlab-configuration -o jsonpath='{.data.cluster_url}'
-      - setGlobals:
+      - set:
           gitlab_cluster_url: ${response.out}
       - cmd[${nodes.k8sm.master.id}]: |-
           # Helm
           sleep 5
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  "${globals.gitlab_cluster_url}")
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  "${this.gitlab_cluster_url}")
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Helm CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${globals.gitlab_cluster_url}/applications/helm" || exit 5
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${this.gitlab_cluster_url}/applications/helm" || exit 5
           wait-deployment.sh tiller-deploy gitlab-managed-apps 1 720
       - cmd[${nodes.k8sm.master.id}]: |-
           # Ingress
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${globals.gitlab_cluster_url}")
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${this.gitlab_cluster_url}")
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Ingress CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${globals.gitlab_cluster_url}/applications/ingress" || exit 5
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${this.gitlab_cluster_url}/applications/ingress" || exit 5
           wait-deployment.sh ingress-nginx-ingress-controller gitlab-managed-apps 1 720
       - cmd[${nodes.k8sm.master.id}]: |-
           # Cert manager
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${globals.gitlab_cluster_url}")
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${this.gitlab_cluster_url}")
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Cert-manager CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "Content-Type: application/json" -H "X-CSRF-Token: ${csrf_token}" -d '{"email":"${user.email}"}' "${globals.gitlab_cluster_url}/applications/cert_manager" || exit 5
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "Content-Type: application/json" -H "X-CSRF-Token: ${csrf_token}" -d '{"email":"${user.email}"}' "${this.gitlab_cluster_url}/applications/cert_manager" || exit 5
           wait-deployment.sh certmanager-webhook gitlab-managed-apps 1 720
       - cmd[${nodes.k8sm.master.id}]: |-
           # Runner
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${globals.gitlab_cluster_url}")
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${this.gitlab_cluster_url}")
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Runner CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${globals.gitlab_cluster_url}/applications/runner" || exit 5
+          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${this.gitlab_cluster_url}/applications/runner" || exit 5
           wait-deployment.sh runner-gitlab-runner gitlab-managed-apps 1 720
+
+      addon-gitlab-remove:
+      - cmd[${nodes.k8sm.master.id}]: kubectl get ns gitlab-managed-apps &>/dev/null && echo "true" || echo "false"
+      - setGlobals:
+          gitlab_installed: ${response.out}
+      - if ('${globals.gitlab_installed}' == 'false'):
+          return:
+            type: info
+            message: This cluster has no active GitLab integration!
+      - cmd[${nodes.k8sm.master.id}]: |-
+          kubectl delete ns gitlab-managed-apps
+          kubectl delete -f ${baseUrl}/addons/gitlab-service-account.yaml
 
   - id: certman-k8s-addon
     type: update
     requiredFeatures: extip
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.6
-    name: Kubernetes Certificate Manager
+    name: Certificate Manager
     description: Kubernetes SSL Certificate Manager
-    logo: /images/k8s-logo.png
+    logo: /images/k8s-cert.png
     settings:
       fields:
         - type: displayfield
@@ -723,6 +758,7 @@ addons:
           wget "${baseUrl}/addons/cert-manager/helloworld-ingress.yaml" -O /tmp/helloworld-ingress.yaml
           sed -i 's/example\.com/${settings.certificate_domain}/g' /tmp/helloworld-ingress.yaml
           kubectl apply -f /tmp/helloworld-ingress.yaml
+
 
 success: |
   ${globals.default_success:}

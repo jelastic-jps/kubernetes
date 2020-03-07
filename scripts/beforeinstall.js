@@ -11,7 +11,7 @@ var resp = {
     tag: tag,
     scalingMode: "stateless",
     nodeGroup: "k8sm",
-    addons: ["conf-k8s-addon", "upgrade-k8s-addon", "gitlab-k8s-addon", "certman-k8s-addon"],
+    addons: ["conf-k8s-addon", "upgrade-k8s-addon", "gitlab-k8s-addon"],
     displayName: "Master",
     extip: false,
     env: {
