@@ -247,32 +247,33 @@ fi
 }
 
 checkNginxIngressController() {
-  readyReplicas=$(kubectl get deployment/"${NGINX_DEPLOYMENT_NAME}" -o=jsonpath='{.status.readyReplicas}' -n ingress-nginx 2> /dev/null)
+
+  PODNAME=$(kubectl get pods -l=app.kubernetes.io/name=ingress-nginx -n ingress-nginx -o jsonpath='{.items[0].metadata.name}' 2> /dev/null)
   if [ $? -ne 0 ]; then
-    printError "${INGRESS_CONTROLLER} deployment not found. Check installation logs (CS) and K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
-    INGRESS_STATUS="FAIL"
-    WITH_ERROR="true"
-  else
-    if [ "${readyReplicas}" -lt 1 ]; then
-      printInfo "${NGINX_DEPLOYMENT_NAME} deployment isn't scaled to 1. Checking pods logs..."
-      NGINX_POD=$(kubectl get pods -l=app.kubernetes.io/name=ingress-nginx -n ingress-nginx --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
-      if [ -z $NGINX_POD ]; then
-        printError "Failed to find ${NGINX_POD} pod"
-        INGRESS_STATUS="FAIL"
-        WITH_ERROR="true"
-      else
-        printError "${NGINX_DEPLOYMENT_NAME} is not running"
-        printError "${NGINX_DEPLOYMENT_NAME} pod logs are available in ${K8S_LOG_DIR}/${NGINX_POD}.log"
-        printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE}"
-        kubectl logs ${NGINX_POD} -n ingress-nginx > ${K8S_LOG_DIR}/${NGINX_POD}.log
-        INGRESS_STATUS="FAIL"
-        WITH_ERROR="true"
-      fi
+    DAEMON_SET=$(kubectl get ds/nginx-ingress-controller -n ingress-nginx > /dev/null)
+    if [ $? -ne 0 ]; then
+      printError "Failed to find NGINX pod because of a missing daemon set"
+      INGRESS_STATUS="FAIL"
+      WITH_ERROR="true"
     else
-      printInfo "Ingress controller ${INGRESS_CONTROLLER} is running"
+      printError "Failed to find NGINX pod, though NGINX daemon set was found"
+      INGRESS_STATUS="FAIL"
+      WITH_ERROR="true"
+    fi
+    printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+  else
+    NGINX_POD_STATUS=$(kubectl get pods -l=app.kubernetes.io/name=ingress-nginx -n ingress-nginx -o jsonpath='{.items[0].status.phase}' 2> /dev/null)
+    if [ "$NGINX_POD_STATUS" != "Running" ]; then
+      printError "NGINX pod isn't in running state. Current status: $NGINX_POD_STATUS"
+      kubectl logs ${PODNAME} -n ingress-nginx > ${K8S_LOG_DIR}/${PODNAME}.log
+      printError "Check logs in ${K8S_LOG_DIR}/${PODNAME}.log"
+      INGRESS_STATUS="FAIL"
+      WITH_ERROR="true"
+    else
+      printInfo "NGINX pod ${PODNAME} successfully started"
       INGRESS_STATUS="OK"
     fi
-  fi
+ fi
 }
 
 checkHaproxyIngressController() {
@@ -569,7 +570,7 @@ echo -e "
 Cluster Health Check Report
 
 [Weave CNI Plugin]      : ${WEAVE_STATUS:-"FAIL"}
-[Ingres Controller]     : ${INGRESS_STATUS:-"FAIL"}
+[Ingress Controller]    : ${INGRESS_STATUS:-"FAIL"}
 [Metrics Server]        : ${METRICS_STATUS:-"FAIL"}
 [Kubernetes Dashboard]  : ${DASHBOARD_STATUS:-"FAIL"}
 [Node Problem Detector] : ${NODE_PROBLEM_DETECTOR_STATUS:-"FAIL"}

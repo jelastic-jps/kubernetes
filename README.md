@@ -1,14 +1,17 @@
-# Managed Kubernetes Hosting
+# Kubernetes Clusters
 
-Managed Kubernetes clusters are highly available and multi-tenant deployments across availability regions in public or private cloud. 
+The clusters can be automatically installed on top of Jelastic PaaS in two ways:
 
-The clusters can be automatically installed on top of the Jelastic PaaS in two ways:
+* **Clean** cluster with pre-deployed HelloWorld example
+* **Custom** helm or stack deployment via shell command
 
-* **Clean Kubernetes** cluster with two workers and one master node. The number of worker and master nodes can be changed while installation steps or afterwards. All the newly added nodes are automatically connected.
+Also, there are different topologies available out-of-box:
+* **Development** - one master (1) and one scalable worker (1+)
+* **Production** - multi master (3) with API balancers (2+) and scalable workers (2+)
+ 
+The number of worker nodes can be changed after the initial installation is completed. All the newly added nodes are automatically connected to the cluster.
 
-* **Pre-packaged application** within Kubernetes cluster. While installation, there can be provided the URL to a YAML stack manifest. As a result, the cluster will be created already with the needed custom application deployed.
-
-<img src="/images/Managed-Kubernetes-Hosting.png" width="500" alt="Managed Kubernetes Hosting Multi-Cloud" />
+<img src="https://jelastic.com/wp-content/themes/salient/img/templates/kubernetes-cloud-services/kube.webp" width="400" alt="Managed Kubernetes Hosting Multi-Cloud" />
 
 ## Cloud Native Applications
 
@@ -16,10 +19,16 @@ Easily containerize and migrate existing applications, run hyper scalable micros
 
 Jelastic PaaS functionality allows to provision the clusters across multiple clouds and on-premises with no vendor lock-in, automatically scale them vertically and horizontally, start from one instance and grow up to thousands, manage the workloads via intuitive UI, as well as automate the DevOps processes with open API and Cloud Scripting. 
 
-## Demo and Trial 
-[Send us request](https://jelastic.com/managed-auto-scalable-clusters-for-business/) to get early access and receive a Kubernetes cluster free trial for a month.
+## Related Articles and Materials 
+* [Managed Kubernetes Hosting with Multi-Cloud Availability](https://jelastic.com/kubernetes-hosting/)
+* [Kubernetes Cluster Setup with Automated Scaling and Pay-per-Use Pricing](https://jelastic.com/blog/kubernetes-cluster-scaling-pay-per-use-hosting/)
+* [Scaling Kubernetes on Application and Infrastructure Levels](https://jelastic.com/blog/scaling-kubernetes/)
+* [Kubernetes Cluster Overview](https://docs.jelastic.com/kubernetes-cluster)
+* [Kubernetes Cluster: Package Installation](https://docs.jelastic.com/kubernetes-cluster-installation)
+* [Kubernetes Cluster: Versions & Change Logs](https://docs.jelastic.com/kubernetes-cluster-versions)
 
-For large scale projects interested in scalable Kubernetes hosting, Jelastic provides professional services to [assist while migration](https://jelastic.com/managed-auto-scalable-clusters-for-business/).
+## Demo and Trial 
+For testing in public cloud please sign up at one of [Jelastic Cloud Providers with Kubernetes support](https://jelastic.cloud/?featuresSupport=K8S). For testing in multi-cloud, hybrid cloud or private cloud setups please [send us request](https://jelastic.com/managed-auto-scalable-clusters-for-business/).
 
 ## Managed Hosting Business 
 

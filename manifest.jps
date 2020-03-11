@@ -154,7 +154,7 @@ actions:
       mkdir -p $HOME/.kube
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
-      wget -qO- https://github.com/derailed/k9s/releases/download/v0.17.5/k9s_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
+      wget -qO- https://github.com/derailed/k9s/releases/download/v0.17.6/k9s_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
       wget -qO- https://github.com/derailed/popeye/releases/download/v0.7.1/popeye_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
       wget -nv https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
       chmod +x /usr/bin/stern
@@ -278,7 +278,7 @@ actions:
 
   connect-storage:
     if (${settings.storage:false}):
-      cmd[${nodes.k8sm.master.id}]: helm install stable/nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
+      cmd[${nodes.k8sm.master.id}]: helm install stable/nfs-client-provisioner --name nfs-client-provisioner --set nfs.server=${nodes.storage.master.address} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
 
   removeWorker:
     cmd[${nodes.k8sm.master.id}]: |-
@@ -418,7 +418,7 @@ actions:
       sep: ','
 
   install-node-problem-detector:
-     - cmd[${nodes.k8sm.master.id}]: helm install stable/node-problem-detector --name node-problem-detector --set image.tag=v0.7.0
+     - cmd[${nodes.k8sm.master.id}]: helm install stable/node-problem-detector --name node-problem-detector
 
   install-metallb:
      - cmd[${nodes.k8sm.master.id}]: |-
@@ -565,7 +565,7 @@ addons:
       fields:
         - type: displayfield
           hideLabel: true
-          markup: This addon provides Kubernetes and GitLab integration. Please select the GitLab environment from the list:
+          markup: This addon provides Kubernetes and GitLab integration. Please select the GitLab environment from the list.
         - type: displayfield
           hideLabel: true
         - type: envlist
