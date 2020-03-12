@@ -10,7 +10,7 @@ Options:
  -r=,   --remote-api=        check remote api availability, defaults to false
  -s=,   --storage=           check NFS storage, defaults to false
  -j=,   --jaeger=            check Jaeger installation
- -app=, --sample-app         check either defualt Hello World app (cc) or a custom syntax [cmd], defaults to cc
+ -app=, --sample-app         check either default Hello World app (cc) or a custom syntax [cmd], defaults to cc
  -h,    --help               show this help
 "
 
@@ -378,6 +378,11 @@ checkNfsStorage() {
   printInfo "Checking status on NFS provisioner pods"
   END="2"
   for ((i=0;i<=END;i++)); do
+    NODENAME=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)
+    if [ $? -ne 0 ]; then
+      printWarning "Failed to get node name because of array index out of bounds"
+      break
+    fi
     PODNAME=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
     if [ $? -ne 0 ]; then
       printError "Failed to find NFS provisioner pods. NFS privioners may have failed or has not been deployed"
@@ -386,9 +391,11 @@ checkNfsStorage() {
       NFS_STORAGE_STATUS="FAIL"
       break
     fi
-    STATUS=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
-    if [ "$STATUS" != "Running" ]; then
-      printError "Failed pod ${PODNAME} with status $STATUS"
+    POD_STATUS=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
+    CT_STATUS=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].status.containerStatuses[0].ready}" 2> /dev/null)
+      printInfo "Checking nfs-client-provisioner pod status on Node $NODENAME"
+    if [ "$POD_STATUS" != "Running" ] || [ "$CT_STATUS" != "true" ]; then
+      printError "Failed pod ${PODNAME} with pod_status $POD_STATUS and ct_status $CT_STATUS"
       kubectl logs ${PODNAME} -n default > ${K8S_LOG_DIR}/${PODNAME}.log
       printError "Check logs in ${K8S_LOG_DIR}/${PODNAME}.log"
       WITH_ERROR="true"
@@ -509,10 +516,11 @@ checkNodeProblemDetector(){
         break
       fi
       PODNAME=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
-      STATUS=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
+      POD_STATUS=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
+      CT_STATUS=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].status.containerStatuses[0].ready}" 2> /dev/null)
       printInfo "Checking node-problem-detector pod status on Node $NODENAME"
-      if [ "$STATUS" != "Running" ]; then
-        printError "Failed node-problem-detector pod ${PODNAME} on $NODENAME with status $STATUS"
+      if [ "$POD_STATUS" != "Running" ] || [ "$CT_STATUS" != "true" ]; then
+        printError "Failed node-problem-detector pod ${PODNAME} on $NODENAME with pod_status $POD_STATUS and ct_status $CT_STATUS"
         writeLog "kubectl logs ${PODNAME} -n default" "${K8S_LOG_DIR}/${PODNAME}.log"
         printError "Check logs in ${K8S_LOG_DIR}/${PODNAME}.log"
         WITH_ERROR="true"
