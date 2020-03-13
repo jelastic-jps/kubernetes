@@ -160,7 +160,7 @@ actions:
         return {
           result : 0,
           nodes: '${nodes.k8sm.join(id,)}'.replace(/\b${nodes.k8sm.master.id},?\b/, '').replace(/,$/, '').split(','),
-          ips: '${nodes.k8sm.join(intIP,)}'.replace(/\b${nodes.k8sm.master.intIP},?\b/, '').replace(/,/g, '\n')
+          ips: '${nodes.k8sm.join(intIP,)}'.replace(/\b${nodes.k8sm.master.intIP},?\b/, '').replace(/,/g, ' ')
         };
     - setGlobals:
         k8sm-slave-ids: ${response.nodes.join(,)}
@@ -168,17 +168,11 @@ actions:
     - if ('${globals.k8sm-slave-ids}'):
       - forEach(node:response.nodes):
           - cmd[${@node}]: |-
-              sleep 10
+              sleep 5
               systemctl daemon-reload > /dev/null 2>&1
               ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
       - configure-master: ${globals.k8sm-slave-ids}
-      - add-master-hosts-to-balancer: ${globals.k8sm-slave-ips}
-
-  add-master-hosts-to-balancer:
-    cmd [mbl]: |-
-      echo '${this}' >> /etc/haproxy/hosts
-      jem balancer rebuildCommon
-    user: root
+      - activate-slave-masters: ${globals.k8sm-slave-ips}
 
   configure-master:
     cmd[${this}]: |-
@@ -187,6 +181,24 @@ actions:
       chown root:root $HOME/.kube/config
       systemctl enable kubelet.service
       /usr/local/sbin/master-postconfig.sh
+
+  activate-slave-masters:
+    - cmd[mbl]: |-
+        for item in ${this}; do
+          echo '${this}' >> /etc/haproxy/hosts
+        done
+        jem balancer rebuildCommon
+    - ${nodes.k8sm.master.id}]: |-
+        for item in ${this}; do
+          kubectl get node --selector='node-role.kubernetes.io/master' -o wide 2>/dev/null | grep -q "${item}" || {
+            slave_hostname=$(kubectl get nodes -o custom-columns=NAME:.metadata.name,IP:.status.addresses[*].address --no-headers | grep "${item}" | cut -f 1 -d ' ');
+            [ -z "${slave_hostname}" ] || {
+              kubectl label node "${slave_hostname}" node-role.kubernetes.io/master=;
+              kubectl taint node "${slave_hostname}" node-role.kubernetes.io/master=:NoSchedule;
+            };
+          }
+        done
+    user: root
 
   connect-workers:
     - cmd[${this}]: |-

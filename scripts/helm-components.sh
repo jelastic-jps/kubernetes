@@ -76,7 +76,7 @@ fi
 
 	if [ "x${PROBLEM_DETECT}" = "xtrue" ]; then
 		echo "$(date): installing node-problem-detector"
-		helm install stable/node-problem-detector --name node-problem-detector --set image.tag=v0.7.0;
+		helm install stable/node-problem-detector --name node-problem-detector;
 	else
 		echo "$(date): node-problem-detector installation skipped"
 	fi
