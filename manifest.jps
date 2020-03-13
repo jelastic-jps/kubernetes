@@ -148,6 +148,15 @@ actions:
         echo '${this.ip}' >> /etc/haproxy/hosts
         jem balancer rebuildCommon
       user: root
+    - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl get node --selector='node-role.kubernetes.io/master' -o wide 2>/dev/null | grep -q '[[:space:]]${this.ip}[[:space:]]' || {
+          slave_hostname=$(kubectl get nodes -o custom-columns=NAME:.metadata.name,IP:.status.addresses[*].address --no-headers | grep '[[:space:]]${this.ip},' | cut -f 1 -d ' ');
+          [ -z "${slave_hostname}" ] || {
+            kubectl label node "${slave_hostname}" node-role.kubernetes.io/master=;
+            kubectl taint node "${slave_hostname}" node-role.kubernetes.io/master=:NoSchedule;
+            echo "${slave_hostname} slave master processed";
+          };
+        }
 
   configure-master:
     cmd[${this}]: |-
