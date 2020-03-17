@@ -23,6 +23,9 @@ KUBECTX="0.8.0"
 		wget -O- "https://github.com/ahmetb/kubectx/archive/v${KUBECTX}.tar.gz" | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${KUBECTX}/completion/kubens.bash kubectx-${KUBECTX}/completion/kubectx.bash;
 	};
 
+	# cleanup
+	rm -f /tmp/jelastic-init-mark;
+
 	echo "$(date): --- master postconfig finished";
 ) &>>/var/log/kubernetes/k8s-master-postconfig.log & )&
 

@@ -161,7 +161,7 @@ checkMetricsServer() {
     printError "Metrics server deployment not found"
     WITH_ERROR="true"
   else
-    if [ "${readyReplicas}" -lt 1 ]; then
+    if [ -z "${readyReplicas}" ] || [ "${readyReplicas}" -lt 1 ]; then
       printInfo "${METRICS_SERVER_NAME} deployment isn't scaled to 1. Checking pods logs..."
       METRICS_SERVER_POD=$(kubectl get pods -l=k8s-app="${METRICS_SERVER_NAME}" -n kube-system --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
       if [ -z $METRICS_SERVER_POD ]; then
@@ -189,7 +189,7 @@ checkDashboard() {
     printError "Deployment ${DASHBOARD_DEPLOYMENT_NAME} not found"
     WITH_ERROR="true"
   else
-    if [ "${readyReplicas}" -lt 1 ]; then
+    if [ -z "${readyReplicas}" ] || [ "${readyReplicas}" -lt 1 ]; then
       printInfo "${DASHBOARD_DEPLOYMENT_NAME} deployment isn't scaled to 1. Checking pods logs..."
       KUBERNETES_DASHBOARD_POD=$(kubectl get pods -l=k8s-app="${DASHBOARD_DEPLOYMENT_NAME}" -n kubernetes-dashboard --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
       if [ -z $KUBERNETES_DASHBOARD_POD ]; then
@@ -430,7 +430,7 @@ checkMonitoring() {
       MONIT_ERROR="true"
       MONITORING_STATUS="FAIL"
     else
-      if [ "${readyReplicas}" -lt 1 ]; then
+      if [ -z "${readyReplicas}" ] || [ "${readyReplicas}" -lt 1 ]; then
         printInfo "Deployment ${DEPLOYMENTS[i]} isn't scaled to 1. Checking pods logs..."
         APP="prometheus"
         if [ ${DEPLOYMENTS[i]} == "monitoring-grafana" ]; then
@@ -550,7 +550,7 @@ checkJaeger() {
         sleep 10
         READY_REPLICAS=$(kubectl get deployment/jaeger -o=jsonpath='{.status.readyReplicas}' -n observability 2> /dev/null)
       fi
-      if [ "${READY_REPLICAS}" -lt 1 ]; then
+      if [ -z "${READY_REPLICAS}" ] || [ "${READY_REPLICAS}" -lt 1 ]; then
         printInfo "Jaeger deployment isn't scaled to 1. Checking pods logs..."
         JAEGER_POD=$(kubectl get pods -l=app.kubernetes.io/managed-by=jaeger-operator -n observability -o jsonpath="{.items[0].metadata.name}")
         kubectl logs ${JAEGER_POD} -n observability > ${K8S_LOG_DIR}/${JAEGER_POD}.log
