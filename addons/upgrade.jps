@@ -47,6 +47,7 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
         kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
+        kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
     - setGlobals:
         ingress-dir: ${response.out}
@@ -59,9 +60,10 @@ actions:
           kubectl -n kube-system wait --for=condition=Ready pod -l name=traefik-ingress-lb --timeout=-1s
           ;;
          xnginx)
+          kubectl -n ingress-nginx delete deployment nginx-ingress-controller
           kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
           kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
-          wait-deployment.sh nginx-ingress-controller ingress-nginx 1 720
+          kubectl -n ingress-nginx wait --for=condition=Ready pod -l app.kubernetes.io/name=ingress-nginx --timeout=-1s
           ;;
          xhaproxy)
           kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
