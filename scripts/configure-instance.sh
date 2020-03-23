@@ -2,7 +2,7 @@
 # set -x
 
 # core
-WEAVE="2.5.2"
+WEAVE="2.6.2"
 
 HELP="Usage:
 	$0 --type=(master|worker) --base-url=<base64-encoded-url>
@@ -78,8 +78,8 @@ done < <( kubeadm config images list --config /etc/kubernetes/custom-kubeadm.yam
 # weave
 [ -n "${WEAVE}" ] && {
 	echo "$(date): pulling weave docker images";
-	docker pull jelastic/weave-npc:${WEAVE};
-	docker pull jelastic/weave-kube:${WEAVE};
+	docker pull devbeta/weave-npc:${WEAVE};
+	docker pull devbeta/weave-kube:${WEAVE};
 }
 
 # additional

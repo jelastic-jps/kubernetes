@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.16.8
-name: Kubernetes Upgrade to 1.16.8
+id: kubernetes-upgrade-to-1.17.4
+name: Kubernetes Upgrade to 1.17.4
 
 categories:
 - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.16.8
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.17.4
 logo: /images/k8s-logo.png
 
 description:
@@ -19,12 +19,14 @@ onInstall:
     - upgrade-masters:
         id: ${nodes.k8sm.master.id}
         master: true
+        hostname: node${nodes.k8sm.master.id}-${env.domain}
         version: ${settings.version}
     - forEach(nodes.k8sm):
         if (!${@i.ismaster}):
           upgrade-masters:
             id: ${@i.id}
             master: false
+            hostname: node${@i.id}-${env.domain}
             version: ${settings.version}
     - forEach(nodes.cp):
         upgrade-workers:
@@ -122,6 +124,10 @@ actions:
           message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
 
   upgrade-masters:
+    - cmd[${this.id}]: |-
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        sleep 10
+        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
@@ -131,8 +137,6 @@ actions:
         [ -f "/root/wait-deployment.sh" ] && {
          rm -f /root/wait-deployment.sh;
          ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
-        sleep 5
     - if (${this.master}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 1
@@ -140,17 +144,16 @@ actions:
     - if (!${this.master}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 2
-    - upgrade-master-post: ${this.id}
-
-  upgrade-master-post:
-    - cmd[${this}]: |-
+    - cmd[${this.id}]: |-
+        sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
+        /usr/bin/kubectl uncordon ${this.hostname}
         service kubelet restart
         helm repo update
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
-        sleep 5
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        sleep 10
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
     - env.control.RedeployContainers:
         nodeId: ${this.id}
@@ -162,6 +165,7 @@ actions:
         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
         [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
         [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
+        sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
         service kubelet restart
     - cmd[${nodes.k8sm.master.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
