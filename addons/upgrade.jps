@@ -125,8 +125,8 @@ actions:
 
   upgrade-masters:
     - cmd[${this.id}]: |-
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         sleep 10
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
     - env.control.RedeployContainers:
         nodeId: ${this.id}
@@ -152,8 +152,8 @@ actions:
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         sleep 10
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
     - env.control.RedeployContainers:
         nodeId: ${this.id}
