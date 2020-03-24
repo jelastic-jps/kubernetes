@@ -2,10 +2,11 @@
 # set -x
 
 HELP="Usage:
-	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metrics-server=(true|false) --dashboard=version(1|2) --ingress-name=<ingress-controller>
+	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metallb=(true|false) --metrics-server=(true|false) --dashboard=version(1|2) --ingress-name=<ingress-controller>
 Options:
 	--base-url=         manifest baseUrl
 	--admin-account=    setup admin account
+	--metallb=          install metallb-controller
 	--metrics-server=   install metrics-server
 	--dashboard=        install kubernetes-dashboard
 	--ingress-name=     ingress controller used
@@ -24,6 +25,10 @@ for key in "$@"; do
 		;;
 	--admin-account=*)
 		ADMIN_ACCOUNT="${key#*=}"
+		shift
+		;;
+	--metallb=*)
+		METALLB="${key#*=}"
 		shift
 		;;
 	--metrics-server=*)
@@ -64,6 +69,14 @@ fi
 		kubectl create -f "${BASE_URL}/addons/admin-account.yaml";
 	else
 		echo "$(date): admin account setting skipped"
+	fi
+
+	if [ "x${METALLB}" = "xtrue" ]; then
+		echo "$(date): installing metallb-controller"
+		kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.9.3/manifests/metallb.yaml;
+		kubectl apply -f "${BASE_URL}/addons/metallb-config.yaml";
+	else
+		echo "$(date): metallb-controller installation skipped"
 	fi
 
 	if [ "x${METRICS_SERVER}" = "xtrue" ]; then

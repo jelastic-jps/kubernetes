@@ -7,7 +7,6 @@ Options:
 	--base-url=           manifest baseUrl
 	--nfs-provisioner=    install nfs-client-provisioner
 	--nfs-server=         nfs-client-provisioner NFS server address
-	--metallb=            install metallb-controller
 	--problem-detector=   install node-problem-detector
 	-h, --help    show this help
 "
@@ -28,10 +27,6 @@ for key in "$@"; do
 		;;
 	--nfs-server=*)
 		NFS_SERVER="${key#*=}"
-		shift
-		;;
-	--metallb=*)
-		METALLB="${key#*=}"
 		shift
 		;;
 	--problem-detector=*)
@@ -64,14 +59,6 @@ fi
 		helm install stable/nfs-client-provisioner --name nfs-client-provisioner --set nfs.server=${NFS_SERVER} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
 	else
 		echo "$(date): nfs-client-provisioner installation skipped"
-	fi
-
-	if [ "x${METALLB}" = "xtrue" ]; then
-		echo "$(date): installing metallb-controller"
-		kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.9.3/manifests/metallb.yaml;
-		kubectl apply -f "${BASE_URL}/addons/metallb-config.yaml";
-	else
-		echo "$(date): metallb-controller installation skipped"
 	fi
 
 	if [ "x${PROBLEM_DETECT}" = "xtrue" ]; then
