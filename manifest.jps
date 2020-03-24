@@ -127,6 +127,8 @@ actions:
           jem balancer rebuildCommon
         user: root
     - cmd[${nodes.k8sm.master.id}]: |-
+        rm -f /etc/machine-id
+        systemd-machine-id-setup
         systemctl daemon-reload > /dev/null 2>&1
         entryPoint=$((( ${nodes.mbl.length:0} > 0 )) && echo mbl || echo k8sm)
         sed -i "s/^controlPlaneEndpoint:.*/controlPlaneEndpoint: \"${entryPoint}.${env.domain}:6443\"/g" /etc/kubernetes/custom-kubeadm.yaml
@@ -141,6 +143,8 @@ actions:
 
   init-slave-master:
     - cmd[${this.id}]: |-
+        rm -f /etc/machine-id
+        systemd-machine-id-setup
         systemctl daemon-reload > /dev/null 2>&1
         ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-init.log
     - configure-master: ${this.id}
