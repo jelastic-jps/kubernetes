@@ -57,7 +57,7 @@ fi
 	BASE_URL="$(echo ${BASE_URL} | base64 --decode)"
 
 	echo "$(date): downloading initialization scripts";
-	for ADD_SCRIPT in "install-components" "master-postconfig" "helm-slave" "helm-components" "check-install"; do
+	for ADD_SCRIPT in "install-components" "master-postconfig" "helm-install" "helm-components" "check-install"; do
 		wget -nv "${BASE_URL}/scripts/${ADD_SCRIPT}.sh" -O "/usr/local/sbin/${ADD_SCRIPT}.sh";
 		chmod +x "/usr/local/sbin/${ADD_SCRIPT}.sh";
 	done

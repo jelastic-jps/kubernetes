@@ -247,14 +247,11 @@ actions:
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
       while true; do kubectl get serviceaccount tiller --namespace kube-system &> /dev/null && break; sleep 5; done
-      curl -s https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
-      while true; do [ -f /usr/local/bin/helm ] && break; sleep 2; done
-      helm init --upgrade --service-account tiller
-      helm repo update
+      /usr/local/sbin/helm-install.sh --master=true
       wait-deployment.sh tiller-deploy kube-system 1 720
 
   install-helm-slave:
-    cmd[${this}]: /usr/local/sbin/helm-slave.sh
+    cmd[${this}]: screen -d -m /usr/bin/bash -c '/usr/local/sbin/helm-install.sh --master=false &>/var/log/kubernetes/k8s-helm-slave.log'
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
