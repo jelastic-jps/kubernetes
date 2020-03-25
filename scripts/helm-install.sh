@@ -5,9 +5,9 @@
 HELM_VERSION="v2.16.3"
 
 HELP="Usage:
-	$0 --master=(true|false)
+	$0 --type=(master|slave)
 Options:
-	--master=     perform Helm master installation
+	--type=       instance type (values: master, slave)
 	-h, --help    show this help
 "
 if [[ $# -eq 0 ]] ; then
@@ -17,8 +17,8 @@ fi
 
 for key in "$@"; do
 	case $key in
-	--master=*)
-		MASTER="${key#*=}"
+	--type=*)
+		COMPTYPE="${key#*=}"
 		shift
 		;;
 	-h | --help)
@@ -33,8 +33,12 @@ for key in "$@"; do
 	esac
 done
 
-if [ -z "${MASTER}" ]; then
-	echo -e "Missing mandatory argument --master=(true|false)"
+if [ -z "${COMPTYPE}" ]; then
+	echo -e "Missing mandatory argument --type=(master|slave)"
+	exit 1
+fi
+if [ "x${COMPTYPE}" != "xmaster" ] && [ "x${COMPTYPE}" != "xslave" ]; then
+	echo -e "Invalid argument value --type=${COMPTYPE}"
 	exit 1
 fi
 
@@ -43,7 +47,7 @@ export DESIRED_VERSION="$HELM_VERSION"
 curl -s https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
 while true; do [ -f /usr/local/bin/helm ] && break; sleep 2; done
 
-if [ "x${MASTER}" = "xtrue" ]; then
+if [ "x${COMPTYPE}" = "xmaster" ]; then
 	echo "$(date): installing Helm master instance";
 	helm init --upgrade --service-account tiller;
 else

@@ -63,6 +63,9 @@ fi
 	done
 }
 
+# bootstrap configuration complete
+touch /tmp/jelastic-conf-mark
+
 # common dockers
 echo "$(date): pulling common docker images"
 while read item; do

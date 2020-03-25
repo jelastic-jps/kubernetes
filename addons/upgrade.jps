@@ -16,17 +16,27 @@ description:
 
 onInstall:
     - upgrade-configuration
-    - upgrade-masters:
+    - upgrade-masters-cluster:
         id: ${nodes.k8sm.master.id}
         master: true
         hostname: node${nodes.k8sm.master.id}-${env.domain}
         version: ${settings.version}
     - forEach(nodes.k8sm):
         if (!${@i.ismaster}):
-          upgrade-masters:
+          upgrade-masters-cluster:
             id: ${@i.id}
             master: false
             hostname: node${@i.id}-${env.domain}
+            version: ${settings.version}
+    - upgrade-masters-redeploy:
+        id: ${nodes.k8sm.master.id}
+        master: true
+        version: ${settings.version}
+    - forEach(nodes.k8sm):
+        if (!${@i.ismaster}):
+          upgrade-masters-redeploy:
+            id: ${@i.id}
+            master: false
             version: ${settings.version}
     - forEach(nodes.cp):
         upgrade-workers:
@@ -95,7 +105,6 @@ actions:
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
-        helm init --upgrade --service-account tiller
         helm repo update
         wait-deployment.sh tiller-deploy kube-system 1 720
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -123,11 +132,27 @@ actions:
           type: warning
           message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
 
-  upgrade-masters:
+  upgrade-masters-cluster:
     - cmd[${this.id}]: |-
         sleep 10
         while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
-        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
+        yum update -y "http://spacewalk.jelastic.com/pub/kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64.rpm" || exit 1
+        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 1
+    - if (${this.master}):
+        - cmd[${this.id}]: |-
+            /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 2
+            /usr/bin/kubeadm upgrade apply ${this.version} || exit 2
+    - if (!${this.master}):
+        - cmd[${this.id}]: |-
+            /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 2
+    - cmd[${this.id}]: |-
+        /usr/bin/kubectl uncordon ${this.hostname} || exit 3
+
+  upgrade-masters-redeploy:
+    - cmd[${this.id}]: |-
+        sleep 10
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
@@ -137,38 +162,40 @@ actions:
         [ -f "/root/wait-deployment.sh" ] && {
          rm -f /root/wait-deployment.sh;
          ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
+        while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
     - if (${this.master}):
         - cmd[${this.id}]: |-
-            /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 1
-            /usr/bin/kubeadm upgrade apply ${this.version} || exit 1
+            /usr/local/sbin/helm-install.sh --type=master | tee -a /var/log/kubernetes/k8s-helm-master.log
+            wait-deployment.sh tiller-deploy kube-system 1 720
     - if (!${this.master}):
-        - cmd[${this.id}]: |-
-            /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 2
+        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --type=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
-        sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
-        /usr/bin/kubectl uncordon ${this.hostname}
         service kubelet restart
-        helm repo update
+        /usr/local/sbin/master-postconfig.sh
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
         sleep 10
         while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
+    - cmd[${this.id}]: |-
+        yum update -y "http://spacewalk.jelastic.com/pub/kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64.rpm" || exit 1
+        /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
+        sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
         skipReinstall: true
     - cmd[${this.id}]: |-
         init-instance.sh --type=worker --base-url=$(echo '${baseUrl}' | base64 -w 0)
-        /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
-        local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
-        [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
-        [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
-        sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
+        cat /etc/sysconfig/network-scripts/route-venet0 | /usr/bin/grep -q '10.244.0.0/15' &> /dev/null
+        [ $? -eq 0 ] || {
+         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p');
+         [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}";
+         [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0; }
         service kubelet restart
     - cmd[${nodes.k8sm.master.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
-        while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break ; done
+        while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break; sleep 3; done
 
 success: "K8s upgrade complete"

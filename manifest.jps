@@ -88,7 +88,7 @@ onAfterScaleOut[cp]:
       worker_join_cmd: ${response.out}
   - set:
       nodes: ${event.response.nodes.join(id,)}
-  - cmd [${this.nodes}]: init-instance.sh --type=worker --base-url=$(echo '${baseUrl}' | base64 -w 0)
+  - cmd [${this.nodes}]: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
   - connect-workers: ${this.nodes}
 
 onBeforeScaleIn[cp]:
@@ -123,9 +123,9 @@ actions:
   prepare-instances:
     execCmd:
       - nodeGroup: k8sm
-        commands: init-instance.sh --type=master --base-url=$(echo '${baseUrl}' | base64 -w 0)
+        commands: init-instance.sh --type=master --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
       - nodeGroup: cp
-        commands: init-instance.sh --type=worker --base-url=$(echo '${baseUrl}' | base64 -w 0)
+        commands: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
     user: root
     sync: false
 
@@ -182,6 +182,7 @@ actions:
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
       systemctl enable kubelet.service
+      while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
       /usr/local/sbin/master-postconfig.sh
 
   activate-slave-masters:
@@ -247,11 +248,11 @@ actions:
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
       while true; do kubectl get serviceaccount tiller --namespace kube-system &> /dev/null && break; sleep 5; done
-      /usr/local/sbin/helm-install.sh --master=true
+      /usr/local/sbin/helm-install.sh --type=master | tee /var/log/kubernetes/k8s-helm-master.log
       wait-deployment.sh tiller-deploy kube-system 1 720
 
   install-helm-slave:
-    cmd[${this}]: screen -d -m /usr/bin/bash -c '/usr/local/sbin/helm-install.sh --master=false &>/var/log/kubernetes/k8s-helm-slave.log'
+    cmd[${this}]: screen -d -m /usr/bin/bash -c '/usr/local/sbin/helm-install.sh --type=slave &>/var/log/kubernetes/k8s-helm-slave.log'
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
