@@ -3,6 +3,7 @@ var perEnv = "environment.maxnodescount",
     maxEnvs = "environment.maxcount",
     perNodeGroup = "environment.maxsamenodescount";
     maxCloudletsPerRec = "environment.maxcloudletsperrec";
+    diskIOPSlimit = "disk.iopslimit";
 var envsCount = jelastic.env.control.GetEnvs({lazy: true}).infos.length,
     nodesPerProdEnv = 8,
     nodesPerProdEnvWOStorage = 7,
@@ -11,9 +12,10 @@ var envsCount = jelastic.env.control.GetEnvs({lazy: true}).infos.length,
     nodesPerMasterNG = 3,
     nodesPerWorkerNG = 2,
     maxCloudlets = 16,
+    iopsLimit = 1000,
     markup = "", cur = null, text = "used", prod = true, dev = true, prodStorage = true, devStorage = true, storage = false;
 
-var quotas = jelastic.billing.account.GetQuotas(perEnv + ";"+maxEnvs+";" + perNodeGroup + ";" + maxCloudletsPerRec).array;
+var quotas = jelastic.billing.account.GetQuotas(perEnv + ";"+maxEnvs+";" + perNodeGroup + ";" + maxCloudletsPerRec + ";" + diskIOPSlimit).array;
 var group = jelastic.billing.account.GetAccount(appid, session);
 for (var i = 0; i < quotas.length; i++){
     var q = quotas[i], n = toNative(q.quota.name);
@@ -25,6 +27,11 @@ for (var i = 0; i < quotas.length; i++){
 
     if (n == maxCloudletsPerRec && maxCloudlets > q.value){
         err(q, "required", maxCloudlets, true);
+        prod = dev = false;
+    }
+    
+     if (n == diskIOPSlimit && iopsLimit > q.value){
+        err(q, "required", iopsLimit, true);
         prod = dev = false;
     }
 
