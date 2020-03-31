@@ -3,7 +3,7 @@
 
 # components
 K9S="0.18.1"
-POPEYE="0.7.1"
+POPEYE="0.8.0"
 STERN="1.11.0"
 KUBECTX="0.8.0"
 
@@ -23,8 +23,11 @@ KUBECTX="0.8.0"
 		wget -O- "https://github.com/ahmetb/kubectx/archive/v${KUBECTX}.tar.gz" | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${KUBECTX}/completion/kubens.bash kubectx-${KUBECTX}/completion/kubectx.bash;
 	};
 
+	# validate master configuration
+	/usr/local/sbin/k8sm-config -f
+
 	# cleanup
-	rm -f /tmp/jelastic-init-mark;
+	rm -f /tmp/jelastic-{init,conf}-mark;
 
 	echo "$(date): --- master postconfig finished";
 ) &>>/var/log/kubernetes/k8s-master-postconfig.log & )&

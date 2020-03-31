@@ -174,7 +174,7 @@ actions:
               systemctl daemon-reload > /dev/null 2>&1
               ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
       - configure-master: ${globals.k8sm-slave-ids}
-      - activate-slave-masters: ${globals.k8sm-slave-ips}
+      - add-master-balancer: ${globals.k8sm-slave-ips}
 
   configure-master:
     cmd[${this}]: |-
@@ -182,25 +182,15 @@ actions:
       cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
       systemctl enable kubelet.service
+      /usr/local/sbin/k8sm-config -f
       while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
       /usr/local/sbin/master-postconfig.sh
 
-  activate-slave-masters:
+  add-master-balancer:
     - cmd[mbl]: |-
         for item in ${this}; do echo "${item}" >> /etc/haproxy/hosts; done
         jem balancer rebuildCommon
       user: root
-    - cmd[${nodes.k8sm.master.id}]: |-
-        for item in ${this}; do
-          kubectl get node --selector='node-role.kubernetes.io/master' -o wide 2>/dev/null | grep -q "[[:space:]]${item}[[:space:]]" || {
-            slave_hostname=$(kubectl get nodes -o custom-columns=NAME:.metadata.name,IP:.status.addresses[*].address --no-headers | grep "[[:space:]]${item}," | cut -f 1 -d ' ');
-            [ -z "${slave_hostname}" ] || {
-              kubectl label node "${slave_hostname}" node-role.kubernetes.io/master=;
-              kubectl taint node "${slave_hostname}" node-role.kubernetes.io/master=:NoSchedule;
-              echo "${slave_hostname} slave master processed";
-            };
-          }
-        done
 
   connect-workers:
     - cmd[${this}]: |-
