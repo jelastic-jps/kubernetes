@@ -158,6 +158,8 @@ actions:
         sleep 10
         while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
+        [ -f "/etc/jelastic/redeploy.conf" ] || {
+         echo '/root/.bash_profile' > /etc/jelastic/redeploy.conf; }
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
@@ -180,13 +182,15 @@ actions:
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
-        sleep 10
+        sleep 20
         while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
     - cmd[${this.id}]: |-
         yum update -y "http://spacewalk.jelastic.com/pub/kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64.rpm" || exit 1
         /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
         sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
+        [ -f "/etc/jelastic/redeploy.conf" ] || {
+         echo '/root/.bash_profile' > /etc/jelastic/redeploy.conf; }
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
