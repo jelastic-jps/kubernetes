@@ -158,12 +158,10 @@ actions:
         sleep 10
         while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
-        [ -f "/etc/jelastic/redeploy.conf" ] || {
-         echo '/root/.bash_profile' > /etc/jelastic/redeploy.conf; }
+        wget -nv ${baseUrl}/configs/redeploy.conf -O /etc/jelastic/redeploy.conf
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
-        skipReinstall: true
     - cmd[${this.id}]: |-
         init-instance.sh --type=master --base-url=$(echo '${baseUrl}' | base64 -w 0)
         [ -f "/root/wait-deployment.sh" ] && {
@@ -177,7 +175,8 @@ actions:
     - if (!${this.master}):
         - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --type=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
-        service kubelet restart
+        systemctl restart kubelet.service
+        systemctl enable kubelet.service
         /usr/local/sbin/master-postconfig.sh
 
   upgrade-workers:
@@ -189,12 +188,10 @@ actions:
         yum update -y "http://spacewalk.jelastic.com/pub/kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64.rpm" || exit 1
         /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
         sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
-        [ -f "/etc/jelastic/redeploy.conf" ] || {
-         echo '/root/.bash_profile' > /etc/jelastic/redeploy.conf; }
+        wget -nv ${baseUrl}/configs/redeploy.conf -O /etc/jelastic/redeploy.conf
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
-        skipReinstall: true
     - cmd[${this.id}]: |-
         init-instance.sh --type=worker --base-url=$(echo '${baseUrl}' | base64 -w 0)
         cat /etc/sysconfig/network-scripts/route-venet0 | /usr/bin/grep -q '10.244.0.0/15' &> /dev/null
@@ -202,7 +199,8 @@ actions:
          local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p');
          [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}";
          [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0; }
-        service kubelet restart
+        systemctl restart kubelet.service
+        systemctl enable kubelet.service
     - cmd[${nodes.k8sm.master.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
         while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break; sleep 3; done
