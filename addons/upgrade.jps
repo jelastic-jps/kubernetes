@@ -172,6 +172,11 @@ actions:
         - cmd[${this.id}]: |-
             /usr/local/sbin/helm-install.sh --type=master | tee -a /var/log/kubernetes/k8s-helm-master.log
             wait-deployment.sh tiller-deploy kube-system 1 720
+        - cmd[${this.id}]: |-
+            [ -d "/var/lib/kubelet/worker-data" ] || mkdir -p /var/lib/kubelet/worker-data
+            tar zcfv - /var/lib/kubelet/worker-data 2>/dev/null | base64 -w 0
+        - setGlobals:
+            worker_integration: ${response.out}
     - if (!${this.master}):
         - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --type=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
@@ -199,6 +204,10 @@ actions:
          local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p');
          [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}";
          [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0; }
+        mkdir /var/lib/worker
+        while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
+        echo '${globals.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
+        /usr/local/sbin/worker-integration.sh | tee -a /var/log/kubernetes/k8s-worker-integration.log
         systemctl restart kubelet.service
         systemctl enable kubelet.service
     - cmd[${nodes.k8sm.master.id}]: |-

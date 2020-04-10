@@ -51,17 +51,20 @@ if [ -z "${BASE_URL}" ]; then
 	exit 1
 fi
 
-# bootstrap
-[ "x${COMPTYPE}" = "xmaster" ] && {
-	# scripts
-	BASE_URL="$(echo ${BASE_URL} | base64 --decode)"
+# scripts
+if [ "x${COMPTYPE}" = "xmaster" ]; then
+	SCRIPT_SET=( 'install-components' 'master-postconfig' 'helm-install' 'helm-components' 'check-install' )
+else
+	SCRIPT_SET=( 'worker-integration' )
+fi
 
-	echo "$(date): downloading initialization scripts";
-	for ADD_SCRIPT in "install-components" "master-postconfig" "helm-install" "helm-components" "check-install"; do
-		wget -nv "${BASE_URL}/scripts/${ADD_SCRIPT}.sh" -O "/usr/local/sbin/${ADD_SCRIPT}.sh";
-		chmod +x "/usr/local/sbin/${ADD_SCRIPT}.sh";
-	done
-}
+BASE_URL="$(echo ${BASE_URL} | base64 --decode)"
+
+echo "$(date): downloading initialization scripts";
+for ADD_SCRIPT in "${SCRIPT_SET[@]}"; do
+	wget -nv "${BASE_URL}/scripts/${ADD_SCRIPT}.sh" -O "/usr/local/sbin/${ADD_SCRIPT}.sh";
+	chmod +x "/usr/local/sbin/${ADD_SCRIPT}.sh";
+done
 
 # bootstrap configuration complete
 touch /tmp/jelastic-conf-mark

@@ -31,6 +31,7 @@ onInstall:
   - init-main-master
   - init-slave-masters
   - connect-workers: cp
+  - apply-worker-integration: cp
   - setup-overlay
   - if ('${settings.ingress-controller}' == 'Nginx'):
       - setGlobals:
@@ -88,8 +89,10 @@ onAfterScaleOut[cp]:
       worker_join_cmd: ${response.out}
   - set:
       nodes: ${event.response.nodes.join(id,)}
+  - prepare-worker-integration
   - cmd [${this.nodes}]: init-instance.sh --type=worker --base-url=$(echo '${baseUrl}' | base64 -w 0)
   - connect-workers: ${this.nodes}
+  - apply-worker-integration: ${this.nodes}
 
 onBeforeScaleIn[cp]:
   forEach(event.response.nodes):
@@ -129,6 +132,17 @@ actions:
     user: root
     sync: false
 
+  prepare-worker-integration:
+    - cmd[${nodes.k8sm.master.id}]: tar zcfv - /var/lib/kubelet/worker-data 2>/dev/null | base64 -w 0
+    - setGlobals:
+        worker_integration: ${response.out}
+
+  apply-worker-integration:
+    - cmd[${this}]: |-
+        mkdir /var/lib/worker &>/dev/null || rm -rf /var/lib/worker/*
+        echo '${globals.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
+        screen -d -m /usr/bin/bash -c '/usr/local/sbin/worker-integration.sh &>/var/log/kubernetes/k8s-worker-integration.log'
+
   init-main-master:
     - if (${nodes.mbl.length:0}):
         cmd[mbl]: |-
@@ -145,6 +159,7 @@ actions:
         sed -i "s/^controlPlaneEndpoint:.*/controlPlaneEndpoint: \"${entryPoint}.${env.domain}:6443\"/g" /etc/kubernetes/custom-kubeadm.yaml
         while true; do [ -f "/tmp/jelastic-init-mark" ] && break; echo "Waiting for cluster initial configuration"; sleep 3; done
         kubeadm init --config /etc/kubernetes/custom-kubeadm.yaml --upload-certs --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-init.log
+        mkdir /var/lib/kubelet/worker-data
     - configure-master: ${nodes.k8sm.master.id}
     - cmd[${nodes.k8sm.master.id}]: sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'control-plane'
     - setGlobals:
@@ -152,6 +167,7 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'
     - setGlobals:
         worker_join_cmd: ${response.out}
+    - prepare-worker-integration
     - if (${settings.api:true}):
         - setGlobals:
             default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
@@ -194,7 +210,7 @@ actions:
 
   connect-workers:
     - cmd[${this}]: |-
-        while true; do [ -f "/tmp/jelastic-init-mark" ] && break; echo "Waiting for cluster initial configuration"; sleep 3; done
+        while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
         [ -n "${local_ip}" ] || exit 1
         local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
@@ -571,11 +587,23 @@ addons:
       - set:
           gitlab_port: ${response.out}
           gitlab_http_endpoint: "https://${this.gitlab_domain}:${this.gitlab_port}"
+      - env.control.ExecCmdByGroup [cp]:
+          envName: ${settings.envlist}
+          commandList:
+            - command: echo ${REGISTRY_PORT}
+      - set:
+          gitlab_reg_port: ${response.out}
+      - env.control.ExecCmdByGroup [cp]:
+          envName: ${settings.envlist}
+          commandList:
+            - command: cat /srv/docker/gitlab/certs/ca.crt | base64 -w 0
+      - set:
+          gitlab_ca_instance: ${response.out}
       - if ('${this.gitlab_pass}' == '' || '${this.gitlab_port}' == ''):
           return:
             type: warning
             message: Cannot determine GitLab credentials!
-      - cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${baseUrl}/addons/gitlab-service-account.yaml
+      - cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${baseUrl}/addons/gitlab/gitlab-service-account.yaml
       - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep gitlab-admin | awk '{print $1}') | grep '^token:' | awk '{print $2}'
       - set:
           gitlab_token: ${response.out}
@@ -645,7 +673,7 @@ addons:
           echo "Cert-manager CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 5
           curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "Content-Type: application/json" -H "X-CSRF-Token: ${csrf_token}" -d '{"email":"${user.email}"}' "${this.gitlab_cluster_url}/applications/cert_manager" || exit 5
-          wait-deployment.sh certmanager-webhook gitlab-managed-apps 1 720
+          wait-deployment.sh certmanager-cert-manager-webhook gitlab-managed-apps 1 720
       - cmd[${nodes.k8sm.master.id}]: |-
           # Runner
           page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${this.gitlab_cluster_url}")
@@ -654,6 +682,14 @@ addons:
           [ -n "${csrf_token}" ] || exit 5
           curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${this.gitlab_cluster_url}/applications/runner" || exit 5
           wait-deployment.sh runner-gitlab-runner gitlab-managed-apps 1 720
+      - cmd[${nodes.k8sm.master.id}]: |-
+          # Integration
+          echo '${this.gitlab_ca_instance}' | base64 -d > /var/lib/kubelet/worker-data/gitlab-cacert.crt
+          echo 'GITLAB_REGISTRY="${this.gitlab_domain}:${this.gitlab_reg_port}"' > /var/lib/kubelet/worker-data/gitlab-integration.conf
+          wget -nv ${baseUrl}/addons/gitlab/gitlab-integration.sh -O /var/lib/kubelet/worker-data/gitlab-integration.sh
+          chmod +x /var/lib/kubelet/worker-data/gitlab-integration.sh
+      - prepare-worker-integration
+      - apply-worker-integration: cp
 
       addon-gitlab-remove:
       - cmd[${nodes.k8sm.master.id}]: kubectl get ns gitlab-managed-apps &>/dev/null && echo "true" || echo "false"
@@ -664,8 +700,9 @@ addons:
             type: info
             message: This cluster has no active GitLab integration!
       - cmd[${nodes.k8sm.master.id}]: |-
+          rm -f /var/lib/kubelet/worker-data/gitlab-*
           kubectl delete ns gitlab-managed-apps
-          kubectl delete -f ${baseUrl}/addons/gitlab-service-account.yaml
+          kubectl delete -f ${baseUrl}/addons/gitlab/gitlab-service-account.yaml
 
   - id: certman-k8s-addon
     type: update
