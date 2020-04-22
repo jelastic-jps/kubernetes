@@ -110,6 +110,14 @@ onBeforeRedeployContainer:
       type: warning
       message: Kubernetes Cluster redeploy is not supported. Please use 'Cluster Upgrade' add-on if you need to upgrade cluster version.
 
+onBeforeAttachExtIp[k8sm]: block-ip-assignment
+
+onBeforeAttachExtIp[mbl]: block-ip-assignment
+
+onBeforeSetExtIpCount[k8sm]: block-ip-assignment
+
+onBeforeSetExtIpCount[mbl]: block-ip-assignment
+
 onAfterSetExtIpCount[cp]:
   - log: 'attached ips: ${event.response.attachedIps.join(,)}, detached ips: ${event.response.detachedIps.join(,)}'
   - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${event.response.attachedIps.join(,)}' -d '${event.response.detachedIps.join(,)}'
@@ -122,6 +130,11 @@ actions:
         validation:
           minCount: ${nodes.k8sm.length}
           maxCount: ${nodes.k8sm.length}
+
+  block-ip-assignment:
+    stopEvent:
+      type: warning
+      message: Kubernetes service instances shouldn't have external IPs assigned.
 
   prepare-instances:
     execCmd:
