@@ -1,6 +1,9 @@
 #!/bin/bash
 # set -x
 
+# components
+METALLB_VER="0.9.3"
+
 HELP="Usage:
 	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metallb=(true|false) --metrics-server=(true|false) --dashboard=version(1|2) --ingress-name=<ingress-controller>
 Options:
@@ -73,7 +76,10 @@ fi
 
 	if [ "x${METALLB}" = "xtrue" ]; then
 		echo "$(date): installing metallb-controller"
-		kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.9.3/manifests/metallb.yaml;
+		kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/v${METALLB_VER}/manifests/namespace.yaml";
+		kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/v${METALLB_VER}/manifests/metallb.yaml";
+		kubectl -n metallb-system get secret memberlist &>/dev/null || \
+			kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(/usr/bin/openssl rand -base64 128)";
 		kubectl apply -f "${BASE_URL}/addons/metallb-config.yaml";
 	else
 		echo "$(date): metallb-controller installation skipped"
