@@ -155,6 +155,7 @@ actions:
         user: root
     - cmd[${nodes.k8sm.master.id}]: |-
         systemctl daemon-reload > /dev/null 2>&1
+        systemctl restart systemd-journald.service
         entryPoint=$((( ${nodes.mbl.length:0} > 0 )) && echo mbl || echo k8sm)
         sed -i "s/^controlPlaneEndpoint:.*/controlPlaneEndpoint: \"${entryPoint}.${env.domain}:6443\"/g" /etc/kubernetes/custom-kubeadm.yaml
         while true; do [ -f "/tmp/jelastic-init-mark" ] && break; echo "Waiting for cluster initial configuration"; sleep 3; done
@@ -188,6 +189,7 @@ actions:
               sleep 5
               while true; do [ -f "/tmp/jelastic-init-mark" ] && break; echo "Waiting for cluster initial configuration"; sleep 3; done
               systemctl daemon-reload > /dev/null 2>&1
+              systemctl restart systemd-journald.service
               ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
       - configure-master: ${globals.k8sm-slave-ids}
       - add-master-balancer: ${globals.k8sm-slave-ips}
@@ -217,6 +219,7 @@ actions:
         /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
         sed -i "/^KUBELET_EXTRA_ARGS/ s/\"$/ --node-ip=${local_ip}\"/" /etc/sysconfig/kubelet
         systemctl daemon-reload > /dev/null 2>&1
+        systemctl restart systemd-journald.service
         screen -d -m /usr/bin/bash -c '${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu 1>/var/log/kubeadm-join.log 2>/var/log/kubeadm-join-error.log'
         systemctl enable kubelet.service
 
