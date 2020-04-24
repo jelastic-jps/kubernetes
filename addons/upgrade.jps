@@ -28,6 +28,7 @@ onInstall:
             master: false
             hostname: node${@i.id}-${env.domain}
             version: ${settings.version}
+    - upgrade-jps-manifest
     - upgrade-masters-redeploy:
         id: ${nodes.k8sm.master.id}
         master: true
@@ -131,6 +132,26 @@ actions:
         return:
           type: warning
           message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
+
+  upgrade-jps-manifest:
+    - script: |
+        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: "${env.appid}", search: {appstore: 1, app_id: "kubernetes"} });
+        resp = resp.response || resp;
+        if (resp.result != 0) return resp;
+
+        var app  = resp.apps[0];
+        if (app) {
+          var jps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get("${baseUrl}/manifest.jps")));
+
+          jps.type = "update";
+          delete jps.onBeforeInit;
+          delete jps.onBeforeInstall;
+          delete jps.onInstall;
+
+          return api.marketplace.jps.Install({ envName: '${env.name}', jps: jps, settings: app.settings.data, skipEmail: true });
+        }
+
+        return { result: com.hivext.api.Response.OBJECT_NOT_EXIST, error: "Kubernetes manifest is not found!"};
 
   upgrade-masters-cluster:
     - cmd[${this.id}]: |-

@@ -104,12 +104,6 @@ onBeforeClone:
     type: warning
     message: Kubernetes Cluster cloning is not supported yet!
 
-onBeforeRedeployContainer:
-  if (!${event.params.skipReinstall:false}):
-    stopEvent:
-      type: warning
-      message: Kubernetes Cluster redeploy is not supported. Please use 'Cluster Upgrade' add-on if you need to upgrade cluster version.
-
 onBeforeAttachExtIp[k8sm]: block-ip-assignment
 
 onBeforeAttachExtIp[mbl]: block-ip-assignment
