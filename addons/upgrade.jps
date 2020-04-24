@@ -29,6 +29,9 @@ onInstall:
             hostname: node${@i.id}-${env.domain}
             version: ${settings.version}
     - upgrade-jps-manifest
+    - env.control.ApplyNodeGroupData [k8sm, cp]:
+        data:
+          isRedeploySupport: true
     - upgrade-masters-redeploy:
         id: ${nodes.k8sm.master.id}
         master: true
@@ -44,6 +47,9 @@ onInstall:
           id: ${@i.id}
           hostname: node${@i.id}-${env.domain}
           version: ${settings.version}
+    - env.control.ApplyNodeGroupData [k8sm, cp]:
+        data:
+          isRedeploySupport: false
     - script: |
         var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.";
         if ("${settings.avail}") { message += "\n\n**Next version:** ${settings.avail}.  \nPress \"Upgrade\" button to start the upgrade process."; }
