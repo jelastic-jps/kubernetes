@@ -122,6 +122,12 @@ onBeforeDetachExtIp[cp]:
   - cmd[${nodes.k8sm.master.id}]: metallb-config -d '${event.params.ip}'
   - cmd[cp]: systemctl restart kube-config.service
 
+onAfterAttachExtIp[cp]:
+  - if (${event.response.result:1} == 0):
+      - log: 'attached ip: ${event.response.object}'
+      - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${event.response.object}'
+      - cmd[cp]: systemctl restart kube-config.service
+
 actions:
   block-masters-scaling:
     env.control.ApplyNodeGroupData[k8sm]:
