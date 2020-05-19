@@ -561,7 +561,7 @@ addons:
       fields:
         - type: displayfield
           hideLabel: true
-          markup: This addon provides Kubernetes and GitLab integration. Please select the Gitlab environment from the list, and specify Gitlab 'root' password.
+          markup: This addon provides Kubernetes and GitLab integration. Please select the Gitlab environment from the list.
         - type: displayfield
           hideLabel: true
         - type: envlist
