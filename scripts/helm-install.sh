@@ -2,7 +2,7 @@
 # set -x
 
 # core
-HELM_VERSION="v2.16.5"
+HELM_VERSION="v2.16.7"
 
 HELP="Usage:
 	$0 --type=(master|slave)
