@@ -757,7 +757,26 @@ addons:
           [ -n "${csrf_token}" ] || exit 1
           curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "user[login]=root&user[password]=${this.gitlab_pass}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/users/sign_in'
       - cmd[${nodes.k8sm.master.id}]: |-
+          # Runner
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}')
+          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
+          echo "Remove runner CSRF token: ${csrf_token}"
+          [ -n "${csrf_token}" ] || exit 5
+          curl -X DELETE -sk -b gitlab-jar.txt -c gitlab-jar.txt -H "X-CSRF-Token: ${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}/applications/runner'
+      - cmd[${nodes.k8sm.master.id}]: |-
+          # Cert manager
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}')
+          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
+          echo "Remove cert-manager CSRF token: ${csrf_token}"
+          [ -n "${csrf_token}" ] || exit 5
+          curl -X DELETE -sk -b gitlab-jar.txt -c gitlab-jar.txt -H "X-CSRF-Token: ${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}/applications/cert_manager'
+      - cmd[${nodes.k8sm.master.id}]: |-
+          for deploy_name in "runner-gitlab-runner" "certmanager-cert-manager"; do
+            while true; do kubectl -n gitlab-managed-apps get deploy ${deploy_name} --no-headers && sleep 5 || break; done
+          done
+      - cmd[${nodes.k8sm.master.id}]: |-
           # Cluster
+          sleep 10
           page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}')
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
           echo "Remove cluster CSRF token: ${csrf_token}"
