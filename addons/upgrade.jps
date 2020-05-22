@@ -42,6 +42,14 @@ onInstall:
             id: ${@i.id}
             master: false
             version: ${settings.version}
+    - upgrade-masters-post:
+        id: ${nodes.k8sm.master.id}
+        master: true
+    - forEach(nodes.k8sm):
+        if (!${@i.ismaster}):
+          upgrade-masters-post:
+            id: ${@i.id}
+            master: false
     - forEach(nodes.cp):
         upgrade-workers:
           id: ${@i.id}
@@ -195,6 +203,12 @@ actions:
          rm -f /root/wait-deployment.sh;
          ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
         while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
+    - cmd[${this.id}]: |-
+        systemctl restart systemd-journald.service
+        systemctl restart kubelet.service
+        systemctl enable kubelet.service
+
+  upgrade-masters-post:
     - if (${this.master}):
         - cmd[${this.id}]: |-
             /usr/local/sbin/helm-install.sh --type=master | tee -a /var/log/kubernetes/k8s-helm-master.log
@@ -208,9 +222,6 @@ actions:
     - if (!${this.master}):
         - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --type=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
-        systemctl restart systemd-journald.service
-        systemctl restart kubelet.service
-        systemctl enable kubelet.service
         /usr/local/sbin/master-postconfig.sh
 
   upgrade-workers:
