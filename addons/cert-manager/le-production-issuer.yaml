@@ -1,8 +1,8 @@
 apiVersion: cert-manager.io/v1alpha2
-kind: Issuer
+kind: ClusterIssuer
 metadata:
   name: letsencrypt-prod
-  namespace: default
+  namespace: cert-manager
 spec:
   acme:
     # The ACME server URL

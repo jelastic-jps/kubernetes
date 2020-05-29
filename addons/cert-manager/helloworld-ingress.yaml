@@ -6,7 +6,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "nginx-cert"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    cert-manager.io/issuer: "letsencrypt-staging"
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
 spec:
   tls:
   - hosts:
@@ -18,5 +18,5 @@ spec:
       paths:
       - path: /
         backend:
-          serviceName: hello-kubernetes
-          servicePort: 80
+          serviceName: hello-cert-manager
+          servicePort: 8080

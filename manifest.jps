@@ -832,12 +832,11 @@ addons:
             type: warning
             message: Kubernetes Certificate Manager is already configured! Please use Kubernetes Cluster settings!
       - cmd[${nodes.k8sm.master.id}]: |-
-          certmanager_version=0.13.0
+          certmanager_version=0.15.1
           kubectl create namespace cert-manager
-          kubectl apply --validate=false -f https://raw.githubusercontent.com/jetstack/cert-manager/v${certmanager_version}/deploy/manifests/00-crds.yaml
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
-          helm install --name cert-manager --namespace cert-manager --version v${certmanager_version} jetstack/cert-manager
+          helm install --name cert-manager --namespace cert-manager --version v${certmanager_version} jetstack/cert-manager --set installCRDs=true
           wait-deployment.sh cert-manager cert-manager 1 720
           helm install stable/nginx-ingress --name cert-manager-nginx --namespace cert-manager --set controller.ingressClass=nginx-cert
           wait-deployment.sh cert-manager-nginx-nginx-ingress-controller cert-manager 1 720
@@ -846,6 +845,7 @@ addons:
             sed -i 's/user@example\.com/${user.email}/g' "/tmp/${issuer_name}.yaml"
             kubectl create -f "/tmp/${issuer_name}.yaml"
           done
+          kubectl apply -f ${baseUrl}/addons/cert-manager/helloworld-service.yaml
           wget "${baseUrl}/addons/cert-manager/helloworld-ingress.yaml" -O /tmp/helloworld-ingress.yaml
           sed -i 's/example\.com/${settings.certificate_domain}/g' /tmp/helloworld-ingress.yaml
           kubectl apply -f /tmp/helloworld-ingress.yaml
