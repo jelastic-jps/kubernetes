@@ -210,6 +210,7 @@ actions:
         systemctl enable kubelet.service
 
   upgrade-masters-post:
+    - script: 'return { result : 0 };'
     - if (${this.master}):
         - cmd[${this.id}]: |-
             /usr/local/sbin/helm-install.sh --type=master | tee -a /var/log/kubernetes/k8s-helm-master.log
