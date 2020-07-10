@@ -111,6 +111,18 @@ if (group.groupType == 'trial') {
     });
     f[6].showIf['true'][1].disabled = true;
     f[6].showIf['true'][2].disabled = true;
+    f.push({
+        "type": "compositefield",
+        "height": 0,
+        "hideLabel": true,
+        "width": 0,
+        "items": [{
+            "height": 0,
+            "type": "string",
+            "required": true,
+        }]
+    });
+
 }
 
 return resp;
