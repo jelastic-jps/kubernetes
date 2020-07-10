@@ -64,6 +64,22 @@ var url = "https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.17.4/con
 resp.settings = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(url)));
 var f = resp.settings.fields;
 
+if (!prod && dev){
+    f[2].values[1].disabled = true;
+    f[3].hidden = false;
+    f[3].markup =  "Production topology is not available. " + markup + "Please upgrade your account.";
+    f[3].height =  50;
+    if (!devStorage){
+        f[6].disabled = true;
+        f[6].value = false;
+    }
+}
+
+if (prod && !prodStorage){
+    f[6].disabled = true;
+    f[6].value = false;
+}
+
 if (!prod && !dev || group.groupType == 'trial'){
     for (var i = 0; i < f.length; i++) f[i].disabled = true;
     f[3].hidden = false;
@@ -85,22 +101,6 @@ if (!prod && !dev || group.groupType == 'trial'){
             "required": true,
         }]
     });
-}
-
-if (!prod && dev){
-    f[2].values[1].disabled = true;
-    f[3].hidden = false;
-    f[3].markup =  "Production topology is not available. " + markup + "Please upgrade your account.";
-    f[3].height =  50;
-    if (!devStorage){
-        f[6].disabled = true;
-        f[6].value = false;
-    }
-}
-
-if (prod && !prodStorage){
-    f[6].disabled = true;
-    f[6].value = false;
 }
 
 return resp;
