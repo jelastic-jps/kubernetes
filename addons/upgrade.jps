@@ -177,7 +177,9 @@ actions:
          wget -nv http://dot.jelastic.com/download/denis/k8sm-config -O /usr/local/sbin/k8sm-config;
          chmod +x /usr/local/sbin/k8sm-config; }
         /usr/local/sbin/k8sm-config -f
-        yum update -y "http://spacewalk.jelastic.com/pub/kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64.rpm" || exit 1
+        kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
+        yum update -y "http://spacewalk.jelastic.com/pub/${kubeadm_package}.rpm"
+        rpm -qi "${kubeadm_package}" || exit 1
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 1
     - if (${this.master}):
         - cmd[${this.id}]: |-
@@ -232,7 +234,9 @@ actions:
         while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
     - cmd[${this.id}]: |-
-        yum update -y "http://spacewalk.jelastic.com/pub/kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64.rpm" || exit 1
+        kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
+        yum update -y "http://spacewalk.jelastic.com/pub/${kubeadm_package}.rpm"
+        rpm -qi "${kubeadm_package}" || exit 1
         /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
         sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
         wget -nv ${baseUrl}/configs/redeploy.conf -O /etc/jelastic/redeploy.conf
