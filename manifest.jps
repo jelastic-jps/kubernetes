@@ -545,11 +545,25 @@ addons:
           }
 
       execUpgrade:
-        install: ${this.jps}
+        jps: ${this.jps}
         envName: ${env.envName}
-        settings:
-            version: ${this.next}
-            avail: ${this.avail}
+        version: ${this.next}
+        avail: ${this.avail}
+        upgradeScript: |
+          jelastic.marketplace.jps.Install({ envName: envName, session: session, jps: jps, settings: { version: version, avail: avail } });
+          return { result: 0 };
+        script: |
+          var envName = '${env.envName}',
+          scriptName = envName + '-k8s-upgrade';
+          jelastic.dev.scripting.DeleteScript(scriptName);
+          resp = jelastic.dev.scripting.CreateScript(scriptName, "js", upgradeScript);
+          if (resp.result != 0) return resp;
+          java.lang.Thread.sleep(1000);
+          jelastic.dev.scripting.Build(scriptName);
+          resp = jelastic.utils.scheduler.AddTask({ script: scriptName, trigger: "once_delay:1000", description: "Upgrade Kubernetes", params: { envName: envName, jps: jps, version: version, avail: avail } });
+          if (resp.result != 0) return resp;
+          java.lang.Thread.sleep(3000);
+          return { type: "info", message: "Kubernetes Cluster upgrade to " + version + " started" };
 
   - id: gitlab-k8s-addon
     type: update
