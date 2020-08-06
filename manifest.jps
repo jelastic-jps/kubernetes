@@ -430,6 +430,7 @@ addons:
 
   - id: conf-k8s-addon
     type: update
+    permanent: true
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.17.4
     name: Cluster Configuration
     description: Configure remote API access and install complementary tools
@@ -482,6 +483,7 @@ addons:
 
   - id: upgrade-k8s-addon
     type: update
+    permanent: true
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.17.4
     name: Cluster Upgrade
     description: Upgrade Kubernetes cluster to a newer version
@@ -567,6 +569,7 @@ addons:
 
   - id: gitlab-k8s-addon
     type: update
+    permanent: true
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.17.4
     name: GitLab Integration
     description: Add Kubernetes GitLab integrations
@@ -815,6 +818,7 @@ addons:
 
   - id: certman-k8s-addon
     type: update
+    permanent: true
     requiredFeatures: extip
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.17.4
     name: Certificate Manager
