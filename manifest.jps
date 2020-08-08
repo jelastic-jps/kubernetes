@@ -592,7 +592,7 @@ addons:
         action: addon-gitlab-config
         loadingText: Configuration...
         confirmText: Are you sure?
-        successText: GitLab environment successfully configured!
+        successText: GitLab integration successfully configured!
       - caption: Remove Integration
         action: addon-gitlab-remove
         confirmText: Any existing Kubernetes and GitLab integration will be removed. Continue?
@@ -658,6 +658,14 @@ addons:
           echo "Sign-in CSRF token: ${csrf_token}"
           [ -n "${csrf_token}" ] || exit 1
           curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "user[login]=root&user[password]=${this.gitlab_pass}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/users/sign_in'
+      - cmd[${nodes.k8sm.master.id}]: |-
+          # Cluster
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters')
+          echo ${page_content} | perl -ne 'print "$1\n" if /data-qa-cluster-name="Kubernetes"[[:blank:]]href="\/admin\/clusters\/(.+?)"/' | sed -n 1p
+      - if ('${response.out}'):
+          return:
+            type: warning
+            message: GitLab instance already has active integration!
       - cmd[${nodes.k8sm.master.id}]: |-
           # Settings
           page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt '${this.gitlab_http_endpoint}/admin/application_settings/network')
