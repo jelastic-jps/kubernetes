@@ -75,10 +75,7 @@ onInstall:
   - setGlobals:
         default_success: |
              Enter [Kubernetes dashboard](${globals.dashboardUrl}) ${globals.default_api:} using the Access Token:
-
-             ```${globals.token}```
-             Press **Open in Browser** to view a default web page of your application.
-             To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation](https://docs.jelastic.com/custom-domains).
+             <pre style="height: 64px;overflow: auto;"><code style="white-space: normal;">${globals.token}</code></pre>
   - check-health
 
 onAfterScaleOut[cp]:
@@ -422,7 +419,8 @@ actions:
         message: ${globals.jaeger_success}
 
   check-health:
-      cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/check-install.sh -i=${settings.ingress-controller} -app=${settings.deploy} -m=${settings.monitoring:false} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger:false} -d=${env.domain}  &> /var/log/kubernetes/k8s-health-check.log || echo "*Warning! Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on master node and contact support.*"
+      cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/check-install.sh -i=${settings.ingress-controller} -app=${settings.deploy} -m=${settings.monitoring:false} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger:false} -d=${env.domain} &> /var/log/kubernetes/k8s-health-check.log ||
+         echo "> **Note:** Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on master node and contact support."
       setGlobals:
          check_message: ${response.out}
 
@@ -881,3 +879,6 @@ success: |
   ${globals.monitoring_success:}
   ${globals.jaeger_success:}
   ${globals.check_message:}
+
+  Press **Open in Browser** to view a default web page of your application.
+  To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation](https://docs.jelastic.com/custom-domains).
