@@ -2,7 +2,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: kubernetes-dashboard
-  namespace: kube-system
+  namespace: kubernetes-dashboard
   annotations:
     ingress.kubernetes.io/rewrite-target: /
     ingress.kubernetes.io/secure-backends: 'true'

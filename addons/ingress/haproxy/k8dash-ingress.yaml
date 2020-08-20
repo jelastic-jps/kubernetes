@@ -1,11 +1,10 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: kubernetes-dashboard
-  namespace: kubernetes-dashboard
+  name: kubernetes-k8dash
+  namespace: kube-system
   annotations:
     ingress.kubernetes.io/rewrite-target: /
-    ingress.kubernetes.io/secure-backends: 'true'
     kubernetes.io/ingress.class: haproxy
     ingress.kubernetes.io/ssl-redirect: 'false'
 spec:
@@ -14,5 +13,5 @@ spec:
       paths:
       - path: /kubernetes-dashboard
         backend:
-          serviceName: kubernetes-dashboard
-          servicePort: 443
+          serviceName: kubernetes-k8dash
+          servicePort: 80

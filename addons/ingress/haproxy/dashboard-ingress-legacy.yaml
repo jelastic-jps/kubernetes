@@ -2,11 +2,12 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: kubernetes-dashboard
-  namespace: kubernetes-dashboard
+  namespace: kube-system
   annotations:
-    kubernetes.io/ingress.class: traefik
-    ingress.kubernetes.io/secure-backends: "true"
-    traefik.frontend.rule.type: PathPrefixStrip
+    ingress.kubernetes.io/rewrite-target: /
+    ingress.kubernetes.io/secure-backends: 'true'
+    kubernetes.io/ingress.class: haproxy
+    ingress.kubernetes.io/ssl-redirect: 'false'
 spec:
   rules:
   - http:

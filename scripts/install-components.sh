@@ -102,13 +102,13 @@ fi
 	if [ -n "${DASHBOARD}" ] && [ -n "${INGRESS_NAME}" ]; then
 		echo "$(date): installing kubernetes-dashboard '${DASHBOARD}'";
 		case "${DASHBOARD}" in
-		version1)
+		general)
 			kubectl create -f "${BASE_URL}/addons/kubernetes-dashboard.yaml";
 			kubectl create -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress.yaml";
 		;;
-		version2)
-			kubectl apply -f "${BASE_URL}/addons/kubernetes-dashboard-beta.yaml";
-			kubectl apply -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress-beta.yaml";
+		k8dash)
+			kubectl apply -f "${BASE_URL}/addons/kubernetes-k8dash.yaml";
+			kubectl apply -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/k8dash-ingress.yaml";
 		;;
 		*)
 			echo "$(date): unknown kubernetes-dashboard version '${DASHBOARD}', skipped"

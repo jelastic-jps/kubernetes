@@ -111,10 +111,16 @@ actions:
         kubectl apply -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         wait-deployment.sh metrics-server kube-system 1 720
     - cmd[${nodes.k8sm.master.id}]: |-
-        kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
+        # can be removed for k8s-1.18+
+        kubectl get deployment kubernetes-dashboard -n kube-system && {
+         kubectl delete -f ${baseUrl}/addons/kubernetes-dashboard-legacy.yaml;
+         kubectl delete -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-legacy.yaml;
+         general_dashboard_upgrade="true"; } ||:
+        kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && general_dashboard_upgrade="true"
+        [ -n "${general_dashboard_upgrade}" ] && {
          kubectl delete ns kubernetes-dashboard;
-         for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard-beta.yaml && break; done;
-         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-beta.yaml; } ||:
+         for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
+         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment hello-kubernetes && {
          kubectl delete -f ${baseUrl}/addons/helloworld.yaml;
