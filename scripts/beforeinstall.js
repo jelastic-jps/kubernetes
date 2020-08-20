@@ -11,6 +11,7 @@ var resp = {
     tag: tag,
     scalingMode: "stateless",
     nodeGroup: "k8sm",
+    isRedeploySupport: false,
     addons: ["conf-k8s-addon", "upgrade-k8s-addon"],
     displayName: "Master",
     extip: false,
@@ -25,6 +26,7 @@ var resp = {
     scalingMode: "stateless",
     displayName: "Workers",
     cloudlets: 32,
+    isRedeploySupport: false,
     extip: ${settings.extip:false},
     env: {
       JELASTIC_EXPOSE: false
