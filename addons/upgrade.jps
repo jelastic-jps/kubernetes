@@ -16,21 +16,48 @@ description:
 
 onInstall:
     - upgrade-configuration
-    - upgrade-masters:
+    - upgrade-masters-cluster:
+        id: ${nodes.k8sm.master.id}
+        master: true
+        hostname: node${nodes.k8sm.master.id}-${env.domain}
+        version: ${settings.version}
+    - forEach(nodes.k8sm):
+        if (!${@i.ismaster}):
+          upgrade-masters-cluster:
+            id: ${@i.id}
+            master: false
+            hostname: node${@i.id}-${env.domain}
+            version: ${settings.version}
+    - upgrade-jps-manifest
+    - env.control.ApplyNodeGroupData [k8sm, cp]:
+        data:
+          isRedeploySupport: true
+    - upgrade-masters-redeploy:
         id: ${nodes.k8sm.master.id}
         master: true
         version: ${settings.version}
     - forEach(nodes.k8sm):
         if (!${@i.ismaster}):
-          upgrade-masters:
+          upgrade-masters-redeploy:
             id: ${@i.id}
             master: false
             version: ${settings.version}
+    - upgrade-masters-post:
+        id: ${nodes.k8sm.master.id}
+        master: true
+    - forEach(nodes.k8sm):
+        if (!${@i.ismaster}):
+          upgrade-masters-post:
+            id: ${@i.id}
+            master: false
     - forEach(nodes.cp):
         upgrade-workers:
           id: ${@i.id}
           hostname: node${@i.id}-${env.domain}
           version: ${settings.version}
+    - env.control.ApplyNodeGroupData [k8sm, cp]:
+        data:
+          isRedeploySupport: false
     - script: |
         var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.";
         if ("${settings.avail}") { message += "\n\n**Next version:** ${settings.avail}.  \nPress \"Upgrade\" button to start the upgrade process."; }
@@ -49,7 +76,6 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
         kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
-        kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
     - setGlobals:
         ingress-dir: ${response.out}
@@ -62,10 +88,9 @@ actions:
           kubectl -n kube-system wait --for=condition=Ready pod -l name=traefik-ingress-lb --timeout=-1s
           ;;
          xnginx)
-          kubectl -n ingress-nginx delete deployment nginx-ingress-controller
           kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
           kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
-          kubectl -n ingress-nginx wait --for=condition=Ready pod -l app.kubernetes.io/name=ingress-nginx --timeout=-1s
+          wait-deployment.sh nginx-ingress-controller ingress-nginx 1 720
           ;;
          xhaproxy)
           kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
@@ -123,32 +148,66 @@ actions:
           type: warning
           message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
 
-  upgrade-masters:
-    - env.control.RedeployContainers:
-        nodeId: ${this.id}
-        tag: ${this.version}
-        skipReinstall: true
+  upgrade-jps-manifest:
+    - script: |
+        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: "${env.appid}", search: {appstore: 1, app_id: "kubernetes"} });
+        resp = resp.response || resp;
+        if (resp.result != 0) return resp;
+
+        var app  = resp.apps[0];
+        if (app) {
+          var jps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get("${baseUrl}/manifest.jps")));
+
+          jps.type = "update";
+          delete jps.onBeforeInit;
+          delete jps.onBeforeInstall;
+          delete jps.onInstall;
+
+          return api.marketplace.jps.Install({ envName: '${env.name}', jps: jps, settings: app.settings.data, skipEmail: true });
+        }
+
+        return { result: com.hivext.api.Response.OBJECT_NOT_EXIST, error: "Kubernetes manifest is not found!"};
+
+  upgrade-masters-cluster:
     - cmd[${this.id}]: |-
-        wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /usr/local/sbin/wait-deployment.sh
-        chmod +x /usr/local/sbin/wait-deployment.sh
-        [ -f "/root/wait-deployment.sh" ] && {
-         rm -f /root/wait-deployment.sh;
-         ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
-        sleep 5
+        sleep 10
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        [ -f "/usr/local/sbin/k8sm-config" ] || {
+         wget -nv http://dot.jelastic.com/download/denis/k8sm-config -O /usr/local/sbin/k8sm-config;
+         chmod +x /usr/local/sbin/k8sm-config; }
+        /usr/local/sbin/k8sm-config -f
+        kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
+        yum update -y "http://spacewalk.jelastic.com/pub/${kubeadm_package}.rpm"
+        rpm -qi "${kubeadm_package}" || exit 1
+        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 1
     - if (${this.master}):
         - cmd[${this.id}]: |-
-            /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 1
-            /usr/bin/kubeadm upgrade apply ${this.version} || exit 1
+            /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 2
+            /usr/bin/kubeadm upgrade apply ${this.version} || exit 2
     - if (!${this.master}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 2
-    - upgrade-master-post: ${this.id}
+    - cmd[${this.id}]: |-
+        /usr/bin/kubectl uncordon ${this.hostname} || exit 3
 
-  upgrade-master-post:
-    - cmd[${this}]: |-
-        service kubelet restart
-        helm repo update
+  upgrade-masters-redeploy:
+    - cmd[${this.id}]: |-
+        sleep 10
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        wget -nv ${baseUrl}/configs/redeploy.conf -O /etc/jelastic/redeploy.conf
+    - env.control.RedeployContainers:
+        nodeId: ${this.id}
+        tag: ${this.version}
+    - cmd[${this.id}]: |-
+        systemctl restart systemd-journald.service
+        systemctl restart kubelet.service
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
+        sleep 5
+    - cmd[${this.id}]: |-
+        systemctl enable kubelet.service
+
+  upgrade-masters-post:
+    - cmd[${this.id}]: |-
         wget -qO- https://github.com/derailed/k9s/releases/download/v0.17.7/k9s_Linux_x86_64.tar.gz | tar xz -C /usr/bin k9s
         wget -qO- https://github.com/derailed/popeye/releases/download/v0.7.1/popeye_Linux_x86_64.tar.gz | tar xz -C /usr/bin popeye
         wget -nv https://github.com/wercker/stern/releases/download/1.11.0/stern_linux_amd64 -O /usr/bin/stern
@@ -160,24 +219,38 @@ actions:
         kubectl get daemonset weave-net -n kube-system && {
          wget -nv https://github.com/weaveworks/weave/releases/download/v2.5.2/weave -O /usr/bin/weave;
          chmod +x /usr/bin/weave; } ||:
+        [ -f "/usr/local/sbin/wait-deployment.sh" ] || {
+         wget -nv ${baseUrl}/scripts/wait-deployment.sh -O /usr/local/sbin/wait-deployment.sh;
+         chmod +x /usr/local/sbin/wait-deployment.sh; }
+        [ -f "/root/wait-deployment.sh" ] && {
+         rm -f /root/wait-deployment.sh;
+         ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
-        sleep 5
+        sleep 20
+        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
+    - cmd[${this.id}]: |-
+        kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
+        yum update -y "http://spacewalk.jelastic.com/pub/${kubeadm_package}.rpm"
+        rpm -qi "${kubeadm_package}" || exit 1
+        /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
+        wget -nv ${baseUrl}/configs/redeploy.conf -O /etc/jelastic/redeploy.conf
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
-        skipReinstall: true
     - cmd[${this.id}]: |-
-        /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
-        local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
-        [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
-        [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
-        service kubelet restart
+        cat /etc/sysconfig/network-scripts/route-venet0 | /usr/bin/grep -q '10.244.0.0/15' &> /dev/null
+        [ $? -eq 0 ] || {
+         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p');
+         [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}";
+         [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0; }
+        systemctl restart systemd-journald.service
+        systemctl restart kubelet.service
+        systemctl enable kubelet.service
     - cmd[${nodes.k8sm.master.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
-        while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break ; done
+        while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break; sleep 3; done
 
 success: "K8s upgrade complete"
