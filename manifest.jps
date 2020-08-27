@@ -74,6 +74,8 @@ onInstall:
 
   - setGlobals:
         default_success: |
+             **Cluster URL:** <${env.protocol}://${env.domain}>
+
              Enter [Kubernetes dashboard](${globals.dashboardUrl}) ${globals.default_api:} using the Access Token:
              <pre style="height: 64px;overflow: auto;"><code style="white-space: normal;">${globals.token}</code></pre>
   - check-health
