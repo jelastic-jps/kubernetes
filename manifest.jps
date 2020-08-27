@@ -10,7 +10,7 @@ categories:
   - apps/dev-and-admin-tools
 
 logo: /images/k8s-logo.png
-name: Kubernetes Cluster
+name: Kubernetes Cluster v1.17.4
 targetRegions:
   type: vz7
 
