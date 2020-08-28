@@ -168,6 +168,7 @@ actions:
           delete jps.onBeforeInit;
           delete jps.onBeforeInstall;
           delete jps.onInstall;
+          delete jps.success;
 
           return api.marketplace.jps.Install({ envName: '${env.name}', jps: jps, settings: app.settings.data, skipEmail: true });
         }
@@ -267,4 +268,6 @@ actions:
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
         while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break; sleep 3; done
 
-success: "K8s upgrade complete"
+success:
+  email: false
+  text: "K8s upgrade complete"
