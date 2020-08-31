@@ -698,31 +698,6 @@ addons:
       - set:
           gitlab_cluster_url: ${response.out}
       - cmd[${nodes.k8sm.master.id}]: |-
-          # Helm
-          sleep 5
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  "${this.gitlab_cluster_url}")
-          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
-          echo "Helm CSRF token: ${csrf_token}"
-          [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${this.gitlab_cluster_url}/applications/helm" || exit 5
-          wait-deployment.sh tiller-deploy gitlab-managed-apps 1 720
-      - cmd[${nodes.k8sm.master.id}]: |-
-          # Ingress
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${this.gitlab_cluster_url}")
-          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
-          echo "Ingress CSRF token: ${csrf_token}"
-          [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${this.gitlab_cluster_url}/applications/ingress" || exit 5
-          wait-deployment.sh ingress-nginx-ingress-controller gitlab-managed-apps 1 720
-      - cmd[${nodes.k8sm.master.id}]: |-
-          # Cert manager
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${this.gitlab_cluster_url}")
-          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
-          echo "Cert-manager CSRF token: ${csrf_token}"
-          [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "Content-Type: application/json" -H "X-CSRF-Token: ${csrf_token}" -d '{"email":"${user.email}"}' "${this.gitlab_cluster_url}/applications/cert_manager" || exit 5
-          wait-deployment.sh certmanager-cert-manager-webhook gitlab-managed-apps 1 720
-      - cmd[${nodes.k8sm.master.id}]: |-
           # Runner
           page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${this.gitlab_cluster_url}")
           csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
@@ -789,16 +764,7 @@ addons:
           [ -n "${csrf_token}" ] || exit 5
           curl -X DELETE -sk -b gitlab-jar.txt -c gitlab-jar.txt -H "X-CSRF-Token: ${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}/applications/runner'
       - cmd[${nodes.k8sm.master.id}]: |-
-          # Cert manager
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}')
-          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
-          echo "Remove cert-manager CSRF token: ${csrf_token}"
-          [ -n "${csrf_token}" ] || exit 5
-          curl -X DELETE -sk -b gitlab-jar.txt -c gitlab-jar.txt -H "X-CSRF-Token: ${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}/applications/cert_manager'
-      - cmd[${nodes.k8sm.master.id}]: |-
-          for deploy_name in "runner-gitlab-runner" "certmanager-cert-manager"; do
-            while true; do kubectl -n gitlab-managed-apps get deploy ${deploy_name} --no-headers && sleep 5 || break; done
-          done
+          while true; do kubectl -n gitlab-managed-apps get deploy runner-gitlab-runner --no-headers && sleep 5 || break; done
       - cmd[${nodes.k8sm.master.id}]: |-
           # Cluster
           sleep 10
@@ -809,12 +775,6 @@ addons:
           curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "_method=delete&no_cleanup=true&confirm_cluster_name_input=Kubernetes" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}'
       - cmd[${nodes.k8sm.master.id}]: |-
           sleep 10
-          kubectl get secrets/tiller-secret -n "gitlab-managed-apps" -o "jsonpath={.data['ca\.crt']}" | base64 -d > /var/lib/kubelet/worker-data/gitlab-tiller-ca.crt
-          kubectl get secrets/tiller-secret -n "gitlab-managed-apps" -o "jsonpath={.data['tls\.crt']}" | base64 -d > /var/lib/kubelet/worker-data/gitlab-tiller.crt
-          kubectl get secrets/tiller-secret -n "gitlab-managed-apps" -o "jsonpath={.data['tls\.key']}" | base64 -d > /var/lib/kubelet/worker-data/gitlab-tiller.key
-          for rel_name in "ingress" "certmanager" "runner"; do
-            helm delete --purge ${rel_name} --tls --tls-ca-cert /var/lib/kubelet/worker-data/gitlab-tiller-ca.crt --tls-cert /var/lib/kubelet/worker-data/gitlab-tiller.crt --tls-key /var/lib/kubelet/worker-data/gitlab-tiller.key --tiller-namespace gitlab-managed-apps
-          done
           rm -f /var/lib/kubelet/worker-data/gitlab-*
           kubectl delete ns gitlab-managed-apps
           kubectl delete -f ${baseUrl}/addons/gitlab/gitlab-service-account.yaml
