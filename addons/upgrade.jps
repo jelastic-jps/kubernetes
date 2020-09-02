@@ -177,8 +177,7 @@ actions:
 
   upgrade-masters-cluster:
     - cmd[${this.id}]: |-
-        sleep 10
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         [ -f "/usr/local/sbin/k8sm-config" ] || {
          # can be removed for k8s-1.18+
          wget -nv http://dot.jelastic.com/download/denis/k8sm-config -O /usr/local/sbin/k8sm-config;
@@ -200,10 +199,10 @@ actions:
 
   upgrade-masters-redeploy:
     - cmd[${this.id}]: |-
-        sleep 10
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
         wget -nv ${baseUrl}/configs/redeploy.conf -O /etc/jelastic/redeploy.conf
+        sleep 10
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
@@ -237,8 +236,8 @@ actions:
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
-        sleep 20
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
+        sleep 10
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
     - cmd[${this.id}]: |-
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
@@ -266,7 +265,7 @@ actions:
         systemctl enable kubelet.service
     - cmd[${nodes.k8sm.master.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
-        while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break; sleep 3; done
+        while true; do echo "$(kubectl get pods --field-selector=status.phase=Pending -n kube-system)" | grep -q Pending || break; sleep 3; done
 
 success:
   email: false
