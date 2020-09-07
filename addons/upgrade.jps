@@ -88,9 +88,10 @@ actions:
           kubectl -n kube-system wait --for=condition=Ready pod -l name=traefik-ingress-lb --timeout=-1s
           ;;
          xnginx)
+          kubectl -n ingress-nginx delete deployment nginx-ingress-controller
           kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
           kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
-          wait-deployment.sh nginx-ingress-controller ingress-nginx 1 720
+          kubectl -n ingress-nginx wait --for=condition=Ready pod -l app.kubernetes.io/name=ingress-nginx --timeout=-1s
           ;;
          xhaproxy)
           kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
@@ -162,6 +163,7 @@ actions:
           delete jps.onBeforeInit;
           delete jps.onBeforeInstall;
           delete jps.onInstall;
+          delete jps.success;
 
           return api.marketplace.jps.Install({ envName: '${env.name}', jps: jps, settings: app.settings.data, skipEmail: true });
         }
@@ -170,8 +172,7 @@ actions:
 
   upgrade-masters-cluster:
     - cmd[${this.id}]: |-
-        sleep 10
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         [ -f "/usr/local/sbin/k8sm-config" ] || {
          wget -nv http://dot.jelastic.com/download/denis/k8sm-config -O /usr/local/sbin/k8sm-config;
          chmod +x /usr/local/sbin/k8sm-config; }
@@ -192,17 +193,19 @@ actions:
 
   upgrade-masters-redeploy:
     - cmd[${this.id}]: |-
-        sleep 10
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         wget -nv ${baseUrl}/configs/redeploy.conf -O /etc/jelastic/redeploy.conf
+        sleep 10
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
     - cmd[${this.id}]: |-
+        rm -f /etc/machine-id
+        systemd-machine-id-setup
         systemctl restart systemd-journald.service
         systemctl restart kubelet.service
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break ; done
-        sleep 5
+        while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
+        sleep 10
     - cmd[${this.id}]: |-
         systemctl enable kubelet.service
 
@@ -225,11 +228,26 @@ actions:
         [ -f "/root/wait-deployment.sh" ] && {
          rm -f /root/wait-deployment.sh;
          ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
+    - if (${this.master}):
+        - cmd[${this.id}]: |-
+            wget https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get -O /usr/local/sbin/helm-install.sh
+            chmod +x /usr/local/sbin/helm-install.sh
+            /usr/local/sbin/helm-install.sh --version v2.16.3
+            helm init --upgrade --service-account tiller
+            helm repo update
+            wait-deployment.sh tiller-deploy kube-system 1 720
+    - if (!${this.master}):
+        - cmd[${this.id}]: |-
+            wget https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get -O /usr/local/sbin/helm-install.sh
+            chmod +x /usr/local/sbin/helm-install.sh
+            /usr/local/sbin/helm-install.sh --version v2.16.3
+            helm init --client-only
+            helm repo update
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
-        sleep 20
-        while true; do kubectl get nodes --no-headers | grep -qv '\sReady\s' || break; sleep 3; done
+        while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
+        sleep 10
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
     - cmd[${this.id}]: |-
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
@@ -241,6 +259,8 @@ actions:
         nodeId: ${this.id}
         tag: ${this.version}
     - cmd[${this.id}]: |-
+        rm -f /etc/machine-id
+        systemd-machine-id-setup
         cat /etc/sysconfig/network-scripts/route-venet0 | /usr/bin/grep -q '10.244.0.0/15' &> /dev/null
         [ $? -eq 0 ] || {
          local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p');
@@ -251,6 +271,8 @@ actions:
         systemctl enable kubelet.service
     - cmd[${nodes.k8sm.master.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
-        while true; do kubectl get pods --field-selector=status.phase=Pending -n kube-system | grep -q Pending || break; sleep 3; done
+        while true; do echo "$(kubectl get pods --field-selector=status.phase=Pending -n kube-system)" | grep -q Pending || break; sleep 3; done
 
-success: "K8s upgrade complete"
+success:
+  email: false
+  text: "K8s upgrade complete"
