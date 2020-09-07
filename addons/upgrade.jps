@@ -120,7 +120,6 @@ actions:
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
-        helm init --upgrade --service-account tiller
         helm repo update
         wait-deployment.sh tiller-deploy kube-system 1 720
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -227,6 +226,21 @@ actions:
         [ -f "/root/wait-deployment.sh" ] && {
          rm -f /root/wait-deployment.sh;
          ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
+    - if (${this.master}):
+        - cmd[${this.id}]: |-
+            wget https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get -O /usr/local/sbin/helm-install.sh
+            chmod +x /usr/local/sbin/helm-install.sh
+            /usr/local/sbin/helm-install.sh --version v2.16.3
+            helm init --upgrade --service-account tiller
+            helm repo update
+            wait-deployment.sh tiller-deploy kube-system 1 720
+    - if (!${this.master}):
+        - cmd[${this.id}]: |-
+            wget https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get -O /usr/local/sbin/helm-install.sh
+            chmod +x /usr/local/sbin/helm-install.sh
+            /usr/local/sbin/helm-install.sh --version v2.16.3
+            helm init --client-only
+            helm repo update
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-

@@ -235,7 +235,9 @@ actions:
 
   install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
-      curl -s https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
+      wget https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get -O /usr/local/sbin/helm-install.sh
+      chmod +x /usr/local/sbin/helm-install.sh
+      /usr/local/sbin/helm-install.sh --version v2.16.3
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
       helm init --upgrade --service-account tiller
@@ -244,7 +246,9 @@ actions:
 
   install-helm-slave:
     cmd[${this.id}]: |-
-      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
+      wget https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get -O /usr/local/sbin/helm-install.sh
+      chmod +x /usr/local/sbin/helm-install.sh
+      /usr/local/sbin/helm-install.sh --version v2.16.3
       helm init --client-only
       helm repo update
 
