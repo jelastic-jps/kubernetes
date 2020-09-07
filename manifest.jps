@@ -164,11 +164,13 @@ actions:
 
   install-helm:
     cmd[${nodes.k8sm.master.id}]: |-
-      curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash > /dev/null 2>&1
-      helm init --upgrade
-      helm repo update
+      wget https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get -O /usr/local/sbin/helm-install.sh
+      chmod +x /usr/local/sbin/helm-install.sh
+      /usr/local/sbin/helm-install.sh --version v2.16.3
       kubectl create serviceaccount --namespace kube-system tiller
       kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+      helm init --upgrade --service-account tiller
+      helm repo update
       kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
       while true; do kubectl get pods --field-selector=status.phase=Running -n kube-system | grep tiller && break ; done
       sleep 5
