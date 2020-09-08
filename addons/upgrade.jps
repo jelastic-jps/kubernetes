@@ -218,6 +218,8 @@ actions:
         systemctl enable kubelet.service
 
   upgrade-masters-post:
+    - cmd[${this.id}]: |-
+        while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
     - script: 'return { result : 0 };'
     - if (${this.master}):
         - cmd[${this.id}]: |-
