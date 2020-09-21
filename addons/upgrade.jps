@@ -28,7 +28,7 @@ onInstall:
             master: false
             hostname: node${@i.id}-${env.domain}
             version: ${settings.version}
-    - upgrade-jps-manifest
+    - upgrade-jps-manifests: kubernetes, conf-k8s-addon, upgrade-k8s-addon, gitlab-k8s-addon, certman-k8s-addon
     - env.control.ApplyNodeGroupData [k8sm, cp]:
         data:
           isRedeploySupport: true
@@ -154,26 +154,74 @@ actions:
           type: warning
           message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
 
-  upgrade-jps-manifest:
+  upgrade-jps-manifests:
     - script: |
-        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: "${env.appid}", search: {appstore: 1, app_id: "kubernetes"} });
+        function deepCopy(obj) { return toNative(new org.json.JSONObject(obj)); }
+        function applyIf(obj, config) { for (var prop in config) { if (typeof obj[prop] == "undefined" || obj[prop] == null) { obj[prop] = config[prop]; } } return obj; }
+
+        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: "${env.appid}", search: { appstore: 1, app_id: "${this}".split(/,\s*/) } });
+
         resp = resp.response || resp;
         if (resp.result != 0) return resp;
 
-        var app  = resp.apps[0];
-        if (app) {
-          var jps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get("${baseUrl}/manifest.jps")));
+        var apps = resp.apps, newJps, newAddons, isInstalled;
 
-          jps.type = "update";
-          delete jps.onBeforeInit;
-          delete jps.onBeforeInstall;
-          delete jps.onInstall;
-          delete jps.success;
+        try {
+            newJps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get("${baseUrl}/manifest.jps")));
 
-          return api.marketplace.jps.Install({ envName: '${env.name}', jps: jps, settings: app.settings.data, skipEmail: true });
+            newJps.type = "update";
+            delete newJps.onBeforeInit;
+            delete newJps.onBeforeInstall;
+            delete newJps.onInstall;
+
+            newAddons = {};
+
+            for (var i = 0, n = newJps.addons.length; i < n; i++ ) {
+                newAddons[newJps.addons[i].id] = deepCopy(newJps.addons[i]);
+            }
+        } catch (ex) {
+            return { result: com.hivext.api.Response.OBJECT_FORMAT_ERROR, error: "Kubernetes manifest is corrupted!", data: ex };
         }
 
-        return { result: com.hivext.api.Response.OBJECT_NOT_EXIST, error: "Kubernetes manifest is not found!"};
+        var batch = { alias : { m : "Development.Scripting.Eval" }, global : { appid: "appstore", session: session }, methods: [] };
+
+        for (var i = 0, n = apps.length; i < n; i ++) {
+            var app = apps[i], jps;
+
+            if (app.app_id == appIds[0]) {
+                jps = newJps;
+                isInstalled = true;
+            } else {
+                jps = newAddons[app.app_id];
+
+                if (jps) {
+                    var newGlobals = deepCopy(jps.globals || {});
+                    jps.globals = applyIf(newGlobals, deepCopy(newJps.globals));
+                    var newActions = deepCopy(jps.actions || {});
+                    jps.actions = applyIf(newActions, deepCopy(newJps.actions));
+                    delete jps.onInstall;
+                }
+            }
+
+            if (jps)
+                batch.methods.push({ m : { script: "Install", params: { envName: "${env.name}", jps: jps, settings: app.settings.data, skipEmail: true } } });            
+        }
+
+        if (!isInstalled)
+            return { result: com.hivext.api.Response.OBJECT_FORMAT_ERROR, error: "Kubernetes manifest is not found!", data: ex};        
+
+        if (batch.methods.length > 0) {
+            var batchResp = api.utils.batch.Call(appid, toJSON(batch), false);
+            if (batchResp.result != 0) return batchResp;
+            batchResp = batchResp.response;
+
+            for (var i = 0, n = batchResp.length; i < n; i++) {
+                resp = batchResp[i].response || batchResp[i];
+                if (resp.result != 0) return { result: resp.result, error: resp.error, responses: batchResp };
+            }
+        }
+
+        return { result: 0 };
 
   upgrade-masters-cluster:
     - cmd[${this.id}]: |-
