@@ -28,7 +28,9 @@ onInstall:
             master: false
             hostname: node${@i.id}-${env.domain}
             version: ${settings.version}
-    - upgrade-jps-manifests: kubernetes, conf-k8s-addon, upgrade-k8s-addon, gitlab-k8s-addon, certman-k8s-addon
+    - upgrade-jps-manifests: 
+        ids: [ kubernetes, conf-k8s-addon, upgrade-k8s-addon, gitlab-k8s-addon, certman-k8s-addon ]
+        version: ${settings.version}
     - env.control.ApplyNodeGroupData [k8sm, cp]:
         data:
           isRedeploySupport: true
@@ -159,8 +161,7 @@ actions:
         function deepCopy(obj) { return toNative(new org.json.JSONObject(obj)); }
         function applyIf(obj, config) { for (var prop in config) { if (typeof obj[prop] == "undefined" || obj[prop] == null) { obj[prop] = config[prop]; } } return obj; }
         
-        var appIds = "${this}".split(/,\s*/);
-        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: "${env.appid}", search: { appstore: 1, app_id: appIds } });
+        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: "${env.appid}", search: { appstore: 1, app_id: "${this.ids.join(,)}".split(",") } });
         resp = resp.response || resp;
         if (resp.result != 0) return resp;
 
@@ -184,8 +185,9 @@ actions:
 
         for (var i = 0, n = apps.length; i < n; i ++) {
             var app = apps[i], nodeGroup = "", jps;
-
-            if (app.app_id == appIds[0]) {
+            app.settings.data.version = "${this.version}";
+            
+            if (app.app_id == "${this.ids[0]}") {
                 jps = newJps;
                 isInstalled = true;
             } else {
