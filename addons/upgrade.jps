@@ -202,7 +202,7 @@ actions:
             }
 
             if (jps)
-                batch.methods.push({ m : { script: "Install", params: { envName: "${env.name}", jps: jps, settings: app.settings.data, skipEmail: true, nodeGroup: nodeGroup } } });            
+                batch.methods.push({ m : { script: "Install", params: { envName: "${env.name}", nodeGroup: nodeGroup, jps: jps, settings: app.settings.data, skipEmail: true, tracked: false } } });            
         }
 
         if (!isInstalled)
