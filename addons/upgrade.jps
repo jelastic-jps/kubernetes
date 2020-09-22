@@ -183,14 +183,15 @@ actions:
         var batch = { alias : { m : "Development.Scripting.Eval" }, global : { appid: "appstore", session: session }, methods: [] };
 
         for (var i = 0, n = apps.length; i < n; i ++) {
-            var app = apps[i], jps;
+            var app = apps[i], nodeGroup = "", jps;
 
             if (app.app_id == appIds[0]) {
                 jps = newJps;
                 isInstalled = true;
             } else {
                 jps = newAddons[app.app_id];
-
+                nodeGroup = "k8sm";
+                
                 if (jps) {
                     var newGlobals = deepCopy(jps.globals || {});
                     jps.globals = applyIf(newGlobals, deepCopy(newJps.globals));
@@ -201,7 +202,7 @@ actions:
             }
 
             if (jps)
-                batch.methods.push({ m : { script: "Install", params: { envName: "${env.name}", jps: jps, settings: app.settings.data, skipEmail: true } } });            
+                batch.methods.push({ m : { script: "Install", params: { envName: "${env.name}", jps: jps, settings: app.settings.data, skipEmail: true, nodeGroup: nodeGroup } } });            
         }
 
         if (!isInstalled)
