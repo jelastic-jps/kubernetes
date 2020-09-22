@@ -158,13 +158,13 @@ actions:
     - script: |
         function deepCopy(obj) { return toNative(new org.json.JSONObject(obj)); }
         function applyIf(obj, config) { for (var prop in config) { if (typeof obj[prop] == "undefined" || obj[prop] == null) { obj[prop] = config[prop]; } } return obj; }
-
-        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: "${env.appid}", search: { appstore: 1, app_id: "${this}".split(/,\s*/) } });
-
+        
+        var appIds = "${this}".split(/,\s*/);
+        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: "${env.appid}", search: { appstore: 1, app_id: appIds } });
         resp = resp.response || resp;
         if (resp.result != 0) return resp;
 
-        var apps = resp.apps, newJps, newAddons, isInstalled;
+        var apps = resp.apps, newAddons = {}, newJps, isInstalled;
 
         try {
             newJps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get("${baseUrl}/manifest.jps")));
@@ -172,13 +172,10 @@ actions:
             newJps.type = "update";
             delete newJps.onBeforeInit;
             delete newJps.onBeforeInstall;
-            delete newJps.onInstall;
+            delete newJps.onInstall;            
 
-            newAddons = {};
-
-            for (var i = 0, n = newJps.addons.length; i < n; i++ ) {
-                newAddons[newJps.addons[i].id] = deepCopy(newJps.addons[i]);
-            }
+            for (var i = 0, n = newJps.addons.length; i < n; i++ )
+                newAddons[newJps.addons[i].id] = deepCopy(newJps.addons[i]);            
         } catch (ex) {
             return { result: com.hivext.api.Response.OBJECT_FORMAT_ERROR, error: "Kubernetes manifest is corrupted!", data: ex };
         }
