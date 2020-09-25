@@ -230,11 +230,6 @@ actions:
   connect-workers:
     - cmd[${this}]: |-
         while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
-        local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p')
-        [ -n "${local_ip}" ] || exit 1
-        local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}"
-        /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0
-        sed -i "/^KUBELET_EXTRA_ARGS/ s/\"$/ --node-ip=${local_ip}\"/" /etc/sysconfig/kubelet
         systemctl daemon-reload > /dev/null 2>&1
         systemctl restart systemd-journald.service
         screen -d -m /usr/bin/bash -c '${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu 1>/var/log/kubeadm-join.log 2>/var/log/kubeadm-join-error.log'

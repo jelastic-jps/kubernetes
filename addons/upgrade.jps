@@ -253,11 +253,6 @@ actions:
         tag: ${this.version}
     - cmd[${this.id}]: |-
         init-instance.sh --type=worker --base-url=$(echo '${baseUrl}' | base64 -w 0)
-        cat /etc/sysconfig/network-scripts/route-venet0 | /usr/bin/grep -q '10.244.0.0/15' &> /dev/null
-        [ $? -eq 0 ] || {
-         local_ip=$(/usr/sbin/ip route get 1.2.3.4 | grep -v 'cache' | uniq | head -n 1 | sed -n 's/.* src \([^ ]*\).*/\1/p');
-         [ -n "${local_ip}" ] && local_ip_route="10.244.0.0/15 dev venet0 src ${local_ip}";
-         [ -n "${local_ip_route}" ] && /usr/sbin/ip route add ${local_ip_route} && echo "${local_ip_route}" >> /etc/sysconfig/network-scripts/route-venet0; }
         mkdir /var/lib/worker
         while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
         echo '${globals.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
