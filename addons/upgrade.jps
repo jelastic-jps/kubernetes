@@ -4,7 +4,7 @@ id: kubernetes-upgrade-to-1.17.4
 name: Kubernetes Upgrade to 1.17.4
 
 categories:
-- apps/dev-and-admin-tools
+  - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.17.4
@@ -15,56 +15,54 @@ description:
   short: Kubernetes Upgrade
 
 onInstall:
-    - upgrade-configuration
-    - upgrade-masters-cluster:
-        id: ${nodes.k8sm.master.id}
-        master: true
-        hostname: node${nodes.k8sm.master.id}-${env.domain}
-        version: ${settings.version}
-    - forEach(nodes.k8sm):
-        if (!${@i.ismaster}):
-          upgrade-masters-cluster:
-            id: ${@i.id}
-            master: false
-            hostname: node${@i.id}-${env.domain}
-            version: ${settings.version}
-    - upgrade-jps-manifests: 
-        ids: [ kubernetes, conf-k8s-addon, upgrade-k8s-addon, gitlab-k8s-addon, certman-k8s-addon ]
-        version: ${settings.version}
-    - env.control.ApplyNodeGroupData [k8sm, cp]:
-        data:
-          isRedeploySupport: true
-    - upgrade-masters-redeploy:
-        id: ${nodes.k8sm.master.id}
-        master: true
-        version: ${settings.version}
-    - forEach(nodes.k8sm):
-        if (!${@i.ismaster}):
-          upgrade-masters-redeploy:
-            id: ${@i.id}
-            master: false
-            version: ${settings.version}
-    - upgrade-masters-post:
-        id: ${nodes.k8sm.master.id}
-        master: true
-    - forEach(nodes.k8sm):
-        if (!${@i.ismaster}):
-          upgrade-masters-post:
-            id: ${@i.id}
-            master: false
-    - forEach(nodes.cp):
-        upgrade-workers:
+  - upgrade-configuration
+  - upgrade-masters-cluster:
+      id: ${nodes.k8sm.master.id}
+      master: true
+      hostname: node${nodes.k8sm.master.id}-${env.domain}
+      version: ${settings.version}
+  - forEach(nodes.k8sm):
+      if (!${@i.ismaster}):
+        upgrade-masters-cluster:
           id: ${@i.id}
+          master: false
           hostname: node${@i.id}-${env.domain}
           version: ${settings.version}
-    - env.control.ApplyNodeGroupData [k8sm, cp]:
-        data:
-          isRedeploySupport: false
-    - script: |
-        var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.";
-        if ("${settings.avail}") { message += "\n\n**Next version:** ${settings.avail}.  \nPress \"Upgrade\" button to start the upgrade process."; }
-        else { message += "\n\nNo other upgrades are available."; }
-        return {result:"info", message:message};
+  - upgrade-jps-manifests: ${settings.version}
+  - env.control.ApplyNodeGroupData [k8sm, cp]:
+      data:
+        isRedeploySupport: true
+  - upgrade-masters-redeploy:
+      id: ${nodes.k8sm.master.id}
+      master: true
+      version: ${settings.version}
+  - forEach(nodes.k8sm):
+      if (!${@i.ismaster}):
+        upgrade-masters-redeploy:
+          id: ${@i.id}
+          master: false
+          version: ${settings.version}
+  - upgrade-masters-post:
+      id: ${nodes.k8sm.master.id}
+      master: true
+  - forEach(nodes.k8sm):
+      if (!${@i.ismaster}):
+        upgrade-masters-post:
+          id: ${@i.id}
+          master: false
+  - forEach(nodes.cp):
+      upgrade-workers:
+        id: ${@i.id}
+        hostname: node${@i.id}-${env.domain}
+        version: ${settings.version}
+  - env.control.ApplyNodeGroupData [k8sm, cp]:
+      data:
+        isRedeploySupport: false
+  - script: |
+      var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.";
+      if ("${settings.avail}") { message += "\n\n**Next version:** ${settings.avail}.  \nPress \"Upgrade\" button to start the upgrade process."; }
+      else { message += "\n\nNo other upgrades are available."; }
+      return {result:"info", message:message};
 
 actions:
   upgrade-configuration:
@@ -81,28 +79,28 @@ actions:
     - setGlobals:
         ingress-dir: ${response.out}
     - cmd[${nodes.k8sm.master.id}]: |-
-       case "x${globals.ingress-dir}" in
-         xtraefik)
-          kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
-          kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
-          kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
-          kubectl -n kube-system wait --for=condition=Ready pod -l name=traefik-ingress-lb --timeout=-1s
-          ;;
-         xnginx)
-          kubectl -n ingress-nginx delete deployment nginx-ingress-controller
-          kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
-          kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
-          kubectl -n ingress-nginx wait --for=condition=Ready pod -l app.kubernetes.io/name=ingress-nginx --timeout=-1s
-          ;;
-         xhaproxy)
-          kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
-          wait-deployment.sh ingress-default-backend ingress-controller 1 720
-          ;;
-         *)
-          echo "Invalid ingress controller used!"
-          exit 1
-          ;;
-         esac
+        case "x${globals.ingress-dir}" in
+          xtraefik)
+           kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
+           kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
+           kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
+           kubectl -n kube-system wait --for=condition=Ready pod -l name=traefik-ingress-lb --timeout=-1s
+           ;;
+          xnginx)
+           kubectl -n ingress-nginx delete deployment nginx-ingress-controller
+           kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
+           kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
+           kubectl -n ingress-nginx wait --for=condition=Ready pod -l app.kubernetes.io/name=ingress-nginx --timeout=-1s
+           ;;
+          xhaproxy)
+           kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
+           wait-deployment.sh ingress-default-backend ingress-controller 1 720
+           ;;
+          *)
+           echo "Invalid ingress controller used!"
+           exit 1
+           ;;
+          esac
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl apply -f ${baseUrl}/addons/metrics-server/aggregated-metrics-reader.yaml
         kubectl apply -f ${baseUrl}/addons/metrics-server/auth-delegator.yaml
@@ -157,58 +155,70 @@ actions:
           message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
 
   upgrade-jps-manifests:
-    - script: |
+    - version: ${this}
+      manifestUrl: ${baseUrl}/manifest.jps
+      envName: ${env.name}
+      envAppid: ${env.appid}            
+      script: |
         function deepCopy(obj) { return toNative(new org.json.JSONObject(obj)); }
         function applyIf(obj, config) { for (var prop in config) { if (typeof obj[prop] == "undefined" || obj[prop] == null) { obj[prop] = config[prop]; } } return obj; }
-        
-        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: "${env.appid}", search: { appstore: 1, app_id: "${this.ids.join(,)}".split(",") } });
+        function schedule(jps, batch, settings) { batch.methods.push({ m : { script: "Install", params: { envName: envName, nodeGroup: nodeGroup, jps: jps, settings: settings || {}, skipEmail: true, tracked: false } } }); }
+        function buildAddon(jps, parent, install) {
+            var globals = deepCopy(jps.globals || {}); jps.globals = applyIf(globals, deepCopy(parent.globals));
+            var actions = deepCopy(jps.actions || {}); jps.actions = applyIf(actions, deepCopy(parent.actions));
+            if (!install) delete jps.onInstall;
+            return jps;
+        }
+
+        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: envAppid, search: { appstore: 1, app_id: [ "kubernetes", { like: "%-k8s-addon" } ] } });
         resp = resp.response || resp;
         if (resp.result != 0) return resp;
 
-        var apps = resp.apps, newAddons = {}, newJps, isInstalled;
+        var apps = resp.apps, newAddons = {}, oldAddons = {}, newJps, isInstalled;
 
         try {
-            newJps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get("${baseUrl}/manifest.jps")));
+            newJps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(manifestUrl)));
 
             newJps.type = "update";
             delete newJps.onBeforeInit;
             delete newJps.onBeforeInstall;
-            delete newJps.onInstall;            
+            delete newJps.onInstall;
 
             for (var i = 0, n = newJps.addons.length; i < n; i++ )
-                newAddons[newJps.addons[i].id] = deepCopy(newJps.addons[i]);            
+                newAddons[newJps.addons[i].id] = deepCopy(newJps.addons[i]);
         } catch (ex) {
             return { result: com.hivext.api.Response.OBJECT_FORMAT_ERROR, error: "Kubernetes manifest is corrupted!", data: ex };
         }
 
         var batch = { alias : { m : "Development.Scripting.Eval" }, global : { appid: "appstore", session: session }, methods: [] };
 
-        for (var i = 0, n = apps.length; i < n; i ++) {
+        for (var i = 0, n = apps.length; i < n; i++) {
             var app = apps[i], nodeGroup = "", jps;
-            app.settings.data.version = "${this.version}";
-            
-            if (app.app_id == "${this.ids[0]}") {
+            app.settings.data.version = version;
+
+            if (app.app_id == "kubernetes") {
                 jps = newJps;
                 isInstalled = true;
             } else {
                 jps = newAddons[app.app_id];
                 nodeGroup = "k8sm";
-                
+
                 if (jps) {
-                    var newGlobals = deepCopy(jps.globals || {});
-                    jps.globals = applyIf(newGlobals, deepCopy(newJps.globals));
-                    var newActions = deepCopy(jps.actions || {});
-                    jps.actions = applyIf(newActions, deepCopy(newJps.actions));
-                    delete jps.onInstall;
+                    jps = buildAddon(jps, newJps);
+                    delete newAddons[app.app_id];
+                } else {
+                    resp = api.marketplace.jps.Uninstall(appid, session, app.uniqueName);
+                    if (resp.result != 0) return resp;
                 }
             }
 
-            if (jps)
-                batch.methods.push({ m : { script: "Install", params: { envName: "${env.name}", nodeGroup: nodeGroup, jps: jps, settings: app.settings.data, skipEmail: true, tracked: false } } });            
+            if (jps) schedule(jps, batch, app.settings.data);
         }
 
+        for (var appId in newAddons) schedule(buildAddon(newAddons[appId], newJps, true), batch);
+
         if (!isInstalled)
-            return { result: com.hivext.api.Response.OBJECT_FORMAT_ERROR, error: "Kubernetes manifest is not found!", data: ex};        
+            return { result: com.hivext.api.Response.OBJECT_FORMAT_ERROR, error: "Kubernetes manifest is not found!", data: ex};
 
         if (batch.methods.length > 0) {
             var batchResp = api.utils.batch.Call(appid, toJSON(batch), false);
@@ -222,7 +232,7 @@ actions:
         }
 
         return { result: 0 };
-
+        
   upgrade-masters-cluster:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
