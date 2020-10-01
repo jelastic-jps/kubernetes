@@ -174,7 +174,7 @@ actions:
         resp = resp.response || resp;
         if (resp.result != 0) return resp;
 
-        var apps = resp.apps, newAddons = {}, oldAddons = {}, newJps, isInstalled;
+        var apps = resp.apps, newAddons = {}, newJps, isInstalled;
 
         try {
             newJps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(manifestUrl)));
