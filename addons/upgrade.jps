@@ -158,7 +158,7 @@ actions:
     - version: ${this}
       manifestUrl: ${baseUrl}/manifest.jps
       envName: ${env.name}
-      envAppid: ${env.appid}            
+      envAppid: ${env.appid}
       script: |
         function deepCopy(obj) { return toNative(new org.json.JSONObject(obj)); }
         function applyIf(obj, config) { for (var prop in config) { if (typeof obj[prop] == "undefined" || obj[prop] == null) { obj[prop] = config[prop]; } } return obj; }
@@ -232,7 +232,7 @@ actions:
         }
 
         return { result: 0 };
-        
+
   upgrade-masters-cluster:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
