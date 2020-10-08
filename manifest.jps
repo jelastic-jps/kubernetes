@@ -441,10 +441,10 @@ addons:
           caption: Remote API access is enabled
         - type: string
           name: ingress-controller
-          inputType: hidden
-        - type: checkbox
+          inputType: hidden        
+        - type: string
           name: storage
-          hidden: true
+          inputType: hidden
 
     buttons:
       - caption: Remote API
