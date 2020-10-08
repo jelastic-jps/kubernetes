@@ -441,7 +441,7 @@ addons:
         - type: string
           name: ingress-controller
           inputType: hidden
-        - type: checkbox
+        - type: string
           name: storage
           inputType: hidden
 
