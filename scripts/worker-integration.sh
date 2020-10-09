@@ -3,7 +3,7 @@
 
 if [ ! -d "/var/lib/worker" ]; then
 
-	echo -e "Worker integration directory doesn't exist"
+	echo "$(date): worker integration directory doesn't exist"
 	exit 1
 fi
 

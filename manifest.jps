@@ -441,7 +441,7 @@ addons:
           caption: Remote API access is enabled
         - type: string
           name: ingress-controller
-          inputType: hidden        
+          inputType: hidden
         - type: string
           name: storage
           inputType: hidden
@@ -776,7 +776,7 @@ addons:
       - cmd[cp]: |-
           wget -nv ${baseUrl}/addons/gitlab/gitlab-integration-remove.sh -O /var/lib/worker/gitlab-integration-remove.sh
           chmod +x /var/lib/worker/gitlab-integration-remove.sh
-          /var/lib/worker/gitlab-integration-remove.sh
+          /var/lib/worker/gitlab-integration-remove.sh | tee -a /var/log/kubernetes/k8s-worker-integration.log
           rm -f /var/lib/worker/gitlab-*
 
   - id: certman-k8s-addon
