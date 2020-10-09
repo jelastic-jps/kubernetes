@@ -2,7 +2,7 @@
 # set -x
 
 # core
-WEAVE="2.6.2"
+WEAVE="2.7.0"
 
 HELP="Usage:
 	$0 --type=(master|worker) --base-url=<base64-encoded-url>

@@ -136,7 +136,7 @@ items:
                   value: '1'
                 - name: IPALLOC_RANGE
                   value: 10.239.0.0/16
-              image: 'devbeta/weave-kube:2.6.2'
+              image: 'devbeta/weave-kube:2.7.0'
               readinessProbe:
                 httpGet:
                   host: 127.0.0.1
@@ -170,7 +170,7 @@ items:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
-              image: 'devbeta/weave-npc:2.6.2'
+              image: 'devbeta/weave-npc:2.7.0'
 #npc-args
               resources:
                 requests:
