@@ -500,6 +500,12 @@ addons:
                 type: warning
                 message: Cluster components have different Kubernetes version! Please contact support before upgrade.
       - script: |
+          function compareVersions(a, b) {
+            a = a.replace("v", "").split("."); b = b.replace("v", "").split(".");
+            for (var i = 0, l = Math.max(a.length, b.length), x, y; i < l; i++) {x = parseInt(a[i], 10) || 0; y = parseInt(b[i], 10) || 0; if (x != y) return x > y ? 1 : -1 }
+            return 0;
+          }
+
           var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
           var resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
           if (resp.result != 0) return resp;
@@ -507,27 +513,30 @@ addons:
           var image = resp.node.name;
           resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
           if (resp.result != 0) return resp;
+
           var tags = resp.object;
-          tags.sort();
+          tags.sort(compareVersions);
           var upgrades = [];
           var check_version = version;
           var major_version = version.substr(0, version.lastIndexOf("."));
+
           for (var i = 0; i < tags.length; i++) {
             var major_tag = tags[i].substr(0, tags[i].lastIndexOf("."));
-            if (major_tag > major_version) {
+            if (compareVersions(major_tag, major_version) > 0) {
               check_version = tags[i];
               upgrades.push(check_version);
               major_version = major_tag;
             }
           }
+
           var last_version = tags.pop();
-          if (last_version > check_version) upgrades.push(last_version);
+          if (compareVersions(last_version, check_version) > 0) upgrades.push(last_version);
           var message = "Current version " + version + " is the latest. No upgrades are available.";
           if (upgrades.length) {
-            upgrades.sort();
+            upgrades.sort(compareVersions);
             var next = upgrades.shift();
             var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
-            var url = baseUrl+"/"+next+"/addons/upgrade.jps"
+            var url = baseUrl+"/"+next+"/addons/upgrade.jps";
             var huc = new java.net.URL(url).openConnection();
             huc.setRequestMethod("HEAD");
             var code = huc.getResponseCode();
