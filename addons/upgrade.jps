@@ -189,6 +189,7 @@ actions:
 
         for (var i = 0, n = apps.length; i < n; i++) {
             var app = apps[i], nodeGroup = "", jps;
+            app.settings.data = app.settings.data || {};
             app.settings.data.version = version;
 
             if (app.app_id == "kubernetes") {
