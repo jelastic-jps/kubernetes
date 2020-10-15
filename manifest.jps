@@ -48,7 +48,6 @@ onInstall:
       - setGlobals:
           ingress-dir: traefik
       - install-traefik
-  - configure-remote-api
   - install-components
   - install-helm-master
   - forEach(node:nodes.k8sm):
@@ -204,13 +203,6 @@ actions:
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
 
-  configure-remote-api:
-      - if (${settings.api:true}):
-          - cmd[${nodes.k8sm.master.id}]: |-
-              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
-          - setGlobals:
-              default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
-
   install-components:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl create -f ${baseUrl}/addons/metrics-server/aggregated-metrics-reader.yaml
@@ -285,11 +277,23 @@ actions:
       chattr -i -a /root/.bash_*
     user: root
 
+  init-manifest-globals:
+  - cmd[${nodes.k8sm.master.id}]: |-
+      /usr/bin/kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
+      /usr/bin/kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
+      /usr/bin/kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
+      /usr/bin/kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
+  - setGlobals:
+      ingress-dir: ${response.out}
+
   setup-remote-api:
   - log: '${this}'
   - cmd[${nodes.k8sm.master.id}]: |-
       action=$([ "${this}" == "true" ] && echo "apply" || echo "delete")
       kubectl $action -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
+  - if (${settings.api:true}):
+      - setGlobals:
+          default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
   install-monitoring:
   - if (!${settings.storage:false}):
@@ -300,6 +304,7 @@ actions:
   - setGlobals:
       monitoring_installed: ${response.out}
   - if ('${globals.monitoring_installed}' == 'false'):
+      - init-manifest-globals
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo update
           helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
@@ -361,6 +366,7 @@ actions:
   - setGlobals:
       jaeger_installed: ${response.out}
   - if ('${globals.jaeger_installed}' == 'false'):
+      - init-manifest-globals
       - cmd[${nodes.k8sm.master.id}]: |-
           kubectl create namespace observability
           kubectl create -f ${baseUrl}/addons/jaeger/jaegertracing.io_jaegers_crd.yaml
@@ -462,6 +468,7 @@ addons:
     actions:
       addon-remote-api:
       - log: '${this.api}'
+      - init-manifest-globals
       - setup-remote-api: ${this.api}
       - if (${this.api:true}):
           - setGlobals:
