@@ -126,11 +126,13 @@ actions:
         wait-deployment.sh tiller-deploy kube-system 1 720
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get secret --namespace kubernetes-monitoring monitoring-grafana && {
+         grafana_base64=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}');
          helm upgrade monitoring-prometheus stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus ;
          wait-deployment.sh monitoring-prometheus-server kubernetes-monitoring 1 720;
          helm fetch stable/grafana --untar;
          helm upgrade monitoring-grafana --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/. ;
          wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720;
+         kubectl patch secret --namespace kubernetes-monitoring monitoring-grafana -p="{\"data\":{\"admin-password\":\"${grafana_base64}\"}}";
          kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml;
          kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml;
          kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; } ||:
