@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.17.12
-name: Kubernetes Upgrade to 1.17.12
+id: kubernetes-upgrade-to-1.18.10
+name: Kubernetes Upgrade to 1.18.10
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.17.12
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.10
 logo: /images/k8s-logo.png
 
 description:
@@ -111,13 +111,7 @@ actions:
         kubectl apply -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
         wait-deployment.sh metrics-server kube-system 1 720
     - cmd[${nodes.k8sm.master.id}]: |-
-        # can be removed for k8s-1.18+
-        kubectl get deployment kubernetes-dashboard -n kube-system && {
-         kubectl delete -f ${baseUrl}/addons/kubernetes-dashboard-legacy.yaml;
-         kubectl delete -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress-legacy.yaml;
-         general_dashboard_upgrade="true"; } ||:
-        kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && general_dashboard_upgrade="true"
-        [ -n "${general_dashboard_upgrade}" ] && {
+        kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
          kubectl delete ns kubernetes-dashboard;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
@@ -237,10 +231,6 @@ actions:
   upgrade-masters-cluster:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
-        [ -f "/usr/local/sbin/k8sm-config" ] || {
-         # can be removed for k8s-1.18+
-         wget -nv http://dot.jelastic.com/download/denis/k8sm-config -O /usr/local/sbin/k8sm-config;
-         chmod +x /usr/local/sbin/k8sm-config; }
         /usr/local/sbin/k8sm-config -f
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
         yum update -y "http://spacewalk.jelastic.com/pub/${kubeadm_package}.rpm"
@@ -268,8 +258,7 @@ actions:
     - cmd[${this.id}]: |-
         init-instance.sh --type=master --base-url=$(echo '${baseUrl}' | base64 -w 0)
         [ -f "/root/wait-deployment.sh" ] && {
-         rm -f /root/wait-deployment.sh;
-         ln -s /usr/local/sbin/wait-deployment.sh /root/wait-deployment.sh; } ||:
+         rm -f /root/wait-deployment.sh; } ||:
         while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
     - cmd[${this.id}]: |-
         systemctl restart systemd-journald.service
