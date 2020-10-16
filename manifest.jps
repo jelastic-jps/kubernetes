@@ -88,7 +88,7 @@ onAfterScaleOut[cp]:
   - set:
       nodes: ${event.response.nodes.join(id,)}
   - prepare-worker-integration
-  - cmd [${this.nodes}]: init-instance.sh --type=worker --base-url=$(echo '${baseUrl}' | base64 -w 0)
+  - cmd [${this.nodes}]: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
   - connect-workers: ${this.nodes}
   - apply-worker-integration: ${this.nodes}
 
@@ -142,9 +142,9 @@ actions:
   prepare-instances:
     execCmd:
       - nodeGroup: k8sm
-        commands: init-instance.sh --type=master --base-url=$(echo '${baseUrl}' | base64 -w 0)
+        commands: init-instance.sh --type=master --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
       - nodeGroup: cp
-        commands: init-instance.sh --type=worker --base-url=$(echo '${baseUrl}' | base64 -w 0)
+        commands: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
     user: root
     sync: false
 
