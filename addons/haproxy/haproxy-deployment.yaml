@@ -199,7 +199,7 @@ spec:
       serviceAccountName: ingress-controller
       containers:
       - name: haproxy-ingress
-        image: quay.io/jcmoraisjr/haproxy-ingress:v0.7.5
+        image: quay.io/jcmoraisjr/haproxy-ingress:v0.9.1
         args:
         - --default-backend-service=$(POD_NAMESPACE)/ingress-default-backend
         - --configmap=$(POD_NAMESPACE)/haproxy-ingress

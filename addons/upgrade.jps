@@ -88,9 +88,9 @@ actions:
            ;;
           xnginx)
            kubectl -n ingress-nginx delete deployment nginx-ingress-controller
-           kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
-           kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
-           kubectl -n ingress-nginx wait --for=condition=Ready pod -l app.kubernetes.io/name=ingress-nginx --timeout=-1s
+           kubectl delete ns ingress-nginx
+           for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/nginx/nginx-deployment.yaml && break; done;
+           kubectl -n ingress-nginx wait --for=condition=Ready pod -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller --timeout=-1s
            ;;
           xhaproxy)
            kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
