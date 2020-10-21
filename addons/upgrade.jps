@@ -156,7 +156,7 @@ actions:
       envName: ${env.name}
       envAppid: ${env.appid}
       script: |
-        function deepCopy(obj) { return toNative(new org.json.JSONObject(obj)); }
+        function deepCopy(obj) { return toNative(new org.json.JSONObject(String(obj))); }
         function applyIf(obj, config) { for (var prop in config) { if (typeof obj[prop] == "undefined" || obj[prop] == null) { obj[prop] = config[prop]; } } return obj; }
         function schedule(jps, batch, settings) { batch.methods.push({ m : { script: "Install", params: { envName: envName, nodeGroup: nodeGroup, jps: jps, settings: settings || {}, skipEmail: true, tracked: false } } }); }
         function buildAddon(jps, parent, install) {
