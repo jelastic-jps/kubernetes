@@ -276,9 +276,6 @@ actions:
     - if ('${settings.deploy}' == 'cmd'):
         cmd[${nodes.k8sm.master.id}]: |-
           ${settings.cmd}
-          if [ '${settings.ingress-controller}' == "Nginx" ]; then kubectl delete ingress/open-liberty-traefik ingress/open-liberty-haproxy || true; fi
-          if [ '${settings.ingress-controller}' == "HAProxy" ]; then kubectl delete ingress/open-liberty-traefik ingress/open-liberty-nginx || true; fi
-          if [ '${settings.ingress-controller}' == "Traefik" ]; then kubectl delete ingress/open-liberty-haproxy ingress/open-liberty-nginx || true; fi
     - if ('${settings.deploy}' == 'yml'):
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
