@@ -236,12 +236,11 @@ actions:
       kubectl apply -f ${baseUrl}/addons/weave-pack.yaml
 
   install-nginx:
-     cmd[${nodes.k8sm.master.id}]: |-
-      kubectl apply -f ${baseUrl}/addons/nginx/mandatory.yaml
-      kubectl apply -f ${baseUrl}/addons/nginx/cloud-generic.yaml
+    cmd[${nodes.k8sm.master.id}]: |-
+      kubectl apply -f ${baseUrl}/addons/nginx/nginx-deployment.yaml
 
   install-haproxy:
-     cmd[${nodes.k8sm.master.id}]: |-
+    cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
 
   install-traefik:
