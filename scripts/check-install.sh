@@ -4,14 +4,15 @@ HELP="
 Usage:
  $0 [options]
 Options:
- -d=,   --domain=            environment domain without protocol (e.g. mykube.jelastic.com), mandatory, no defaults
- -i=,   --ingress=           ingress controller name, possible values: Nginx, HAProxy, Traefik
- -m=,   --monitoring=        check monitoring tools, defaults to false
- -r=,   --remote-api=        check remote api availability, defaults to false
- -s=,   --storage=           check NFS storage, defaults to false
- -j=,   --jaeger=            check Jaeger installation
- -app=, --sample-app         check either default Hello World app (cc) or a custom syntax [cmd], defaults to cc
- -h,    --help               show this help
+ -d=,    --domain=            environment domain without protocol (e.g. mykube.jelastic.com), mandatory, no defaults
+ -i=,    --ingress=           ingress controller name, possible values: Nginx, HAProxy, Traefik
+ -m=,    --monitoring=        check monitoring tools, defaults to false
+ -r=,    --remote-api=        check remote api availability, defaults to false
+ -s=,    --storage=           check NFS storage, defaults to false
+ -j=,    --jaeger=            check Jaeger installation
+ -app=,  --sample-app         check either default Hello World app (cc) or a custom syntax [cmd], defaults to cc
+ -dash=, --dashboard          check Dashboard type installed, defaults to general
+ -h,     --help               show this help
 "
 
 if [[ $# -eq 0 ]] ; then
@@ -40,6 +41,10 @@ do
       ;;
     -app=*| --sample-app=*)
       SAMPLE_APP=$(echo "${key#*=}")
+      shift
+    ;;
+    -dash=*| --dashboard=*)
+      DASHBOARD_NAME=$(echo "${key#*=}")
       shift
     ;;
     -s=*| --storage=*)
@@ -77,12 +82,27 @@ K8S_LOG_DIR="/var/log/kubernetes"
 K8S_EVENTS_LOG_FILE="/var/log/kubernetes/k8s-events.log"
 METRICS_SERVER_NAME="metrics-server"
 CNI_PLUGIN_NAME="weave-net"
-DASHBOARD_DEPLOYMENT_NAME="kubernetes-dashboard"
 NGINX_DEPLOYMENT_NAME="nginx-ingress-controller"
 
 DEFAULT_SAMPLE_APP="cc"
 SAMPLE_APP=${SAMPLE_APP:-${DEFAULT_SAMPLE_APP}}
 
+DEFAULT_DASHBOARD_NAME="general"
+DASHBOARD_NAME=${DASHBOARD_NAME:-${DEFAULT_DASHBOARD_NAME}}
+
+case "${DASHBOARD_NAME}" in
+    general)
+      DASHBOARD_DEPLOYMENT_NAME="kubernetes-dashboard"
+      DASHBOARD_NAMESPACE="kubernetes-dashboard"
+      ;;
+    k8dash)
+      DASHBOARD_DEPLOYMENT_NAME="kubernetes-k8dash"
+      DASHBOARD_NAMESPACE="kube-system"
+      ;;
+    *)
+      echo "Invalid dashboard name ${DASHBOARD_NAME} specified!"
+      exit 1
+esac
 
 DEFAULT_MONITORING="false"
 MONITORING=${MONITORING:-${DEFAULT_MONITORING}}
@@ -184,24 +204,24 @@ checkMetricsServer() {
 
 checkDashboard() {
   printInfo "Checking Kubernetes Dashboard deployment"
-  readyReplicas=$(kubectl get deployment/"${DASHBOARD_DEPLOYMENT_NAME}" -o=jsonpath='{.status.readyReplicas}' -n ${DASHBOARD_DEPLOYMENT_NAME} 2> /dev/null)
+  readyReplicas=$(kubectl get deployment/"${DASHBOARD_DEPLOYMENT_NAME}" -o=jsonpath='{.status.readyReplicas}' -n ${DASHBOARD_NAMESPACE} 2> /dev/null)
   if [ $? -ne 0 ]; then
     printError "Deployment ${DASHBOARD_DEPLOYMENT_NAME} not found"
     WITH_ERROR="true"
   else
     if [ -z "${readyReplicas}" ] || [ "${readyReplicas}" -lt 1 ]; then
       printInfo "${DASHBOARD_DEPLOYMENT_NAME} deployment isn't scaled to 1. Checking pods logs..."
-      KUBERNETES_DASHBOARD_POD=$(kubectl get pods -l=k8s-app="${DASHBOARD_DEPLOYMENT_NAME}" -n kubernetes-dashboard --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
+      KUBERNETES_DASHBOARD_POD=$(kubectl get pods -l=k8s-app="${DASHBOARD_DEPLOYMENT_NAME}" -n ${DASHBOARD_NAMESPACE} --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
       if [ -z $KUBERNETES_DASHBOARD_POD ]; then
         printError "Failed to find ${DASHBOARD_DEPLOYMENT_NAME} pod"
         printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
         WITH_ERROR="true"
       else
-        DASHBOARD_POD_STATUS=$(kubectl get pods/$KUBERNETES_DASHBOARD_POD -n kubernetes-dashboard -o jsonpath="{.status.phase}" 2> /dev/null)
+        DASHBOARD_POD_STATUS=$(kubectl get pods/$KUBERNETES_DASHBOARD_POD -n ${DASHBOARD_NAMESPACE} -o jsonpath="{.status.phase}" 2> /dev/null)
         printError "Kubernetes Dashboard is not running. Current status is: ${DASHBOARD_POD_STATUS}"
         printError "${DASHBOARD_DEPLOYMENT_NAME} pod logs are available in ${K8S_LOG_DIR}/kubernetes-dashboard.log"
         printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
-        kubectl logs ${KUBERNETES_DASHBOARD_POD} -n ${DASHBOARD_DEPLOYMENT_NAME} > ${K8S_LOG_DIR}/kubernetes-dashboard.log
+        kubectl logs ${KUBERNETES_DASHBOARD_POD} -n ${DASHBOARD_NAMESPACE} > ${K8S_LOG_DIR}/kubernetes-dashboard.log
         WITH_ERROR="true"
       fi
     else
