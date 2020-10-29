@@ -82,7 +82,6 @@ K8S_LOG_DIR="/var/log/kubernetes"
 K8S_EVENTS_LOG_FILE="/var/log/kubernetes/k8s-events.log"
 METRICS_SERVER_NAME="metrics-server"
 CNI_PLUGIN_NAME="weave-net"
-NGINX_DEPLOYMENT_NAME="nginx-ingress-controller"
 
 DEFAULT_SAMPLE_APP="cc"
 SAMPLE_APP=${SAMPLE_APP:-${DEFAULT_SAMPLE_APP}}
@@ -268,7 +267,7 @@ fi
 
 checkNginxIngressController() {
 
-  PODNAME=$(kubectl get pods -l=app.kubernetes.io/name=ingress-nginx -n ingress-nginx -o jsonpath='{.items[0].metadata.name}' 2> /dev/null)
+  PODNAME=$(kubectl get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -n ingress-nginx -o jsonpath='{.items[0].metadata.name}' 2> /dev/null)
   if [ $? -ne 0 ]; then
     DAEMON_SET=$(kubectl get ds/nginx-ingress-controller -n ingress-nginx > /dev/null)
     if [ $? -ne 0 ]; then
@@ -282,7 +281,7 @@ checkNginxIngressController() {
     fi
     printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
   else
-    NGINX_POD_STATUS=$(kubectl get pods -l=app.kubernetes.io/name=ingress-nginx -n ingress-nginx -o jsonpath='{.items[0].status.phase}' 2> /dev/null)
+    NGINX_POD_STATUS=$(kubectl get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -n ingress-nginx -o jsonpath='{.items[0].status.phase}' 2> /dev/null)
     if [ "$NGINX_POD_STATUS" != "Running" ]; then
       printError "NGINX pod isn't in running state. Current status: $NGINX_POD_STATUS"
       kubectl logs ${PODNAME} -n ingress-nginx > ${K8S_LOG_DIR}/${PODNAME}.log
@@ -380,7 +379,7 @@ checkSampleApp() {
 fi
   printInfo "Checking ${APP}"
   if [ "${SAMPLE_APP}" == "cmd" ]; then
-    kubectl get ingresses | grep open-liberty > /dev/null
+    kubectl -n open-liberty get ingresses | grep open-liberty > /dev/null
     if [ $? -ne 0 ]; then
       printWarning "Default OpenLiberty ingress not found. Perhaps CMD command was modified"
       printWarning "Disregard this warning if you modified a custom cmd command"

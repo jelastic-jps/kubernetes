@@ -90,7 +90,7 @@ actions:
            kubectl -n ingress-nginx delete deployment nginx-ingress-controller
            kubectl delete ns ingress-nginx
            for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/nginx/nginx-deployment.yaml && break; done;
-           kubectl -n ingress-nginx wait --for=condition=Ready pod -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller --timeout=-1s
+           while [[ $(kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do sleep 5; done
            ;;
           xhaproxy)
            kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
