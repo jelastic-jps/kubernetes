@@ -380,7 +380,7 @@ checkSampleApp() {
 fi
   printInfo "Checking ${APP}"
   if [ "${SAMPLE_APP}" == "cmd" ]; then
-    kubectl get ingresses | grep open-liberty > /dev/null
+    kubectl -n open-liberty get ingresses | grep open-liberty > /dev/null
     if [ $? -ne 0 ]; then
       printWarning "Default OpenLiberty ingress not found. Perhaps CMD command was modified"
       printWarning "Disregard this warning if you modified a custom cmd command"
