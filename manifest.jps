@@ -238,7 +238,7 @@ actions:
   install-nginx:
     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/nginx/nginx-deployment.yaml
-      while true; do kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller | grep  -E "Running" && break; done
+      while true; do kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller | grep  -E "Running" && break || sleep 1s; done
 
   install-haproxy:
     cmd[${nodes.k8sm.master.id}]: |-
