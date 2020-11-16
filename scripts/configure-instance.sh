@@ -55,7 +55,7 @@ fi
 if [ "x${COMPTYPE}" = "xmaster" ]; then
 	SCRIPT_SET=( 'install-components' 'master-postconfig' 'helm-install' 'helm-components' 'check-install' )
 else
-	SCRIPT_SET=( 'worker-integration' )
+	SCRIPT_SET=( 'helm-install' 'worker-integration' )
 fi
 
 BASE_URL="$(echo ${BASE_URL} | base64 --decode)"

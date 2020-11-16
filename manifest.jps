@@ -255,14 +255,10 @@ actions:
 
   install-helm-master:
     cmd[${nodes.k8sm.master.id}]: |-
-      kubectl create serviceaccount --namespace kube-system tiller
-      kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-      while true; do kubectl get serviceaccount tiller --namespace kube-system &> /dev/null && break; sleep 5; done
-      /usr/local/sbin/helm-install.sh --type=master | tee /var/log/kubernetes/k8s-helm-master.log
-      wait-deployment.sh tiller-deploy kube-system 1 720
+      /usr/local/sbin/helm-install.sh | tee /var/log/kubernetes/k8s-helm-master.log
 
   install-helm-slave:
-    cmd[${this}]: screen -d -m /usr/bin/bash -c '/usr/local/sbin/helm-install.sh --type=slave &>/var/log/kubernetes/k8s-helm-slave.log'
+    cmd[${this}]: screen -d -m /usr/bin/bash -c '/usr/local/sbin/helm-install.sh &>/var/log/kubernetes/k8s-helm-slave.log'
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
@@ -318,13 +314,13 @@ actions:
       - init-manifest-globals
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo update
-          helm install --name monitoring-prometheus --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
+          helm install monitoring-prometheus --create-namespace --namespace kubernetes-monitoring stable/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
           wait-deployment.sh monitoring-prometheus-server kubernetes-monitoring 1 720
           helm fetch stable/grafana --untar
           for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
             wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
           done
-          helm install --name monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
+          helm install monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
           wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720
           grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
           [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
@@ -827,9 +823,9 @@ addons:
           kubectl create namespace cert-manager
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
-          helm install --name cert-manager --namespace cert-manager --version v${certmanager_version} jetstack/cert-manager --set installCRDs=true
+          helm install cert-manager --create-namespace --namespace cert-manager --version v${certmanager_version} jetstack/cert-manager --set installCRDs=true
           wait-deployment.sh cert-manager cert-manager 1 720
-          helm install stable/nginx-ingress --name cert-manager-nginx --namespace cert-manager --set controller.ingressClass=nginx-cert
+          helm install cert-manager-nginx stable/nginx-ingress --namespace cert-manager --set controller.ingressClass=nginx-cert
           wait-deployment.sh cert-manager-nginx-nginx-ingress-controller cert-manager 1 720
           for issuer_name in "le-production-issuer" "le-staging-issuer"; do
             wget "${baseUrl}/addons/cert-manager/${issuer_name}.yaml" -O "/tmp/${issuer_name}.yaml"

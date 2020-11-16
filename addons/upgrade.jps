@@ -273,7 +273,7 @@ actions:
     - script: 'return { result : 0 };'
     - if (${this.master}):
         - cmd[${this.id}]: |-
-            /usr/local/sbin/helm-install.sh --type=master | tee -a /var/log/kubernetes/k8s-helm-master.log
+            /usr/local/sbin/helm-install.sh --migrate=master | tee -a /var/log/kubernetes/k8s-helm-master.log
             wait-deployment.sh tiller-deploy kube-system 1 720
             /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --metallb=true
         - cmd[${this.id}]: |-
@@ -282,7 +282,7 @@ actions:
         - setGlobals:
             worker_integration: ${response.out}
     - if (!${this.master}):
-        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --type=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
+        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --migrate=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
         /usr/local/sbin/master-postconfig.sh
 

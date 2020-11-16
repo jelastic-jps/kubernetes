@@ -56,14 +56,14 @@ fi
 
 	if [ "x${NFS_INSTALL}" = "xtrue" ] && [ -n "${NFS_SERVER}" ]; then
 		echo "$(date): installing nfs-client-provisioner"
-		helm install stable/nfs-client-provisioner --name nfs-client-provisioner --set nfs.server=${NFS_SERVER} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
+		helm install nfs-client-provisioner stable/nfs-client-provisioner --set nfs.server=${NFS_SERVER} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
 	else
 		echo "$(date): nfs-client-provisioner installation skipped"
 	fi
 
 	if [ "x${PROBLEM_DETECT}" = "xtrue" ]; then
 		echo "$(date): installing node-problem-detector"
-		helm install stable/node-problem-detector --name node-problem-detector;
+		helm install node-problem-detector stable/node-problem-detector;
 	else
 		echo "$(date): node-problem-detector installation skipped"
 	fi

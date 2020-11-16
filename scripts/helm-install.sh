@@ -2,23 +2,19 @@
 # set -x
 
 # core
-HELM_VERSION="v2.16.12"
+HELM_VERSION="v3.4.1"
 
 HELP="Usage:
-	$0 --type=(master|slave)
+	$0 --migrate=(master|slave)
 Options:
-	--type=       instance type (values: master, slave)
+	--migrate=    migration instance type (values: master, slave)
 	-h, --help    show this help
 "
-if [[ $# -eq 0 ]] ; then
-	echo -e "${HELP}"
-	exit 2
-fi
 
 for key in "$@"; do
 	case $key in
-	--type=*)
-		COMPTYPE="${key#*=}"
+	--migrate=*)
+		MIG_TYPE="${key#*=}"
 		shift
 		;;
 	-h | --help)
@@ -33,27 +29,58 @@ for key in "$@"; do
 	esac
 done
 
-if [ -z "${COMPTYPE}" ]; then
-	echo -e "Missing mandatory argument --type=(master|slave)"
+if [ -n "${MIG_TYPE}" ] && [ "x${MIG_TYPE}" != "xmaster" ] && [ "x${MIG_TYPE}" != "xslave" ]; then
+	echo -e "Invalid argument value --migrate=${MIG_TYPE}"
 	exit 1
 fi
-if [ "x${COMPTYPE}" != "xmaster" ] && [ "x${COMPTYPE}" != "xslave" ]; then
-	echo -e "Invalid argument value --type=${COMPTYPE}"
-	exit 1
-fi
+
+migrate_config() {
+
+	/usr/bin/yum install -y git
+	helm plugin install https://github.com/helm/helm-2to3
+	helm 2to3 move config --skip-confirmation
+	helm repo remove "local"
+}
+
+migrate_full() {
+
+	migrate_config
+
+	HELM_RELEASES=$(/usr/local/bin/helm_old list -aq)
+	while IFS= read -r release; do
+		helm 2to3 convert ${release};
+	done <<< "${HELM_RELEASES}"
+
+	helm list
+	helm 2to3 cleanup --skip-confirmation
+}
+
+mv -f /usr/local/bin/helm /usr/local/bin/helm_old
 
 export DESIRED_VERSION="$HELM_VERSION"
 
-curl -s https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
+curl -s https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 while true; do [ -f /usr/local/bin/helm ] && break; sleep 2; done
 
-if [ "x${COMPTYPE}" = "xmaster" ]; then
-	echo "$(date): installing Helm master instance";
-	helm init --upgrade --service-account tiller;
-else
-	echo "$(date): installing Helm slave instance";
-	helm init --client-only;
+if [ -n "${MIG_TYPE}" ]; then
+
+	if /usr/local/bin/helm_old version | grep -q 'SemVer:\"v2\.'; then
+		case "x${MIG_TYPE}" in
+		xmaster)
+			migrate_full
+			;;
+		xslave)
+			migrate_config
+			;;
+		esac
+	else
+		echo "Helm 2 wasn't detected, migration skipped"
+	fi
 fi
+
+rm -f /usr/local/bin/helm_old
+
+helm repo add "stable" "https://charts.helm.sh/stable" --force-update
 
 helm repo update
 
