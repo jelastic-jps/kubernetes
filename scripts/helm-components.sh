@@ -2,7 +2,7 @@
 # set -x
 
 HELP="Usage:
-	$0 --base-url=<base64-encoded-url> --nfs-provisioner=(true|false) --nfs-server=<ip-address> --metallb=(true|false) --problem-detector=(true|false)
+	$0 --base-url=<base64-encoded-url> --nfs-provisioner=(true|false) --nfs-server=<ip-address> --problem-detector=(true|false)
 Options:
 	--base-url=           manifest baseUrl
 	--nfs-provisioner=    install nfs-client-provisioner

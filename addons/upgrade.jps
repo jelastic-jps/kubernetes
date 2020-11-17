@@ -90,7 +90,7 @@ actions:
            kubectl -n ingress-nginx delete deployment nginx-ingress-controller
            kubectl delete ns ingress-nginx
            for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/nginx/nginx-deployment.yaml && break; done;
-           while [[ $(kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do sleep 5; done
+           while [[ $(kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
            ;;
           xhaproxy)
            kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
@@ -122,7 +122,6 @@ actions:
          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         helm repo update
-        wait-deployment.sh tiller-deploy kube-system 1 720
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get secret --namespace kubernetes-monitoring monitoring-grafana && {
          grafana_base64=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}');
@@ -232,6 +231,14 @@ actions:
 
   upgrade-masters-cluster:
     - cmd[${this.id}]: |-
+        # can be dropped for k8s-1.19+
+        wget -nv ${baseUrl}/scripts/helm-install.sh -O /usr/local/sbin/helm-install.sh
+        chmod +x /usr/local/sbin/helm-install.sh
+    - if (${this.master}):
+        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --migrate=master | tee -a /var/log/kubernetes/k8s-helm-master.log
+    - if (!${this.master}):
+        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --migrate=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
+    - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/local/sbin/k8sm-config -f
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
@@ -273,8 +280,7 @@ actions:
     - script: 'return { result : 0 };'
     - if (${this.master}):
         - cmd[${this.id}]: |-
-            /usr/local/sbin/helm-install.sh --migrate=master | tee -a /var/log/kubernetes/k8s-helm-master.log
-            wait-deployment.sh tiller-deploy kube-system 1 720
+            /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-master.log
             /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --metallb=true
         - cmd[${this.id}]: |-
             [ -d "/var/lib/kubelet/worker-data" ] || mkdir -p /var/lib/kubelet/worker-data
@@ -282,7 +288,7 @@ actions:
         - setGlobals:
             worker_integration: ${response.out}
     - if (!${this.master}):
-        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --migrate=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
+        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
         /usr/local/sbin/master-postconfig.sh
 

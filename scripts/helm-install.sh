@@ -55,7 +55,7 @@ migrate_full() {
 	helm 2to3 cleanup --skip-confirmation
 }
 
-mv -f /usr/local/bin/helm /usr/local/bin/helm_old
+mv -f /usr/local/bin/helm /usr/local/bin/helm_old &>/dev/null
 
 export DESIRED_VERSION="$HELM_VERSION"
 

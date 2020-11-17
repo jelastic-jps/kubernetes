@@ -277,7 +277,7 @@ actions:
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
   helm-components:
-    cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=${settings.storage:false} --nfs-server=${nodes.storage.master.address:NULL}  --problem-detector=true
+    cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=${settings.storage:false} --nfs-server=${nodes.storage.master.address:NULL} --problem-detector=true
 
   removeWorker:
     cmd[${nodes.k8sm.master.id}]: |-
