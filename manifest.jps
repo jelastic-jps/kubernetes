@@ -552,6 +552,7 @@ addons:
       execUpgrade:
         jps: ${this.jps}
         envName: ${env.envName}
+        current: ${this.current}
         version: ${this.next}
         avail: ${this.avail}
         upgradeScript: |
@@ -568,7 +569,7 @@ addons:
           resp = jelastic.utils.scheduler.AddTask({ script: scriptName, trigger: "once_delay:1000", description: "Upgrade Kubernetes", params: { envName: envName, jps: jps, version: version, avail: avail } });
           if (resp.result != 0) return resp;
           java.lang.Thread.sleep(3000);
-          return { type: "info", message: "Kubernetes Cluster upgrade to " + version + " started" };
+          return { type: "info", message: "Kubernetes Cluster " + current + " upgrade to " + version + " has been started.\n\nThe update process may take several minutes depending on number of nodes and deployed services." };
 
   - id: gitlab-k8s-addon
     type: update
