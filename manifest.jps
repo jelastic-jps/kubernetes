@@ -102,6 +102,11 @@ onBeforeClone:
     type: warning
     message: Kubernetes Cluster cloning is not supported yet!
 
+onBeforeMigrate:
+  stopEvent:
+    type: warning
+    message: Kubernetes Cluster migration is not supported!
+
 onBeforeAttachExtIp[k8sm]: block-ip-assignment
 
 onBeforeAttachExtIp[mbl]: block-ip-assignment
