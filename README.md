@@ -30,6 +30,8 @@ Jelastic PaaS functionality allows to provision the clusters across multiple clo
 ## Demo and Trial 
 For testing in public cloud please sign up at one of [Jelastic Cloud Providers with Kubernetes support](https://jelastic.cloud/?featuresSupport=K8S). For testing in multi-cloud, hybrid cloud or private cloud setups please [send us request](https://jelastic.com/managed-auto-scalable-clusters-for-business/).
 
+> **Note:** The installation of this clustered solution is available only for billing customers
+
 ## Managed Hosting Business 
 
 Interested in building managed hosting business offering Kubernetes services? Automated installation, scaling, updates and integrated billing simplify the management and support of customers requiring little to no involvement. [Start offering managed Kubernetes hosting](https://jelastic.com/managed-auto-scalable-clusters-for-business/) to your users with minimal investment of time and efforts.
