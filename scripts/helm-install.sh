@@ -59,8 +59,10 @@ mv -f /usr/local/bin/helm /usr/local/bin/helm_old &>/dev/null
 
 export DESIRED_VERSION="$HELM_VERSION"
 
-curl -s https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-while true; do [ -f /usr/local/bin/helm ] && break; sleep 2; done
+while true; do
+	curl -s https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash;
+	[ -f /usr/local/bin/helm ] && break; sleep 5;
+done
 
 if [ -n "${MIG_TYPE}" ]; then
 

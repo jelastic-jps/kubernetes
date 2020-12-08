@@ -121,9 +121,14 @@ actions:
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
+        # can be dropped for k8s-1.19+
+        wget -nv ${baseUrl}/scripts/helm-install.sh -O /usr/local/sbin/helm-install.sh
+        chmod +x /usr/local/sbin/helm-install.sh
+        /usr/local/sbin/helm-install.sh --migrate=master | tee -a /var/log/kubernetes/k8s-helm-master.log
         helm repo add deliveryhero https://charts.deliveryhero.io/
         helm repo update
-        helm upgrade node-problem-detector deliveryhero/node-problem-detector
+        helm list | grep -q "node-problem-detector" && npd_action="upgrade" || npd_action="install"
+        helm ${npd_action} node-problem-detector deliveryhero/node-problem-detector
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get secret --namespace kubernetes-monitoring monitoring-grafana && {
          grafana_base64=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}');
@@ -235,14 +240,12 @@ actions:
         return { result: 0 };
 
   upgrade-masters-cluster:
-    - cmd[${this.id}]: |-
-        # can be dropped for k8s-1.19+
-        wget -nv ${baseUrl}/scripts/helm-install.sh -O /usr/local/sbin/helm-install.sh
-        chmod +x /usr/local/sbin/helm-install.sh
-    - if (${this.master}):
-        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --migrate=master | tee -a /var/log/kubernetes/k8s-helm-master.log
+    # can be dropped for k8s-1.19+
     - if (!${this.master}):
-        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh --migrate=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
+        - cmd[${this.id}]: |-
+            wget -nv ${baseUrl}/scripts/helm-install.sh -O /usr/local/sbin/helm-install.sh
+            chmod +x /usr/local/sbin/helm-install.sh
+            /usr/local/sbin/helm-install.sh --migrate=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/local/sbin/k8sm-config -f
@@ -295,6 +298,9 @@ actions:
     - if (!${this.master}):
         - cmd[${this.id}]: /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
+        mkdir -p $HOME/.kube
+        /usr/bin/cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
+        chown root:root $HOME/.kube/config
         /usr/local/sbin/master-postconfig.sh
 
   upgrade-workers:

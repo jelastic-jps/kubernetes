@@ -63,7 +63,9 @@ fi
 
 	if [ "x${PROBLEM_DETECT}" = "xtrue" ]; then
 		echo "$(date): installing node-problem-detector"
-		helm install node-problem-detector stable/node-problem-detector;
+		helm repo add deliveryhero https://charts.deliveryhero.io/;
+		helm repo update;
+		helm install node-problem-detector deliveryhero/node-problem-detector;
 	else
 		echo "$(date): node-problem-detector installation skipped"
 	fi

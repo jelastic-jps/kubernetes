@@ -210,7 +210,7 @@ actions:
   configure-master:
     cmd[${this}]: |-
       mkdir -p $HOME/.kube
-      cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+      /usr/bin/cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
       chown root:root $HOME/.kube/config
       systemctl enable kubelet.service
       /usr/local/sbin/k8sm-config -f
