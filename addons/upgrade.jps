@@ -15,6 +15,7 @@ description:
   short: Kubernetes Upgrade
 
 onInstall:
+  - check-cluster-status
   - upgrade-configuration
   - upgrade-masters-cluster:
       id: ${nodes.k8sm.master.id}
@@ -65,6 +66,21 @@ onInstall:
       return {result:"info", message:message};
 
 actions:
+  check-cluster-status:
+    - cmd[${nodes.k8sm.master.id}]: |-
+        for cluster_comp in "Kubernetes master" "KubeDNS"; do
+         echo "$(TERM=dumb kubectl cluster-info 2>/dev/null)" | grep -q "${cluster_comp} is running" || echo "false";
+        done
+    - setGlobals:
+        k8s_cluster_status: ${response.out}
+    - cmd[${nodes.k8sm.master.id}]: echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' && echo "false" || echo "true"
+    - setGlobals:
+        k8s_node_status: ${response.out}
+    - if ('${globals.k8s_cluster_status}' || '${globals.k8s_node_status}' == 'false'):
+        return:
+          type: warning
+          message: Kubernetes Cluster current state is not suitable for upgrade. Please check its operability, API and nodes status.
+
   upgrade-configuration:
     - cmd[${nodes.k8sm.master.id}]: |-
         systemctl daemon-reload > /dev/null 2>&1
