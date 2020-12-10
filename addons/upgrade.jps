@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.18.10
-name: Kubernetes Upgrade to 1.18.10
+id: kubernetes-upgrade-to-1.18.14
+name: Kubernetes Upgrade to 1.18.14
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.10
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.14
 logo: /images/k8s-logo.png
 
 description:
@@ -137,10 +137,6 @@ actions:
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
-        # can be dropped for k8s-1.19+
-        wget -nv ${baseUrl}/scripts/helm-install.sh -O /usr/local/sbin/helm-install.sh
-        chmod +x /usr/local/sbin/helm-install.sh
-        /usr/local/sbin/helm-install.sh --migrate=master | tee -a /var/log/kubernetes/k8s-helm-master.log
         helm repo add deliveryhero https://charts.deliveryhero.io/
         helm repo update
         helm list | grep -q "node-problem-detector" && npd_action="upgrade" || npd_action="install"
@@ -256,12 +252,6 @@ actions:
         return { result: 0 };
 
   upgrade-masters-cluster:
-    # can be dropped for k8s-1.19+
-    - if (!${this.master}):
-        - cmd[${this.id}]: |-
-            wget -nv ${baseUrl}/scripts/helm-install.sh -O /usr/local/sbin/helm-install.sh
-            chmod +x /usr/local/sbin/helm-install.sh
-            /usr/local/sbin/helm-install.sh --migrate=slave | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/local/sbin/k8sm-config -f
