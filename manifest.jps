@@ -26,7 +26,7 @@ globals:
     dashboardUrl:  https://${env.domain}/kubernetes-dashboard/
 
 onInstall:
-  - block-masters-scaling
+  - set-scaling-parameters
   - prepare-instances
   - init-main-master
   - init-slave-masters
@@ -132,12 +132,20 @@ onAfterAttachExtIp[cp]:
       - cmd[cp]: systemctl restart kube-config.service
 
 actions:
-  block-masters-scaling:
-    env.control.ApplyNodeGroupData[k8sm]:
-      data:
-        validation:
-          minCount: ${nodes.k8sm.length}
-          maxCount: ${nodes.k8sm.length}
+  set-scaling-parameters:
+    - env.control.ApplyNodeGroupData[k8sm]:
+        data:
+          validation:
+            minCount: ${nodes.k8sm.length}
+            maxCount: ${nodes.k8sm.length}
+    - script: |
+        return { result: 0, min: ${nodes.storage.length} > 1 ? 3: 1, max: ${nodes.storage.length} > 1 ? 7: 1 }
+    - env.control.ApplyNodeGroupData[storage]:
+        data:
+          validation:
+            countIncrement: 2
+            minCount: ${response.min}
+            maxCount: ${response.max}
 
   block-ip-assignment:
     stopEvent:

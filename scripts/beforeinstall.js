@@ -1,5 +1,6 @@
 var k8smCount = '${settings.topo}' == '0-dev' ? 1 : 3,
-    workerCount = k8smCount > 1 ? 2 : 1, 
+    workerCount = k8smCount > 1 ? 2 : 1,
+    storageCount = k8smCount > 1 ? 3 : 1,
     tag = "${settings.version}";
 var resp = {
   result: 0,
@@ -50,11 +51,12 @@ if (k8smCount > 1) {
 if ('${settings.storage}' == 'true') {
   var path = "/data";
   resp.nodes.push({
-    count: 1,
+    count: storageCount,
     nodeType: "storage",
     cloudlets: 8,
     displayName: "Storage",
     nodeGroup: "storage",
+    cluster: storageCount > 1,
     volumes: [
       path
     ]
@@ -69,6 +71,9 @@ if ('${settings.storage}' == 'true') {
         sourcePath: path,
         sourceNodeGroup: "storage"
     };
+    if (storageCount > 1) {
+        n.volumeMounts[path].sourceAddressType = "NODE_GROUP";
+    }
   }
 }
 return resp;
