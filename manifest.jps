@@ -845,6 +845,46 @@ addons:
           sed -i 's/example\.com/${settings.certificate_domain}/g' /tmp/helloworld-ingress.yaml
           kubectl apply -f /tmp/helloworld-ingress.yaml
 
+  - id: rancher-k8s-addon
+    type: update
+    permanent: true
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.14
+    name: Rancher Installer
+    description: Rancher Management Platform
+    logo: /images/k8s-rancher.png
+
+    buttons:
+      - caption: Rancher Platform Installation
+        action: addon-rancher
+        loadingText: Installing...
+        confirmText: Do you want to install Rancher Management Platform?
+
+    actions:
+      addon-rancher:
+      - cmd[${nodes.k8sm.master.id}]: kubectl -n cattle-system get deployment rancher &>/dev/null && echo "true" || echo "false"
+      - if ('${response.out}' == 'true'):
+          return:
+            type: warning
+            message: Rancher Management Platform is already installed!
+      - init-manifest-globals
+      - if ('${globals.ingress-dir}' != 'nginx'):
+          return:
+            type: warning
+            message: Rancher Platforms requires nginx Ingress Controller! The current Ingress Controller is '${globals.ingress-dir}'
+      - cmd[${nodes.k8sm.master.id}]: |-
+          helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
+          helm repo update
+          kubectl delete -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml
+          kubectl delete -f ${baseUrl}/addons/helloworld.yaml
+          helm install rancher rancher-stable/rancher --create-namespace --namespace cattle-system --set tls=external
+          kubectl -n cattle-system rollout status deploy/rancher
+      - return:
+          type: success
+          message: |
+            Rancher Platform has been successfully installed!
+
+            Enter [Rancher dashboard](${env.url}), and set your login credentials there.
+
 success: |
   ${globals.default_success:}
   ${globals.monitoring_success:}

@@ -36,6 +36,8 @@ metadata:
   name: ingress-nginx-controller
   namespace: ingress-nginx
 data:
+  use-forwarded-headers: "true"
+  compute-full-forwarded-for: "true"
 ---
 # Source: ingress-nginx/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
