@@ -807,13 +807,15 @@ addons:
     requiredFeatures: extip
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.14
     name: Certificate Manager
-    description: Kubernetes SSL Certificate Manager
+    description: |
+      Kubernetes SSL Certificate Manager allows to bind custom domain names
+      to the cluster and manage SSL certificates
     logo: /images/k8s-cert.png
     settings:
       fields:
         - type: displayfield
           hideLabel: true
-          markup: This addon provides Kubernetes Certificate Manager installation. Please specify external DNS name to assign the certificate with.
+          markup: Please specify an external DNS name to assign the certificate with.
         - type: displayfield
           hideLabel: true
         - type: string
@@ -824,7 +826,6 @@ addons:
         settings: certman
         action: addon-certman-config
         loadingText: Installing...
-        confirmText: Do you want to install Certificate Manager?
         successText: Certficate manager has been successfully installed!
 
     actions:
@@ -892,6 +893,50 @@ addons:
             Rancher Platform has been successfully installed!
 
             Enter [Rancher dashboard](${env.url}), and set your login credentials there.
+
+  - id: regcreds-k8s-addon
+    type: update
+    permanent: true
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.14
+    name: DockerHub Registry Credentials
+    description: |
+      Propagate an authorized DockerHub registry user credentials to Kubernetes imagePullSecret records automatically
+    logo: /images/k8s-regcreds.png
+    settings:
+      fields:
+        - type: displayfield
+          hideLabel: true
+          markup: Please specify DockerHub user's valid credentials. All previously stored DockerHub credentials will be overwritten!
+        - type: displayfield
+          hideLabel: true
+        - type: string
+          required: true
+          caption: Username
+          name: creds_username
+        - type: string
+          required: true
+          caption: Password
+          name: creds_password
+        - type: string
+          required: true
+          caption: E-mail
+          name: creds_email
+    buttons:
+      - caption: DockerHub Credentials
+        settings: regcreds
+        action: addon-regcreds-config
+        loadingText: Setting up...
+        successText: DockerHub registry user credentials have been successfully set!
+
+    actions:
+      addon-regcreds-config:
+      - cmd[${nodes.k8sm.master.id}]: |-
+          kubectl apply -f https://raw.githubusercontent.com/alexellis/registry-creds/master/manifest.yaml
+          wait-deployment.sh registry-creds-registry-creds-controller registry-creds-system 1 600
+          kubectl -n kube-system delete secret dockerhub-credentials-secret
+          kubectl delete -f ${baseUrl}/addons/dockerhub-secret.yaml
+          kubectl -n kube-system create secret docker-registry dockerhub-credentials-secret --docker-username='${settings.creds_username}' --docker-password='${settings.creds_password}' --docker-email='${settings.creds_email}'
+          kubectl apply -f ${baseUrl}/addons/dockerhub-secret.yaml
 
 success: |
   ${globals.default_success:}
