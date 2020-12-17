@@ -790,7 +790,6 @@ addons:
   - id: certman-k8s-addon
     type: update
     permanent: true
-    requiredFeatures: extip
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.10
     name: Certificate Manager
     description: Kubernetes SSL Certificate Manager
