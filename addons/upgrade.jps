@@ -298,8 +298,8 @@ actions:
             wget https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get -O /usr/local/sbin/helm-install.sh
             chmod +x /usr/local/sbin/helm-install.sh
             /usr/local/sbin/helm-install.sh --version v2.16.3
-            helm init --client-only
-            helm repo update
+            helm init --client-only ||:
+            helm repo update ||:
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
