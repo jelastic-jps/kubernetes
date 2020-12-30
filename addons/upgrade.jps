@@ -118,13 +118,7 @@ actions:
            ;;
           esac
     - cmd[${nodes.k8sm.master.id}]: |-
-        kubectl apply -f ${baseUrl}/addons/metrics-server/aggregated-metrics-reader.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/auth-delegator.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/auth-reader.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/metrics-apiservice.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/metrics-server-deployment.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/metrics-server-service.yaml
-        kubectl apply -f ${baseUrl}/addons/metrics-server/resource-reader.yaml
+        kubectl apply -f ${baseUrl}/addons/metrics-server.yaml
         wait-deployment.sh metrics-server kube-system 1 720
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {

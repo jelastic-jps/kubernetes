@@ -87,14 +87,8 @@ fi
 
 	if [ "x${METRICS_SERVER}" = "xtrue" ]; then
 		echo "$(date): installing metrics-server";
-		kubectl create -f "${BASE_URL}/addons/metrics-server/aggregated-metrics-reader.yaml";
-		kubectl create -f "${BASE_URL}/addons/metrics-server/auth-delegator.yaml";
-		kubectl create -f "${BASE_URL}/addons/metrics-server/auth-reader.yaml";
-		kubectl create -f "${BASE_URL}/addons/metrics-server/metrics-apiservice.yaml";
-		kubectl create -f "${BASE_URL}/addons/metrics-server/metrics-server-deployment.yaml";
-		kubectl create -f "${BASE_URL}/addons/metrics-server/metrics-server-service.yaml";
-		kubectl create -f "${BASE_URL}/addons/metrics-server/resource-reader.yaml";
-		wait-deployment.sh metrics-server kube-system 1 720
+		kubectl apply -f "${BASE_URL}/addons/metrics-server.yaml";
+		wait-deployment.sh metrics-server kube-system 1 720;
 	else
 		echo "$(date): metrics-server installation skipped"
 	fi
