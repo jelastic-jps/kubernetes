@@ -267,7 +267,10 @@ actions:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
-        wget -nv ${baseUrl}/configs/redeploy.conf -O /etc/jelastic/redeploy.conf
+        wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
+        sed -i -e '$a\' /tmp/redeploy.conf.stock
+        cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
+        sed '/^$/d' /tmp/redeploy.conf.merged | sort | uniq > /etc/jelastic/redeploy.conf
         sleep 10
     - env.control.RedeployContainers:
         nodeId: ${this.id}
@@ -314,7 +317,10 @@ actions:
         rpm -qi "${kubeadm_package}" || exit 1
         /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
         sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
-        wget -nv ${baseUrl}/configs/redeploy.conf -O /etc/jelastic/redeploy.conf
+        wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
+        sed -i -e '$a\' /tmp/redeploy.conf.stock
+        cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
+        sed '/^$/d' /tmp/redeploy.conf.merged | sort | uniq > /etc/jelastic/redeploy.conf
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
