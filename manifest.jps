@@ -274,7 +274,9 @@ actions:
     cmd[${this}]: screen -d -m /usr/bin/bash -c '/usr/local/sbin/helm-install.sh &>/var/log/kubernetes/k8s-helm-slave.log'
 
   generate-admin-token:
-    - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}')  | grep 'token:' | sed -e's/token:\| //g'
+    - cmd[${nodes.k8sm.master.id}]: |-
+        while true; do token_name=$(kubectl -n kube-system get secret | grep fulladmin | awk '{print $1}'); [ -n "$token_name" ] && break; sleep 5; done
+        kubectl -n kube-system describe secret "${token_name}" | grep 'token:' | sed -e's/token:\| //g'
     - setGlobals:
         token: ${response.out}
 
