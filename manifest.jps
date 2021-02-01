@@ -91,11 +91,13 @@ onAfterScaleOut[cp]:
   - cmd [${this.nodes}]: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
   - connect-workers: ${this.nodes}
   - apply-worker-integration: ${this.nodes}
+  - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${event.response.nodes.join(extIPs,)}'
 
 onBeforeScaleIn[cp]:
   forEach(event.response.nodes):
-    removeWorker:
+    remove-worker:
       workerHostname: node${@i.id}-${env.domain}
+      workerExtIPs: ${@i.extIPs.join(,)}
 
 onBeforeClone:
   stopEvent:
@@ -294,8 +296,9 @@ actions:
   helm-components:
     cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=${settings.storage:false} --nfs-server=${nodes.storage.master.address:NULL} --problem-detector=true
 
-  removeWorker:
+  remove-worker:
     cmd[${nodes.k8sm.master.id}]: |-
+      metallb-config -d '${this.workerExtIPs}';
       /usr/bin/kubectl drain ${this.workerHostname} --ignore-daemonsets --delete-local-data || exit 8;
       /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
 
