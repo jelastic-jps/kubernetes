@@ -301,8 +301,15 @@ actions:
     - if (!${this.master}):
         - cmd[${this.id}]: /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-slave.log
     - cmd[${this.id}]: |-
-        mkdir -p $HOME/.kube
-        /usr/bin/cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
+        if [ -f "$HOME/.kube/config" ]; then
+          client_certificate_data=$(grep 'client-certificate-data' /etc/kubernetes/admin.conf | awk '{print $2}')
+          client_key_data=$(grep 'client-key-data' /etc/kubernetes/admin.conf | awk '{print $2}')
+          [ -n "$client_certificate_data" ] && sed -i -r "s/^(\s*client-certificate-data:\s*)(.*$)/\1${client_certificate_data}/" $HOME/.kube/config
+          [ -n "$client_key_data" ] && sed -i -r "s/^(\s*client-key-data:\s*)(.*$)/\1${client_key_data}/" $HOME/.kube/config
+        else
+          mkdir -p $HOME/.kube
+          /usr/bin/cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
+        fi
         chown root:root $HOME/.kube/config
         /usr/local/sbin/master-postconfig.sh
 
