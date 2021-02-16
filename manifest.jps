@@ -140,14 +140,15 @@ actions:
           validation:
             minCount: ${nodes.k8sm.length}
             maxCount: ${nodes.k8sm.length}
-    - script: |
-        return { result: 0, min: ${nodes.storage.length} > 1 ? 3: 1, max: ${nodes.storage.length} > 1 ? 7: 1 }
-    - env.control.ApplyNodeGroupData[storage]:
-        data:
-          validation:
-            countIncrement: 2
-            minCount: ${response.min}
-            maxCount: ${response.max}
+    - if (${nodes.storage.length:0} > 0):
+        - script: |
+            return { result: 0, min: ${nodes.storage.length:0} > 1 ? 3: 1, max: ${nodes.storage.length:0} > 1 ? 7: 1 }
+        - env.control.ApplyNodeGroupData[storage]:
+            data:
+              validation:
+                countIncrement: 2
+                minCount: ${response.min}
+                maxCount: ${response.max}
 
   block-ip-assignment:
     stopEvent:
@@ -294,7 +295,8 @@ actions:
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
   helm-components:
-    cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=${settings.storage:false} --nfs-server=${nodes.storage.master.address:NULL} --problem-detector=true
+     - init-manifest-globals
+     - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=${settings.storage:false} --nfs-server=${globals.storage_endpoint} --problem-detector=true
 
   remove-worker:
     cmd[${nodes.k8sm.master.id}]: |-
@@ -303,13 +305,22 @@ actions:
       /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
 
   init-manifest-globals:
-  - cmd[${nodes.k8sm.master.id}]: |-
-      /usr/bin/kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
-      /usr/bin/kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
-      /usr/bin/kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
-      /usr/bin/kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
-  - setGlobals:
-      ingress-dir: ${response.out}
+    - if (${nodes.storage.length:0} > 1):
+        setGlobals:
+          storage_endpoint: storage.${env.domain}
+    - elif (${nodes.storage.length:0} == 1):
+        setGlobals:
+          storage_endpoint: ${nodes.storage.master.address}
+    - else:
+        setGlobals:
+          storage_endpoint: ""
+    - cmd[${nodes.k8sm.master.id}]: |-
+        /usr/bin/kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
+        /usr/bin/kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
+        /usr/bin/kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
+        /usr/bin/kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
+    - setGlobals:
+        ingress-dir: ${response.out}
 
   setup-remote-api:
   - log: '${this}'
@@ -321,7 +332,8 @@ actions:
           default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
   install-monitoring:
-  - if (!${settings.storage:false}):
+  - init-manifest-globals
+  - if (!'${globals.storage_endpoint}'):
       return:
         type: warning
         message: Monitoring components require Storage installed!
@@ -329,7 +341,6 @@ actions:
   - setGlobals:
       monitoring_installed: ${response.out}
   - if ('${globals.monitoring_installed}' == 'false'):
-      - init-manifest-globals
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo add grafana https://grafana.github.io/helm-charts
@@ -384,7 +395,8 @@ actions:
         message: ${globals.monitoring_success}
 
   install-jaeger:
-  - if (!${settings.storage:false}):
+  - init-manifest-globals
+  - if (!'${globals.storage_endpoint}'):
       return:
         type: warning
         message: Jaeger components require Storage installed!
@@ -392,7 +404,6 @@ actions:
   - setGlobals:
       jaeger_installed: ${response.out}
   - if ('${globals.jaeger_installed}' == 'false'):
-      - init-manifest-globals
       - cmd[${nodes.k8sm.master.id}]: |-
           kubectl create namespace observability
           kubectl create -f ${baseUrl}/addons/jaeger/jaegertracing.io_jaegers_crd.yaml
@@ -458,9 +469,6 @@ addons:
         - type: string
           name: ingress-controller
           inputType: hidden
-        - type: string
-          name: storage
-          inputType: hidden
 
     buttons:
       - caption: Remote API
@@ -469,9 +477,10 @@ addons:
         loadingText: Updating...
         confirmText: Are you sure?
         successText: Remote API Access was successfully updated!
-      - caption: Monitoring
-        action: install-monitoring
-        confirmText: Monitoring tools will be installed if missing. Continue?
+      - caption: Storage
+        action: addon-conf-storage
+        confirmText: Cluster Storage will be added if missing. Continue?
+        successText: Cluster storage has been succesfully installed!
       - caption: Jaeger
         action: install-jaeger
         confirmText: Jaeger will be installed if missing. Continue?
@@ -492,6 +501,106 @@ addons:
           subject: Remote API Access Successfully Updated in ${env.name}
           body: Remote API has been ${globals.apiStatusMessage}
 
+      addon-conf-storage:
+      - init-manifest-globals
+      - if ('${globals.storage_endpoint}'):
+          return:
+            type: info
+            message: Cluster Storage is already present!
+      - script: |
+          var resp = jelastic.env.control.GetEnvInfo('${env.appid}', session),
+              nodeGroups = [],
+              nodeGroupsKubernetes = [],
+              path = "/data",
+              nodes = [],
+              mounts = [],
+              nodeGroup,
+              mount,
+              env;
+
+          if (resp.result != 0) return resp;
+
+          env = {
+            shortdomain : resp.env.shortdomain,
+            region      : resp.env.hardwareNodeGroup,
+            sslstate    : resp.env.sslstate
+          };
+
+          var storageCount = ${nodes.k8sm.length} > 1 ? 3 : 1;
+
+          for (var i = 0, k = resp.nodes; i < k.length; i++) {
+            nodeGroup = String(k[i].nodeGroup);
+            if (nodeGroups.indexOf(nodeGroup) == -1) {
+              nodeGroups.push(nodeGroup);
+
+              if (k[i].nodeType == "kubernetes") {
+                nodeGroupsKubernetes.push(nodeGroup);
+              }
+
+              nodes.push({
+                nodeGroup: nodeGroup
+              });
+            }
+          }
+
+          nodes.push({
+            count: storageCount,
+            nodeType: "storage",
+            cloudlets: 8,
+            displayName: "Storage",
+            nodeGroup: "storage",
+            cluster: storageCount > 1
+          });
+
+          var res = jelastic.env.control.ChangeTopology('${env.appid}', session, '${env.appid}', toJSON(env), toJSON(nodes));
+
+          if (res.result != 0) return res;
+
+          res = jelastic.env.control.AddContainerVolumeByGroup('${env.name}', session, 'storage', path);
+
+          if (res.result != 0) return res;
+
+          for (var i = 0; i < nodeGroupsKubernetes.length; i++) {
+              mount = {
+                method: 'jelastic.env.file.AddMountPointByGroup',
+                envName: '${env.name}',
+                session: session,
+                nodeGroup: nodeGroupsKubernetes[i],
+                path: path,
+                sourcePath: path,
+                readOnly: false,
+                sourceNodeId: '${nodes.storage.master.id}'
+              };
+
+              if (storageCount > 1) {
+                mount.sourceAddressType = "NODE_GROUP"
+              }
+
+            mounts.push(mount);
+          }
+
+          return {result: 0, onAfterReturn: { api: mounts } }
+
+      - init-manifest-globals
+      - if (!'${globals.storage_endpoint}'):
+          return:
+            type: error
+            message: Cluster Storage wasn't installed!
+      - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=true --nfs-server=${globals.storage_endpoint}
+      - set-scaling-parameters
+
+  - id: monitor-k8s-addon
+    type: update
+    permanent: true
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.14
+    name: Cluster Monitoring
+    description: Install cluster monitoring components (Prometheus and Grafana)
+    logo: /images/k8s-monitor.png
+
+    buttons:
+      - caption: Install Monitoring Tools
+        action: install-monitoring
+        confirmText: Monitoring tools will be installed if missing. Continue?
 
   - id: upgrade-k8s-addon
     type: update
