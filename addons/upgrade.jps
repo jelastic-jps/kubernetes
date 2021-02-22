@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.18.14
-name: Kubernetes Upgrade to 1.18.14
+id: kubernetes-upgrade-to-1.18.16
+name: Kubernetes Upgrade to 1.18.16
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.14
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.16
 logo: /images/k8s-logo.png
 
 description:
@@ -250,7 +250,7 @@ actions:
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/local/sbin/k8sm-config -f
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
-        yum update -y "http://spacewalk.jelastic.com/pub/${kubeadm_package}.rpm"
+        yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 1
     - if (${this.master}):
@@ -320,7 +320,7 @@ actions:
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
     - cmd[${this.id}]: |-
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
-        yum update -y "http://spacewalk.jelastic.com/pub/${kubeadm_package}.rpm"
+        yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
         /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
         sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
