@@ -5,7 +5,7 @@
 K9S="0.24.2"
 POPEYE="0.9.0"
 STERN="1.11.0"
-KUBECTX="0.8.0"
+KUBECTX="0.9.2"
 
 ( ( echo "$(date): --- master postconfig started";
 
@@ -19,7 +19,10 @@ KUBECTX="0.8.0"
 		/usr/bin/stern --completion=bash > /etc/bash_completion.d/stern.bash;
 	};
 	[ -n "${KUBECTX}" ] && {
-		wget -O- "https://github.com/ahmetb/kubectx/archive/v${KUBECTX}.tar.gz" | tar xz --strip-components=1 -C /usr/bin kubectx-${KUBECTX}/kubectx kubectx-${KUBECTX}/kubens;
+		for KUBECTX_COMP in "kubens" "kubectx"; do
+			wget -O- "https://github.com/ahmetb/kubectx/releases/download/v${KUBECTX}/${KUBECTX_COMP}_v${KUBECTX}_linux_x86_64.tar.gz" | tar xz -C /usr/bin ${KUBECTX_COMP};
+		done;
+
 		wget -O- "https://github.com/ahmetb/kubectx/archive/v${KUBECTX}.tar.gz" | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${KUBECTX}/completion/kubens.bash kubectx-${KUBECTX}/completion/kubectx.bash;
 	};
 

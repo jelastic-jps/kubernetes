@@ -2,7 +2,7 @@
 # set -x
 
 # components
-METALLB_VER="0.9.4"
+METALLB_VER="0.9.5"
 
 HELP="Usage:
 	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metallb=(true|false) --metrics-server=(true|false) --dashboard=version(1|2) --ingress-name=<ingress-controller>
