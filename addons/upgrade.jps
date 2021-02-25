@@ -266,7 +266,10 @@ actions:
   upgrade-masters-redeploy:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
-        sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
+        # drop in k8s-1.20+
+        sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
+        sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
+        grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a cgroupDriver: systemd' /var/lib/kubelet/config.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
@@ -323,7 +326,10 @@ actions:
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
         /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
-        sed -i 's/--cgroup-driver=cgroupfs//' /var/lib/kubelet/kubeadm-flags.env
+        # drop in k8s-1.20+
+        sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
+        sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
+        grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a cgroupDriver: systemd' /var/lib/kubelet/config.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
