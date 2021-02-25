@@ -1,5 +1,5 @@
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: monitoring-prometheus-server
@@ -14,6 +14,9 @@ spec:
   - http:
       paths:
       - path: /prometheus
+        pathType: Prefix
         backend:
-          serviceName: monitoring-prometheus-server
-          servicePort: 80
+          service:
+            name: monitoring-prometheus-server
+            port:
+              number: 80

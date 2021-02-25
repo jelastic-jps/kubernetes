@@ -65,7 +65,7 @@ spec:
           resources:
             {}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: jaeger-hotrod-traefik
@@ -77,12 +77,15 @@ spec:
   - http:
       paths:
       - path: /hotrod
+        pathType: Prefix
         backend:
-          serviceName: jaeger-hotrod
-          servicePort: 80
+          service:
+            name: jaeger-hotrod
+            port:
+              number: 80
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: jaeger-hotrod-nginx
@@ -95,12 +98,15 @@ spec:
   - http:
       paths:
       - path: /hotrod(/|$)(.*)
+        pathType: Prefix
         backend:
-          serviceName: jaeger-hotrod
-          servicePort: 80
+          service:
+            name: jaeger-hotrod
+            port:
+              number: 80
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: jaeger-hotrod-haproxy
@@ -113,6 +119,9 @@ spec:
   - http:
       paths:
       - path: /hotrod
+        pathType: Prefix
         backend:
-          serviceName: jaeger-hotrod
-          servicePort: 80
+          service:
+            name: jaeger-hotrod
+            port:
+              number: 80

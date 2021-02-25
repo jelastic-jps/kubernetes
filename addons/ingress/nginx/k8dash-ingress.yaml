@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kubernetes-k8dash
@@ -13,6 +13,9 @@ spec:
   - http:
       paths:
       - path: /kubernetes-dashboard(/|$)(.*)
+        pathType: Prefix
         backend:
-          serviceName: kubernetes-k8dash
-          servicePort: 80
+          service:
+            name: kubernetes-k8dash
+            port:
+              number: 80
