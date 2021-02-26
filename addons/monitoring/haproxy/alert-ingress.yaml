@@ -6,10 +6,9 @@ metadata:
   namespace: kubernetes-monitoring
   annotations:
     kubernetes.io/ingress.class: haproxy
-    ingress.kubernetes.io/auth-type: basic
-    ingress.kubernetes.io/auth-secret: monitoring-prometheus
-    ingress.kubernetes.io/rewrite-target: /
-    ingress.kubernetes.io/ssl-redirect: 'false'
+    haproxy.org/auth-type: basic-auth
+    haproxy.org/auth-secret: monitoring-prometheus
+    haproxy.org/path-rewrite: /prometheus-alert(/|$)(.*) /\2
 spec:
   rules:
   - http:

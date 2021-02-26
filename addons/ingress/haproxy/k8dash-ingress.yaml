@@ -4,9 +4,8 @@ metadata:
   name: kubernetes-k8dash
   namespace: kube-system
   annotations:
-    ingress.kubernetes.io/rewrite-target: /
     kubernetes.io/ingress.class: haproxy
-    ingress.kubernetes.io/ssl-redirect: 'false'
+    haproxy.org/path-rewrite: /kubernetes-dashboard(/|$)(.*) /\2
 spec:
   rules:
   - http:

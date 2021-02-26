@@ -4,10 +4,9 @@ metadata:
   name: kubernetes-api
   namespace: default
   annotations:
-    ingress.kubernetes.io/rewrite-target: /
-    ingress.kubernetes.io/secure-backends: 'true'
     kubernetes.io/ingress.class: haproxy
-    ingress.kubernetes.io/ssl-redirect: 'false'
+    haproxy.org/path-rewrite: /api(/|$)(.*) /\2
+    haproxy.org/server-ssl: 'true'
 spec:
   rules:
   - http:
