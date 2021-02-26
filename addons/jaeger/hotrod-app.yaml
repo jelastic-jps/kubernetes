@@ -43,7 +43,7 @@ spec:
       serviceAccountName: jaeger-hotrod
       containers:
         - name: jaeger-hotrod
-          image: jaegertracing/example-hotrod:1.15.1
+          image: jaegertracing/example-hotrod:1.21
           imagePullPolicy: Always
           env:
             - name: JAEGER_AGENT_HOST
@@ -111,9 +111,8 @@ kind: Ingress
 metadata:
   name: jaeger-hotrod-haproxy
   annotations:
-    ingress.kubernetes.io/rewrite-target: /
     kubernetes.io/ingress.class: haproxy
-    ingress.kubernetes.io/ssl-redirect: 'false'
+    haproxy.org/path-rewrite: /hotrod(/|$)(.*) /\2
 spec:
   rules:
   - http:

@@ -410,15 +410,16 @@ actions:
   - if ('${globals.jaeger_installed}' == 'false'):
       - cmd[${nodes.k8sm.master.id}]: |-
           kubectl create namespace observability
-          kubectl create -f ${baseUrl}/addons/jaeger/jaegertracing.io_jaegers_crd.yaml
-          kubectl create -f ${baseUrl}/addons/jaeger/service_account.yaml
-          kubectl create -f ${baseUrl}/addons/jaeger/role.yaml
-          kubectl create -f ${baseUrl}/addons/jaeger/role_binding.yaml
-          kubectl create -f ${baseUrl}/addons/jaeger/operator.yaml
-          [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
+          kubectl create --namespace observability -f ${baseUrl}/addons/jaeger/jaegertracing.io_jaegers_crd.yaml
+          kubectl create --namespace observability -f ${baseUrl}/addons/jaeger/service_account.yaml
+          kubectl create --namespace observability -f ${baseUrl}/addons/jaeger/role.yaml
+          kubectl create --namespace observability -f ${baseUrl}/addons/jaeger/role_binding.yaml
+          kubectl create --namespace observability -f ${baseUrl}/addons/jaeger/operator.yaml
           jaeger_secret=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-          kubectl create secret generic observability-jaeger-plain --from-literal=auth="${jaeger_secret}" --namespace=observability
-          kubectl create secret generic observability-jaeger --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${jaeger_secret})" --namespace=observability
+          kubectl create secret generic --namespace=observability observability-jaeger-plain --from-literal=auth="${jaeger_secret}"
+          kubectl create secret generic --namespace=observability observability-jaeger \
+            --from-literal=auth="admin:$(openssl passwd -apr1 ${jaeger_secret})" \
+            --from-literal=admin=$(openssl passwd -1 ${jaeger_secret})
           kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
           kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
           wait-deployment.sh jaeger-operator observability 1 720
