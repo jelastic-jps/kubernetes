@@ -992,7 +992,7 @@ addons:
       - if ('${globals.ingress-dir}' != 'nginx'):
           return:
             type: warning
-            message: Rancher Platforms requires nginx Ingress Controller! The current Ingress Controller is '${globals.ingress-dir}'
+            message: Rancher Platforms requires 'nginx' ingress controller! The current ingress controller is '${globals.ingress-dir}'
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
           helm repo update
