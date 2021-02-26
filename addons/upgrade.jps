@@ -127,12 +127,14 @@ actions:
         kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
          kubectl delete ns kubernetes-dashboard;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
-         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
+         # k8s-1.19: postpone ingress update
+        } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment hello-kubernetes && {
          kubectl delete -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
-         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
+         # k8s-1.19: postpone ingress update
+        } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         helm repo add deliveryhero https://charts.deliveryhero.io/
         helm repo update
@@ -152,9 +154,8 @@ actions:
          kubectl patch secret --namespace kubernetes-monitoring monitoring-grafana -p="{\"data\":{\"admin-password\":\"${grafana_base64}\"}}";
          grafana_auth=$(openssl passwd -1 $(echo "${grafana_base64}" | base64 -d) | base64 -w 0);
          kubectl patch secret --namespace kubernetes-monitoring monitoring-prometheus -p="{\"data\":{\"admin\":\"${grafana_auth}\"}}";
-         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml;
-         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml;
-         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; } ||:
+         # k8s-1.19: postpone ingress update
+        } ||:
     - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get NetworkPolicy,PodSecurityPolicy,DaemonSet,Deployment,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"extensions/v1beta1"')
     - setGlobals:
         k8s_deprecated_ext: ${response.out}
@@ -320,6 +321,17 @@ actions:
         fi
         chown root:root $HOME/.kube/config
         /usr/local/sbin/master-postconfig.sh
+    - if (${this.master}):
+        - cmd[${this.id}]: |-
+            # drop in k8s-1.20+
+            kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
+             kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
+            kubectl get deployment hello-kubernetes && {
+             kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
+            kubectl get secret --namespace kubernetes-monitoring monitoring-grafana && {
+              kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml;
+              kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml;
+              kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; } ||:
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
