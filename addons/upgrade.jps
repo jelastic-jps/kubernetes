@@ -92,6 +92,7 @@ actions:
         kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
+        kubectl get daemonset haproxy-ingress -n haproxy-controller &>/dev/null && echo "haproxy" ||:
     - setGlobals:
         ingress-dir: ${response.out}
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -109,8 +110,10 @@ actions:
            while [[ $(kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
            ;;
           xhaproxy)
-           kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
-           wait-deployment.sh ingress-default-backend ingress-controller 1 720
+           kubectl delete ns ingress-controller
+           for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml && break; done;
+           while [[ $(kubectl -n haproxy-controller get pods -l run=haproxy-ingress -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
+           wait-deployment.sh ingress-default-backend haproxy-controller 1 720
            ;;
           *)
            echo "Invalid ingress controller used!"
@@ -147,6 +150,8 @@ actions:
          helm upgrade --namespace kubernetes-monitoring monitoring-grafana --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/. ;
          wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720;
          kubectl patch secret --namespace kubernetes-monitoring monitoring-grafana -p="{\"data\":{\"admin-password\":\"${grafana_base64}\"}}";
+         grafana_auth=$(openssl passwd -1 $(echo "${grafana_base64}" | base64 -d) | base64 -w 0);
+         kubectl patch secret --namespace kubernetes-monitoring monitoring-prometheus -p="{\"data\":{\"admin\":\"${grafana_auth}\"}}";
          kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml;
          kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml;
          kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; } ||:

@@ -297,9 +297,9 @@ checkNginxIngressController() {
 
 checkHaproxyIngressController() {
 
-  PODNAME=$(kubectl get pods -l=run=haproxy-ingress -n ingress-controller -o jsonpath='{.items[0].metadata.name}' 2> /dev/null)
+  PODNAME=$(kubectl get pods -l=run=haproxy-ingress -n haproxy-controller -o jsonpath='{.items[0].metadata.name}' 2> /dev/null)
   if [ $? -ne 0 ]; then
-    DAEMON_SET=$(kubectl get ds/haproxy-ingress -n ingress-controller > /dev/null)
+    DAEMON_SET=$(kubectl get ds/haproxy-ingress -n haproxy-controller > /dev/null)
     if [ $? -ne 0 ]; then
       printError "Failed to find HAproxy pod because of a missing daemon set"
       INGRESS_STATUS="FAIL"
@@ -311,10 +311,10 @@ checkHaproxyIngressController() {
     fi
     printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
   else
-    HAPROXY_POD_STATUS=$(kubectl get pods -l=run=haproxy-ingress -n ingress-controller -o jsonpath='{.items[0].status.phase}' 2> /dev/null)
+    HAPROXY_POD_STATUS=$(kubectl get pods -l=run=haproxy-ingress -n haproxy-controller -o jsonpath='{.items[0].status.phase}' 2> /dev/null)
     if [ "$HAPROXY_POD_STATUS" != "Running" ]; then
       printError "HAProxy pod isn't in running state. Current status: $HAPROXY_POD_STATUS"
-      kubectl logs ${PODNAME} -n ingress-controller > ${K8S_LOG_DIR}/${PODNAME}.log
+      kubectl logs ${PODNAME} -n haproxy-controller > ${K8S_LOG_DIR}/${PODNAME}.log
       printError "Check logs in ${K8S_LOG_DIR}/${PODNAME}.log"
       INGRESS_STATUS="FAIL"
       WITH_ERROR="true"

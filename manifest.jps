@@ -259,6 +259,8 @@ actions:
   install-haproxy:
     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml
+      while [[ $(kubectl -n haproxy-controller get pods -l run=haproxy-ingress -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
+      wait-deployment.sh ingress-default-backend haproxy-controller 1 720
 
   install-traefik:
      cmd[${nodes.k8sm.master.id}]: |-
@@ -319,6 +321,7 @@ actions:
         /usr/bin/kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         /usr/bin/kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         /usr/bin/kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
+        /usr/bin/kubectl get daemonset haproxy-ingress -n haproxy-controller &>/dev/null && echo "haproxy" ||:
     - setGlobals:
         ingress-dir: ${response.out}
 
@@ -354,8 +357,9 @@ actions:
           helm install monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
           wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720
           grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
-          [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
-          kubectl create secret generic monitoring-prometheus --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${grafana_secret})" --namespace=kubernetes-monitoring
+          kubectl create secret generic --namespace=kubernetes-monitoring monitoring-prometheus \
+            --from-literal=auth="admin:$(openssl passwd -apr1 ${grafana_secret})" \
+            --from-literal=admin=$(openssl passwd -1 ${grafana_secret})
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml
