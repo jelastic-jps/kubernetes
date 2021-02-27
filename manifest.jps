@@ -295,7 +295,7 @@ actions:
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
 
   helm-components:
-     - init-manifest-globals
+     - init-globals-storage
      - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=${settings.storage:false} --nfs-server=${globals.storage_endpoint} --problem-detector=true
 
   remove-worker:
@@ -304,7 +304,16 @@ actions:
       /usr/bin/kubectl drain ${this.workerHostname} --ignore-daemonsets --delete-local-data || exit 8;
       /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
 
-  init-manifest-globals:
+  init-globals-ingress:
+    - cmd[${nodes.k8sm.master.id}]: |-
+        /usr/bin/kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
+        /usr/bin/kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
+        /usr/bin/kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
+        /usr/bin/kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
+    - setGlobals:
+        ingress-dir: ${response.out}
+
+  init-globals-storage:
     - if (${nodes.storage.length:0} > 1):
         setGlobals:
           storage_endpoint: storage.${env.domain}
@@ -314,13 +323,6 @@ actions:
     - else:
         setGlobals:
           storage_endpoint: ""
-    - cmd[${nodes.k8sm.master.id}]: |-
-        /usr/bin/kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
-        /usr/bin/kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
-        /usr/bin/kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
-        /usr/bin/kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
-    - setGlobals:
-        ingress-dir: ${response.out}
 
   setup-remote-api:
   - log: '${this}'
@@ -332,8 +334,7 @@ actions:
           default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
   install-monitoring:
-  - init-manifest-globals
-  - if (!'${globals.storage_endpoint}'):
+  - if (${nodes.storage.length:0} == 0):
       return:
         type: warning
         message: Monitoring components require Storage installed!
@@ -341,6 +342,7 @@ actions:
   - setGlobals:
       monitoring_installed: ${response.out}
   - if ('${globals.monitoring_installed}' == 'false'):
+      - init-globals-ingress
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo add grafana https://grafana.github.io/helm-charts
@@ -395,8 +397,7 @@ actions:
         message: ${globals.monitoring_success}
 
   install-jaeger:
-  - init-manifest-globals
-  - if (!'${globals.storage_endpoint}'):
+  - if (${nodes.storage.length:0} == 0):
       return:
         type: warning
         message: Jaeger components require Storage installed!
@@ -404,6 +405,7 @@ actions:
   - setGlobals:
       jaeger_installed: ${response.out}
   - if ('${globals.jaeger_installed}' == 'false'):
+      - init-globals-ingress
       - cmd[${nodes.k8sm.master.id}]: |-
           kubectl create namespace observability
           kubectl create -f ${baseUrl}/addons/jaeger/jaegertracing.io_jaegers_crd.yaml
@@ -488,7 +490,7 @@ addons:
     actions:
       addon-remote-api:
       - log: '${this.api}'
-      - init-manifest-globals
+      - init-globals-ingress
       - setup-remote-api: ${this.api}
       - if (${this.api:true}):
           - setGlobals:
@@ -502,8 +504,7 @@ addons:
           body: Remote API has been ${globals.apiStatusMessage}
 
       addon-conf-storage:
-      - init-manifest-globals
-      - if ('${globals.storage_endpoint}'):
+      - if (${nodes.storage.length:0} > 0):
           return:
             type: info
             message: Cluster Storage is already present!
@@ -581,7 +582,7 @@ addons:
 
           return {result: 0, onAfterReturn: { api: mounts } }
 
-      - init-manifest-globals
+      - init-globals-storage
       - if (!'${globals.storage_endpoint}'):
           return:
             type: error
@@ -988,7 +989,7 @@ addons:
           return:
             type: warning
             message: Rancher Management Platform is already installed!
-      - init-manifest-globals
+      - init-globals-ingress
       - if ('${globals.ingress-dir}' != 'nginx'):
           return:
             type: warning
