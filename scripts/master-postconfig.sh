@@ -5,7 +5,7 @@
 K9S="0.24.2"
 POPEYE="0.9.0"
 STERN="1.11.0"
-KUBECTX="0.9.2"
+KUBECTX="0.9.3"
 
 ( ( echo "$(date): --- master postconfig started";
 
