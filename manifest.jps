@@ -668,7 +668,7 @@ addons:
             huc.setRequestMethod("HEAD");
             var code = huc.getResponseCode();
             if (code == 200){
-              return {result:0, onAfterReturn:{addon-upgrade-start:{current:version, next:next, avail:upgrades.join(", "), jps: url}}};
+              return {result:0, onAfterReturn:{"addon-upgrade-start":{current:version, next:next, avail:upgrades.join(", "), jps: url}}};
             } else {
               message = "The next version is " + next + ". However, automated upgrade procedure is not available yet. Please check it later, or contact support team if upgrade is required urgently.";
               return {result:"info", message:message};
