@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
 description:
   text: /text/description-kube.md
   short: Kubernetes cluster with automated scaling & cost efficient pay-per-use pricing for running cloud-native microservices.
@@ -10,7 +10,7 @@ categories:
   - apps/dev-and-admin-tools
 
 logo: /images/k8s-logo.png
-name: Kubernetes Cluster v1.19.8
+name: Kubernetes Cluster v1.20.4
 targetRegions:
   type: vz7
 
@@ -460,7 +460,7 @@ addons:
   - id: conf-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
     name: Cluster Configuration
     description: Configure remote API access and install complementary tools
     logo: /images/k8s-config.png
@@ -598,7 +598,7 @@ addons:
   - id: monitor-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
     name: Cluster Monitoring
     description: Install cluster monitoring components (Prometheus and Grafana)
     logo: /images/k8s-monitor.png
@@ -611,7 +611,7 @@ addons:
   - id: upgrade-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
     name: Cluster Upgrade
     description: Upgrade Kubernetes cluster to a newer version
     logo: /images/k8s-upgrade.png
@@ -707,7 +707,7 @@ addons:
   - id: gitlab-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
     name: GitLab Integration
     description: Add Kubernetes GitLab integrations
     logo: /images/k8s-gitlab.png
@@ -924,7 +924,7 @@ addons:
   - id: certman-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
     name: Certificate Manager
     description: |
       Kubernetes SSL Certificate Manager allows to bind custom domain names
@@ -976,7 +976,7 @@ addons:
   - id: rancher-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
     name: Rancher Installer
     description: Rancher Management Platform
     logo: /images/k8s-rancher.png
@@ -1016,7 +1016,7 @@ addons:
   - id: regcreds-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
     name: DockerHub Registry Credentials
     description: |
       Propagate an authorized DockerHub registry user credentials to Kubernetes imagePullSecret records automatically

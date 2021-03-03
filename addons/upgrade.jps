@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.19.8
-name: Kubernetes Upgrade to 1.19.8
+id: kubernetes-upgrade-to-1.20.4
+name: Kubernetes Upgrade to 1.20.4
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
 logo: /images/k8s-logo.png
 
 description:
@@ -127,14 +127,12 @@ actions:
         kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
          kubectl delete ns kubernetes-dashboard;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
-         # k8s-1.19: postpone ingress update
-        } ||:
+         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment hello-kubernetes && {
          kubectl delete -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
-         # k8s-1.19: postpone ingress update
-        } ||:
+         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         helm repo add deliveryhero https://charts.deliveryhero.io/
         helm repo update
@@ -154,15 +152,15 @@ actions:
          kubectl patch secret --namespace kubernetes-monitoring monitoring-grafana -p="{\"data\":{\"admin-password\":\"${grafana_base64}\"}}";
          grafana_auth=$(openssl passwd -1 $(echo "${grafana_base64}" | base64 -d) | base64 -w 0);
          kubectl patch secret --namespace kubernetes-monitoring monitoring-prometheus -p="{\"data\":{\"admin\":\"${grafana_auth}\"}}";
-         # k8s-1.19: postpone ingress update
-        } ||:
+         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml;
+         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml;
+         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get secret --namespace observability observability-jaeger-plain && {
          jaeger_base64=$(kubectl get secret --namespace observability observability-jaeger-plain -o jsonpath='{.data.auth}');
          jaeger_auth=$(openssl passwd -1 $(echo "${jaeger_base64}" | base64 -d) | base64 -w 0);
          kubectl patch secret --namespace observability observability-jaeger -p="{\"data\":{\"admin\":\"${jaeger_auth}\"}}";
-         # k8s-1.19: postpone ingress update
-        } ||:
+         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get NetworkPolicy,PodSecurityPolicy,DaemonSet,Deployment,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"extensions/v1beta1"')
     - setGlobals:
         k8s_deprecated_ext: ${response.out}
@@ -272,17 +270,13 @@ actions:
             /usr/bin/kubeadm upgrade apply ${this.version} || exit 2
     - if (!${this.master}):
         - cmd[${this.id}]: |-
-            /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 2
+            /usr/bin/kubeadm upgrade node || exit 2
     - cmd[${this.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 3
 
   upgrade-masters-redeploy:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
-        # drop in k8s-1.20+
-        sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
-        sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
-        grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a cgroupDriver: systemd' /var/lib/kubelet/config.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
@@ -328,34 +322,17 @@ actions:
         fi
         chown root:root $HOME/.kube/config
         /usr/local/sbin/master-postconfig.sh
-    - if (${this.master}):
-        - cmd[${this.id}]: |-
-            # drop in k8s-1.20+
-            kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
-             kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
-            kubectl get deployment hello-kubernetes && {
-             kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
-            kubectl get secret --namespace kubernetes-monitoring monitoring-grafana && {
-              kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml;
-              kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml;
-              kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; } ||:
-            kubectl get secret --namespace observability observability-jaeger-plain && {
-              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml; } ||:
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         sleep 10
-        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 3
+        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 3
     - cmd[${this.id}]: |-
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
-        /usr/bin/kubeadm upgrade node --kubelet-version ${this.version}  || exit 4
-        # drop in k8s-1.20+
-        sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
-        sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
-        grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a cgroupDriver: systemd' /var/lib/kubelet/config.yaml
+        /usr/bin/kubeadm upgrade node || exit 4
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
