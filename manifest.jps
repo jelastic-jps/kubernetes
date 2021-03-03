@@ -992,7 +992,7 @@ addons:
       - cmd[${nodes.k8sm.master.id}]: kubectl -n cattle-system get deployment rancher &>/dev/null && echo "true" || echo "false"
       - if ('${response.out}' == 'true'):
           return:
-            type: warning
+            type: info
             message: Rancher Management Platform is already installed!
       - init-globals-ingress
       - if ('${globals.ingress-dir}' != 'nginx'):
@@ -1006,6 +1006,13 @@ addons:
           kubectl delete -f ${baseUrl}/addons/helloworld.yaml
           helm install rancher rancher-stable/rancher --create-namespace --namespace cattle-system --set tls=external
           kubectl -n cattle-system rollout status deploy/rancher
+      - message.email.send:
+          to: "${user.email}"
+          subject: Rancher Platform Successfully Installed in ${env.name}
+          body: |-
+            Rancher Management Platform installed in <b>${env.name}</b> Kubernetes Cluster: <br>
+            Rancher Dashboard - ${env.url}<br>
+            Set your login credentials there during the first login.
       - return:
           type: success
           message: |
