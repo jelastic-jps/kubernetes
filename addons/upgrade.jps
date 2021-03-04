@@ -272,6 +272,7 @@ actions:
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade node || exit 2
     - cmd[${this.id}]: |-
+        grep -q '^failSwapOn:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a failSwapOn: false' /var/lib/kubelet/config.yaml
         /usr/bin/kubectl uncordon ${this.hostname} || exit 3
 
   upgrade-masters-redeploy:
@@ -281,6 +282,11 @@ actions:
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
         sed '/^$/d' /tmp/redeploy.conf.merged | sort | uniq > /etc/jelastic/redeploy.conf
+        # drop in k8s-1.21+
+        sed -i '/^\/var\/lib\/docker$/d' /etc/jelastic/redeploy.conf
+        /usr/bin/grep -q "\-\-container\-runtime=remote" /var/lib/kubelet/kubeadm-flags.env || \
+         sed -i "/^KUBELET_KUBEADM_ARGS/ s/\"$/ --container-runtime=remote --container-runtime-endpoint=unix:\/\/\/run\/containerd\/containerd.sock\"/" /var/lib/kubelet/kubeadm-flags.env
+        sed -i 's%\(.*\)--pod-infra-container-image=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
         sleep 10
     - env.control.RedeployContainers:
         nodeId: ${this.id}
@@ -333,10 +339,16 @@ actions:
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
         /usr/bin/kubeadm upgrade node || exit 4
+        grep -q '^failSwapOn:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a failSwapOn: false' /var/lib/kubelet/config.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
         sed '/^$/d' /tmp/redeploy.conf.merged | sort | uniq > /etc/jelastic/redeploy.conf
+        # drop in k8s-1.21+
+        sed -i '/^\/var\/lib\/docker$/d' /etc/jelastic/redeploy.conf
+        /usr/bin/grep -q "\-\-container\-runtime=remote" /var/lib/kubelet/kubeadm-flags.env || \
+         sed -i "/^KUBELET_KUBEADM_ARGS/ s/\"$/ --container-runtime=remote --container-runtime-endpoint=unix:\/\/\/run\/containerd\/containerd.sock\"/" /var/lib/kubelet/kubeadm-flags.env
+        sed -i 's%\(.*\)--pod-infra-container-image=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}

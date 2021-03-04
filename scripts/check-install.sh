@@ -134,19 +134,9 @@ writeLog() {
 
 checkWeaveStatus() {
   printInfo "Checking Weave CNI Plugin status..."
-  command -v weave >/dev/null 2>&1
-  if [ $? -ne 0 ]; then
-    printError "Weave CLI not installed. Cannot check weave health"
-    WITH_ERROR="true"
-  else
-    STATUS=$(weave status | grep "Status: ready" > /dev/null)
-    if [ $? -ne 0 ]; then
-      printError "Weave has not reported ready status. Current status is:"
-      weave status
-      printError "Weave daemon set and pods status:"
-      kubectl get ds/"${CNI_PLUGIN_NAME}" -n kube-system
-      kubectl get pods -l=name="${CNI_PLUGIN_NAME}" -n kube-system
-    else
+
+  # skip Weave command check due to Docker dependency
+
       # get number of nodes and make sure there's the same number of Traefik pods in Running state
       NODES_NUMBER=$(kubectl get nodes --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
       END=`expr $NODES_NUMBER - 1`
@@ -169,8 +159,6 @@ checkWeaveStatus() {
           WEAVE_STATUS="OK"
         fi
       done
-    fi
-  fi
 }
 
 checkMetricsServer() {

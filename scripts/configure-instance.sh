@@ -72,7 +72,7 @@ touch /tmp/jelastic-conf-mark
 # common dockers
 echo "$(date): pulling common docker images"
 while read item; do
-	docker pull "$item";
+	crictl pull "$item";
 done < <( kubeadm config images list --config /etc/kubernetes/custom-kubeadm.yaml | grep -E '(pause|kube-proxy)' )
 
 # master dockers
@@ -84,15 +84,15 @@ done < <( kubeadm config images list --config /etc/kubernetes/custom-kubeadm.yam
 # weave
 [ -n "${WEAVE}" ] && {
 	echo "$(date): pulling weave docker images";
-	docker pull devbeta/weave-npc:${WEAVE};
-	docker pull devbeta/weave-kube:${WEAVE};
+	crictl pull devbeta/weave-npc:${WEAVE};
+	crictl pull devbeta/weave-kube:${WEAVE};
 }
 
 # additional
 [ "x${COMPTYPE}" = "xmaster" ] && {
 	[ -n "${WEAVE}" ] && {
 		echo "$(date): retrieving weaveexec components";
-		docker pull weaveworks/weaveexec:${WEAVE};
+		crictl pull weaveworks/weaveexec:${WEAVE};
 		wget -nv "https://github.com/weaveworks/weave/releases/download/v${WEAVE}/weave" -O /usr/bin/weave;
 		chmod +x /usr/bin/weave;
 	};
