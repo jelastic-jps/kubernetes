@@ -84,8 +84,8 @@ done < <( kubeadm config images list --config /etc/kubernetes/custom-kubeadm.yam
 # weave
 [ -n "${WEAVE}" ] && {
 	echo "$(date): pulling weave docker images";
-	crictl pull devbeta/weave-npc:${WEAVE};
-	crictl pull devbeta/weave-kube:${WEAVE};
+	crictl pull jelastic/weave-npc:${WEAVE};
+	crictl pull jelastic/weave-kube:${WEAVE};
 }
 
 # additional
