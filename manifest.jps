@@ -1052,12 +1052,12 @@ addons:
     actions:
       addon-regcreds-config:
       - cmd[${nodes.k8sm.master.id}]: |-
-          kubectl apply -f https://raw.githubusercontent.com/alexellis/registry-creds/master/manifest.yaml
+          kubectl apply -f ${baseUrl}/addons/registry-creds/registry-creds-system.yaml
           wait-deployment.sh registry-creds-registry-creds-controller registry-creds-system 1 600
           kubectl -n kube-system delete secret dockerhub-credentials-secret
-          kubectl delete -f ${baseUrl}/addons/dockerhub-secret.yaml
+          kubectl delete -f ${baseUrl}/addons/registry-creds/dockerhub-secret.yaml
           kubectl -n kube-system create secret docker-registry dockerhub-credentials-secret --docker-username='${settings.creds_username}' --docker-password='${settings.creds_password}' --docker-email='${settings.creds_email}'
-          kubectl apply -f ${baseUrl}/addons/dockerhub-secret.yaml
+          kubectl apply -f ${baseUrl}/addons/registry-creds/dockerhub-secret.yaml
 
 success: |
   ${globals.default_success:}
