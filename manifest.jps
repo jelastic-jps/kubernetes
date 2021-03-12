@@ -1024,25 +1024,29 @@ addons:
     baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.16
     name: DockerHub Registry Credentials
     description: |
-      Propagate an authorized DockerHub registry user credentials to Kubernetes imagePullSecret records automatically
+      Leverage DockerHub images pull rate limits: assign DockerHub user credentials to Kubernetes deployments cluster-wide
     logo: /images/k8s-regcreds.png
     settings:
       fields:
         - type: displayfield
           hideLabel: true
-          markup: Please specify DockerHub user's valid credentials. All previously stored DockerHub credentials will be overwritten!
+          markup: Please specify DockerHub user's valid credentials in the fields below. All previously stored DockerHub user credentials (if any) will be overwritten!
         - type: displayfield
           hideLabel: true
         - type: string
           required: true
+          regex: "^((?!\\s).)*$"
+          regexText: Incorrect username
           caption: Username
           name: creds_username
         - type: string
           required: true
+          inputType: password
           caption: Password
           name: creds_password
         - type: string
           required: true
+          vtype: email
           caption: E-mail
           name: creds_email
     buttons:
