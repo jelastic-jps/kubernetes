@@ -20,7 +20,7 @@ fields:
           kubectl apply -f https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/master/deploy/releases/0.7.0/openliberty-app-crd.yaml
           curl -L https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/master/deploy/releases/0.7.0/openliberty-app-cluster-rbac.yaml | sed -e "s/OPEN_LIBERTY_OPERATOR_NAMESPACE/${OPERATOR_NAMESPACE}/"  | kubectl apply -f -
           curl -L https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/master/deploy/releases/0.7.0/openliberty-app-operator.yaml  | sed -e "s/OPEN_LIBERTY_WATCH_NAMESPACE/${OPERATOR_NAMESPACE}/"  | kubectl apply -n ${OPERATOR_NAMESPACE} -f -
-          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.19.8/addons/open-liberty.yaml
+          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/${settings.version}/addons/open-liberty.yaml
 
   - name: label
     caption: Topology
@@ -96,8 +96,40 @@ fields:
     caption: Enable Remote API Access
     value: false
 
-  - type: string
+  - type: displayfield
+    height: 10
+    hideLabel: true
+    markup:
+
+  - type: list
     name: version
-    inputType: hidden
     caption: Kubernetes Version
+    values:
+      v1.18.16: v1.18.16
+      v1.19.8: v1.19.8
+      v1.20.4: v1.20.4
     default: v1.19.8
+    hideLabel: false
+    editable: false
+
+  - type: envname
+    name: envName
+    caption: Environment
+    dependsOn: region
+    randomName: true
+    showFullDomain: true
+    required: true
+
+  - type: string
+    name: displayName
+    caption: Display Name
+    default: Kubernetes Cluster
+
+  - type: regionlist
+    name: region
+    caption: Region
+    disableInactive: true
+    selectFirstAvailable: true
+    filter:
+      type: ["vz7"]
+      isActive: true
