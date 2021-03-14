@@ -79,25 +79,58 @@ onInstall:
              <pre style="height: 64px;overflow: auto;"><code style="white-space: normal;">${globals.token}</code></pre>
   - check-health
 
-onAfterScaleOut[cp]:
-  - cmd[${nodes.k8sm.master.id}]: |-
-      token_age=$(expr $(date +%s) - $(stat /var/log/kubeadm-init.log -c %Y))
-      [ ${token_age} -lt $((20*60*60)) ] && { sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'; } || { kubeadm token create --print-join-command; }
-  - setGlobals:
-      worker_join_cmd: ${response.out}
-  - set:
-      nodes: ${event.response.nodes.join(id,)}
-  - prepare-worker-integration
-  - cmd [${this.nodes}]: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
-  - connect-workers: ${this.nodes}
-  - apply-worker-integration: ${this.nodes}
-  - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${event.response.nodes.join(extIPs,)}'
+onAfterScaleOut:
+  - if ('${event.response.nodes.nodeType}' == 'kubernetes' && '${event.response.nodes.nodeGroup}' != 'k8sm'):
+      - if (${nodes.storage.length:0} > 0):
+          script: |
+            var resp = jelastic.env.file.GetMountPoints({envName: '${env.appid}', session: session, nodeGroup: '${event.response.nodes.nodeGroup}'}),
+              path = "/data",
+              mount;
 
-onBeforeScaleIn[cp]:
-  forEach(event.response.nodes):
-    remove-worker:
-      workerHostname: node${@i.id}-${env.domain}
-      workerExtIPs: ${@i.extIPs.join(,)}
+            if (resp.result != 0) return resp;
+
+            for (var i = 0, k = resp.array; i < k.length; i++) {
+              if (path == String(k[i].path)) {
+                return { result: 0 };
+              }
+            }
+
+            mount = {
+              method: 'jelastic.env.file.AddMountPointByGroup',
+              envName: '${env.name}',
+              session: session,
+              nodeGroup: '${event.response.nodes.nodeGroup}',
+              path: path,
+              sourcePath: path,
+              readOnly: false,
+              sourceNodeId: '${nodes.storage.master.id}'
+            };
+
+            if (${nodes.storage.length:0} > 1) {
+              mount.sourceAddressType = "NODE_GROUP"
+            }
+
+            return {result: 0, onAfterReturn: { api: mount } }
+
+      - cmd[${nodes.k8sm.master.id}]: |-
+          token_age=$(expr $(date +%s) - $(stat /var/log/kubeadm-init.log -c %Y))
+          [ ${token_age} -lt $((20*60*60)) ] && { sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'; } || { kubeadm token create --print-join-command; }
+      - setGlobals:
+          worker_join_cmd: ${response.out}
+      - set:
+          nodes: ${event.response.nodes.join(id,)}
+      - prepare-worker-integration
+      - cmd [${this.nodes}]: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
+      - connect-workers: ${this.nodes}
+      - apply-worker-integration: ${this.nodes}
+      - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${event.response.nodes.join(extIPs,)}'
+
+onBeforeScaleIn:
+  - if ('${event.response.nodes.nodeType}' == 'kubernetes' && '${event.response.nodes.nodeGroup}' != 'k8sm'):
+      forEach(event.response.nodes):
+        remove-worker:
+          workerHostname: node${@i.id}-${env.domain}
+          workerExtIPs: ${@i.extIPs.join(,)}
 
 onBeforeClone:
   stopEvent:
@@ -117,21 +150,34 @@ onBeforeSetExtIpCount[k8sm]: block-ip-assignment
 
 onBeforeSetExtIpCount[mbl]: block-ip-assignment
 
-onAfterSetExtIpCount[cp]:
-  - log: 'attached ips: ${event.response.attachedIps.join(,)}, detached ips: ${event.response.detachedIps.join(,)}'
-  - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${event.response.attachedIps.join(,)}' -d '${event.response.detachedIps.join(,)}'
-  - cmd[cp]: systemctl restart kube-config.service
+onAfterSetExtIpCount:
+  - env.control.GetNodeInfo[${event.params.nodeid}]
+  - if ('${response.node.nodeType}' == 'kubernetes' && '${response.node.nodeGroup}' != 'k8sm'):
+      - set:
+          attachIps: ${event.response.attachedIps.join(,)}
+          detachIps: ${event.response.detachedIps.join(,)}
+      - log: 'attached ips: ${this.attachIps}, detached ips: ${this.detachIps}'
+      - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${this.attachIps}' -d '${this.detachIps}'
+      - cmd[${event.params.nodeid}]: systemctl restart kube-config.service
 
-onBeforeDetachExtIp[cp]:
-  - log: 'detached ip: ${event.params.ip}'
-  - cmd[${nodes.k8sm.master.id}]: metallb-config -d '${event.params.ip}'
-  - cmd[cp]: systemctl restart kube-config.service
+onBeforeDetachExtIp:
+  - env.control.GetNodeInfo[${event.params.nodeid}]
+  - if ('${response.node.nodeType}' == 'kubernetes' && '${response.node.nodeGroup}' != 'k8sm'):
+      - set:
+          detachIp: ${event.params.ip}
+      - log: 'detached ip: ${this.detachIp}'
+      - cmd[${nodes.k8sm.master.id}]: metallb-config -d '${this.detachIp}'
+      - cmd[${event.params.nodeid}]: systemctl restart kube-config.service
 
-onAfterAttachExtIp[cp]:
+onAfterAttachExtIp:
   - if (${event.response.result:1} == 0):
-      - log: 'attached ip: ${event.response.object}'
-      - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${event.response.object}'
-      - cmd[cp]: systemctl restart kube-config.service
+      - env.control.GetNodeInfo[${event.params.nodeid}]
+      - if ('${response.node.nodeType}' == 'kubernetes' && '${response.node.nodeGroup}' != 'k8sm'):
+          - set:
+              attachIp: ${event.response.object}
+          - log: 'attached ip: ${this.attachIp}'
+          - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${this.attachIp}'
+          - cmd[${event.params.nodeid}]: systemctl restart kube-config.service
 
 actions:
   set-scaling-parameters:
@@ -326,6 +372,24 @@ actions:
     - else:
         setGlobals:
           storage_endpoint: ""
+
+  init-globals-workers:
+    - script: |
+        var resp = jelastic.env.control.GetEnvInfo('${env.appid}', session),
+              nodeGroups = [];
+
+        if (resp.result != 0) return resp;
+
+        for (var i = 0, k = resp.nodes; i < k.length; i++) {
+           nodeGroup = String(k[i].nodeGroup);
+           if (nodeGroups.indexOf(nodeGroup) == -1) {
+             if (k[i].nodeType == "kubernetes" && nodeGroup != "k8sm") {
+               nodeGroups.push(nodeGroup);
+             }
+           }
+        }
+
+        return { result: 0, onAfterReturn: { setGlobals: { workers: nodeGroups.join() } } }
 
   setup-remote-api:
   - log: '${this}'
@@ -626,7 +690,7 @@ addons:
     actions:
       addon-upgrade-init:
       - forEach(node:env.nodes):
-          if ('${@node.nodeGroup}' == 'cp' || '${@node.nodeGroup}' == 'k8sm'):
+          if ('${@node.nodeType}' == 'kubernetes'):
             if ('${nodes.k8sm.master.version}' != '${@node.version}'):
               return:
                 type: warning
@@ -849,7 +913,8 @@ addons:
           wget -nv ${baseUrl}/addons/gitlab/gitlab-integration.sh -O /var/lib/kubelet/worker-data/gitlab-integration.sh
           chmod +x /var/lib/kubelet/worker-data/gitlab-integration.sh
       - prepare-worker-integration
-      - apply-worker-integration: cp
+      - init-globals-workers
+      - apply-worker-integration: ${globals.workers}
 
       addon-gitlab-remove:
       - cmd[${nodes.k8sm.master.id}]: kubectl get ns gitlab-managed-apps &>/dev/null && echo "true" || echo "false"
@@ -915,7 +980,8 @@ addons:
           rm -f /var/lib/kubelet/worker-data/gitlab-*
           kubectl delete ns gitlab-managed-apps
           kubectl delete -f ${baseUrl}/addons/gitlab/gitlab-service-account.yaml
-      - cmd[cp]: |-
+      - init-globals-workers
+      - cmd[${globals.workers}]: |-
           wget -nv ${baseUrl}/addons/gitlab/gitlab-integration-remove.sh -O /var/lib/worker/gitlab-integration-remove.sh
           chmod +x /var/lib/worker/gitlab-integration-remove.sh
           /var/lib/worker/gitlab-integration-remove.sh | tee -a /var/log/kubernetes/k8s-worker-integration.log
