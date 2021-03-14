@@ -17,6 +17,7 @@ description:
 onInstall:
   - check-cluster-status
   - upgrade-configuration
+  - init-globals-workers
   - upgrade-masters-cluster:
       id: ${nodes.k8sm.master.id}
       master: true
@@ -30,7 +31,7 @@ onInstall:
           hostname: node${@i.id}-${env.domain}
           version: ${settings.version}
   - upgrade-jps-manifests: ${settings.version}
-  - env.control.ApplyNodeGroupData [k8sm, cp]:
+  - env.control.ApplyNodeGroupData [k8sm]:
       data:
         isRedeploySupport: true
   - upgrade-masters-redeploy:
@@ -51,12 +52,19 @@ onInstall:
         upgrade-masters-post:
           id: ${@i.id}
           master: false
-  - forEach(nodes.cp):
-      upgrade-workers:
-        id: ${@i.id}
-        hostname: node${@i.id}-${env.domain}
-        version: ${settings.version}
-  - env.control.ApplyNodeGroupData [k8sm, cp]:
+  - env.control.ApplyNodeGroupData [k8sm]:
+      data:
+        isRedeploySupport: false
+  - env.control.ApplyNodeGroupData [${globals.workers}]:
+      data:
+        isRedeploySupport: true
+  - forEach(group:globals.workerSet):
+      - forEach(node:nodes.${@group}):
+          upgrade-workers:
+            id: ${@node.id}
+            hostname: node${@node.id}-${env.domain}
+            version: ${settings.version}
+  - env.control.ApplyNodeGroupData [${globals.workers}]:
       data:
         isRedeploySupport: false
   - script: |
@@ -80,6 +88,26 @@ actions:
         return:
           type: warning
           message: Kubernetes Cluster current state is not suitable for upgrade. Please check its operability, API and nodes status.
+
+  init-globals-workers:
+    - script: |
+        var resp = jelastic.env.control.GetEnvInfo('${env.appid}', session),
+              nodeGroups = [];
+
+        if (resp.result != 0) return resp;
+
+        for (var i = 0, k = resp.nodes; i < k.length; i++) {
+           nodeGroup = String(k[i].nodeGroup);
+           if (nodeGroups.indexOf(nodeGroup) == -1) {
+             if (k[i].nodeType == "kubernetes" && nodeGroup != "k8sm") {
+               nodeGroups.push(nodeGroup);
+             }
+           }
+        }
+
+        return { result: 0, onAfterReturn: { setGlobals: {
+          workerSet: nodeGroups, workers: nodeGroups.join()
+        }}}
 
   upgrade-configuration:
     - cmd[${nodes.k8sm.master.id}]: |-
