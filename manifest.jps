@@ -359,7 +359,7 @@ actions:
           helm install monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
           wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720
           grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
-          [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
+          [ "${globals.ingress-dir}" == "haproxy" ] && crypt_option="-1" || crypt_option="-apr1"
           kubectl create secret generic monitoring-prometheus --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${grafana_secret})" --namespace=kubernetes-monitoring
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
@@ -416,7 +416,7 @@ actions:
           kubectl create -f ${baseUrl}/addons/jaeger/role.yaml
           kubectl create -f ${baseUrl}/addons/jaeger/role_binding.yaml
           kubectl create -f ${baseUrl}/addons/jaeger/operator.yaml
-          [ "${settings.ingress-controller}" == "HAProxy" ] && crypt_option="-1" || crypt_option="-apr1"
+          [ "${globals.ingress-dir}" == "haproxy" ] && crypt_option="-1" || crypt_option="-apr1"
           jaeger_secret=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
           kubectl create secret generic observability-jaeger-plain --from-literal=auth="${jaeger_secret}" --namespace=observability
           kubectl create secret generic observability-jaeger --from-literal=auth="admin:$(openssl passwd ${crypt_option} ${jaeger_secret})" --namespace=observability
