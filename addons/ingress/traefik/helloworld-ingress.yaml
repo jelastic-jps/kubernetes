@@ -9,7 +9,8 @@ spec:
   rules:
   - http: &http_rules
       paths:
-      - pathType: Prefix
+      - path: /
+        pathType: Prefix
         backend:
           service:
             name: hello-kubernetes
