@@ -426,9 +426,8 @@ actions:
           helm install monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
           wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720
           grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
-          kubectl create secret generic --namespace=kubernetes-monitoring monitoring-prometheus \
-            --from-literal=auth="admin:$(openssl passwd -apr1 ${grafana_secret})" \
-            --from-literal=admin=$(openssl passwd -1 ${grafana_secret})
+          [ "${globals.ingress-dir}" == "haproxy" ] && crypt_params="admin=$(openssl passwd -1 ${grafana_secret})" || crypt_params="auth=admin:$(openssl passwd -apr1 ${grafana_secret})"
+          kubectl create secret generic --namespace=kubernetes-monitoring monitoring-prometheus --from-literal=${crypt_params}
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
           kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml
@@ -484,11 +483,12 @@ actions:
           kubectl create --namespace observability -f ${baseUrl}/addons/jaeger/role.yaml
           kubectl create --namespace observability -f ${baseUrl}/addons/jaeger/role_binding.yaml
           kubectl create --namespace observability -f ${baseUrl}/addons/jaeger/operator.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/cluster_role.yaml
+          kubectl create -f ${baseUrl}/addons/jaeger/cluster_role_binding.yaml
           jaeger_secret=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+          [ "${globals.ingress-dir}" == "haproxy" ] && crypt_params="admin=$(openssl passwd -1 ${jaeger_secret})" || crypt_params="auth=admin:$(openssl passwd -apr1 ${jaeger_secret})"
           kubectl create secret generic --namespace=observability observability-jaeger-plain --from-literal=auth="${jaeger_secret}"
-          kubectl create secret generic --namespace=observability observability-jaeger \
-            --from-literal=auth="admin:$(openssl passwd -apr1 ${jaeger_secret})" \
-            --from-literal=admin=$(openssl passwd -1 ${jaeger_secret})
+          kubectl create secret generic --namespace=observability observability-jaeger --from-literal=${crypt_params}
           kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
           kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
           wait-deployment.sh jaeger-operator observability 1 720
