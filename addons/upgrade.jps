@@ -367,8 +367,12 @@ actions:
     - if (${this.master}):
         - cmd[${this.id}]: |-
             # drop in k8s-1.20+
+            kubectl get ingress kubernetes-api -n default && {
+             kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml; } ||:
             kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
+            kubectl get deployment kubernetes-k8dash -n kube-system && {
+             kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/k8dash-ingress.yaml; } ||:
             kubectl get deployment hello-kubernetes && {
              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
             kubectl get secret --namespace kubernetes-monitoring monitoring-grafana && {
