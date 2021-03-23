@@ -119,11 +119,13 @@ onAfterScaleOut:
           worker_join_cmd: ${response.out}
       - set:
           nodes: ${event.response.nodes.join(id,)}
+          ips: ${event.response.nodes.join(extIPs,)}
       - prepare-worker-integration
       - cmd [${this.nodes}]: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
       - connect-workers: ${this.nodes}
       - apply-worker-integration: ${this.nodes}
-      - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${event.response.nodes.join(extIPs,)}'
+      - if ('${this.ips}'):
+          cmd[${nodes.k8sm.master.id}]: metallb-config -a '${this.ips}'
 
 onBeforeScaleIn:
   - if ('${event.response.nodes.nodeType}' == 'kubernetes' && '${event.response.nodes.nodeGroup}' != 'k8sm'):
@@ -347,10 +349,11 @@ actions:
      - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=${settings.storage:false} --nfs-server=${globals.storage_endpoint} --problem-detector=true
 
   remove-worker:
-    cmd[${nodes.k8sm.master.id}]: |-
-      metallb-config -d '${this.workerExtIPs}';
-      /usr/bin/kubectl drain ${this.workerHostname} --ignore-daemonsets --delete-local-data || exit 8;
-      /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
+    - if ('${this.workerExtIPs}'):
+        cmd[${nodes.k8sm.master.id}]: metallb-config -d '${this.workerExtIPs}'
+    - cmd[${nodes.k8sm.master.id}]: |-
+        /usr/bin/kubectl drain ${this.workerHostname} --ignore-daemonsets --delete-emptydir-data || exit 8;
+        /usr/bin/kubectl delete node ${this.workerHostname} || exit 9;
 
   init-globals-ingress:
     - cmd[${nodes.k8sm.master.id}]: |-
