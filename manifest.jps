@@ -54,4 +54,6 @@ actions:
 
 startPage: ${globals.start_page}
 
-success: ${globals.success_text}
+success:
+  email: false
+  text: ${globals.success_text}
