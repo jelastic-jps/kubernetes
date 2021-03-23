@@ -84,6 +84,7 @@ actions:
   upgrade-configuration:
     - cmd[${nodes.k8sm.master.id}]: |-
         systemctl daemon-reload > /dev/null 2>&1
+        kubectl config set-context --current --namespace=default
         kubectl get daemonset weave-net -n kube-system && {
          kubectl apply -f ${baseUrl}/addons/weave-pack.yaml;
          kubectl -n kube-system wait --for=condition=Ready pod -l name=weave-net --timeout=-1s; } ||:
