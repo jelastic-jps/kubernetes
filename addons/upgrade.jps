@@ -296,6 +296,9 @@ actions:
   upgrade-masters-cluster:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
+        # drop in k8s-1.20+
+        wget -nv https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/k8sm-config -O /usr/local/sbin/k8sm-config
+        chmod +x /usr/local/sbin/k8sm-config
         /usr/local/sbin/k8sm-config -f
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
