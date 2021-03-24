@@ -159,6 +159,13 @@ actions:
          # k8s-1.19: postpone ingress update
         } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl get deployment kubernetes-k8dash -n kube-system && {
+         kubectl -n kube-system delete deployment kubernetes-k8dash;
+         kubectl -n kube-system delete service kubernetes-k8dash;
+         for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-k8dash.yaml && break; done;
+         # k8s-1.19: postpone ingress update
+        } ||:
+    - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment hello-kubernetes && {
          kubectl delete -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
@@ -375,7 +382,8 @@ actions:
              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml; } ||:
             kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
-            kubectl get deployment kubernetes-k8dash -n kube-system && {
+            kubectl get deployment kubernetes-k8dash -n kubernetes-k8dash && {
+             kubectl -n kube-system delete ingress kubernetes-k8dash;
              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/k8dash-ingress.yaml; } ||:
             kubectl get deployment hello-kubernetes && {
              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
