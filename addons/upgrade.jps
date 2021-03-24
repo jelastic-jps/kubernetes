@@ -159,6 +159,11 @@ actions:
          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment kubernetes-k8dash -n kube-system && {
+         kubectl -n kube-system delete deployment kubernetes-k8dash;
+         kubectl -n kube-system delete service kubernetes-k8dash;
+         kubectl -n kube-system delete ingress kubernetes-k8dash;
+         for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-k8dash.yaml && break; done; } ||:
+        kubectl get deployment kubernetes-k8dash -n kubernetes-k8dash && {
          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/k8dash-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get ingress kubernetes-api -n default && {
