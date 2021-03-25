@@ -15,10 +15,7 @@ var resp = {
     isRedeploySupport: false,
     addons: ["conf-k8s-addon", "upgrade-k8s-addon", "monitor-k8s-addon", "gitlab-k8s-addon", "certman-k8s-addon", "rancher-k8s-addon", "regcreds-k8s-addon"],
     displayName: "Master",
-    extip: false,
-    env: {
-      JELASTIC_EXPOSE: false
-    }
+    extip: false
   }, {
     count: workerCount,
     nodeGroup: "cp",
@@ -28,10 +25,7 @@ var resp = {
     displayName: "Workers",
     cloudlets: 32,
     isRedeploySupport: false,
-    extip: ${settings.extip:false},
-    env: {
-      JELASTIC_EXPOSE: false
-    }
+    extip: ${settings.extip:false}
   }]
 }
 
