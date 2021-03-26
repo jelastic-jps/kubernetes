@@ -34,14 +34,17 @@ actions:
         }
 
   install-cluster:
-    - script: return {result:0, envGroups:eval('(' + MANIFEST + ')').envGroups}
-    - install:
+    - params:
         jps: ${this.jps}
         envName: ${settings.envName}
         displayName: ${settings.displayName}
         envGroups: ${response.envGroups}
         region: ${settings.region}
         settings: ${settings.toJSON()}
+      script: |
+        params = toNative(params);
+        params.envGroups = eval('(' + MANIFEST + ')').envGroups;
+        return api.marketplace.jps.Install(params);
     - setGlobals:
         success_text: ${response.successText}
     - script: |
@@ -57,3 +60,4 @@ startPage: ${globals.start_page}
 success:
   email: false
   text: ${globals.success_text}
+  
