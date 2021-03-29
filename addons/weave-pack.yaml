@@ -120,7 +120,7 @@ items:
         spec:
           initContainers:
             - name: weave-init
-              image: 'jelastic/weave-kube:2.8.1'
+              image: 'public.ecr.aws/t6h9l3f8/weave-kube:2.8.1'
               command:
                 - /home/weave/init.sh
               env:
@@ -158,7 +158,7 @@ items:
                   value: '1'
                 - name: IPALLOC_RANGE
                   value: 10.239.0.0/16
-              image: 'jelastic/weave-kube:2.8.1'
+              image: 'public.ecr.aws/t6h9l3f8/weave-kube:2.8.1'
               readinessProbe:
                 httpGet:
                   host: 127.0.0.1
@@ -188,7 +188,7 @@ items:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
-              image: 'jelastic/weave-npc:2.8.1'
+              image: 'public.ecr.aws/t6h9l3f8/weave-npc:2.8.1'
 #npc-args
               resources:
                 requests:
