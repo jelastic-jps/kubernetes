@@ -304,7 +304,7 @@ actions:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         # drop in k8s-1.20+
-        wget -nv https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/k8sm-config -O /usr/local/sbin/k8sm-config
+        wget -nv https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/tools/k8sm-config -O /usr/local/sbin/k8sm-config
         chmod +x /usr/local/sbin/k8sm-config
         /usr/local/sbin/k8sm-config -f
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
@@ -328,8 +328,6 @@ actions:
         sed -i 's%\(.*\)--fail-swap-on=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
         sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
         sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
-        grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a cgroupDriver: systemd' /var/lib/kubelet/config.yaml
-        grep -q '^failSwapOn:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a failSwapOn: false' /var/lib/kubelet/config.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
@@ -408,8 +406,6 @@ actions:
         sed -i 's%\(.*\)--fail-swap-on=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
         sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
         sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
-        grep -q '^cgroupDriver:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a cgroupDriver: systemd' /var/lib/kubelet/config.yaml
-        grep -q '^failSwapOn:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a failSwapOn: false' /var/lib/kubelet/config.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
