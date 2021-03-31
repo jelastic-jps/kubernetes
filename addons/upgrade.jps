@@ -157,6 +157,12 @@ actions:
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl get deployment kubernetes-k8dash -n kube-system && {
+         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/k8dash-ingress.yaml; } ||:
+    - cmd[${nodes.k8sm.master.id}]: |-
+        kubectl get ingress kubernetes-api -n default && {
+         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml; } ||:
+    - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment hello-kubernetes && {
          kubectl delete -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
