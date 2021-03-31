@@ -2,7 +2,7 @@
 # set -x
 
 # components
-K9S="0.24.6"
+K9S="0.24.7"
 POPEYE="0.9.0"
 STERN="1.11.0"
 KUBECTX="0.9.3"
