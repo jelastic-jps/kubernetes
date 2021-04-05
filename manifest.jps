@@ -1,6 +1,6 @@
 type: install
 version: 1.5
-id: kubernetes-install
+id: kubernetes
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/bootstrap
 description:
   text: /text/description-kube.md
