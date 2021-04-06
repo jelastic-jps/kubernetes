@@ -1,6 +1,6 @@
 type: install
 version: 1.5
-id: kubernetes
+id: kubernetes-release
 baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.4
 description:
   text: /text/description-kube.md

@@ -227,7 +227,7 @@ actions:
             return jps;
         }
 
-        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: envAppid, search: { appstore: 1, app_id: [ "kubernetes", { like: "%-k8s-addon" } ] } });
+        var resp = api.dev.scripting.Eval("appstore", session, "GetApps", { targetAppid: envAppid, search: { appstore: 1, app_id: [ "kubernetes", "kubernetes-release", { like: "%-k8s-addon" } ] } });
         resp = resp.response || resp;
         if (resp.result != 0) return resp;
 
@@ -251,10 +251,12 @@ actions:
 
         for (var i = 0, n = apps.length; i < n; i++) {
             var app = apps[i], nodeGroup = "", jps;
+
+            if (!app.isInstalled) continue;
             app.settings.data = app.settings.data || {};
             app.settings.data.version = version;
 
-            if (app.app_id == "kubernetes") {
+            if (app.app_id == "kubernetes" || app.app_id == "kubernetes-release") {
                 jps = newJps;
                 isInstalled = true;
             } else {
