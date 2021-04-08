@@ -73,12 +73,12 @@ touch /tmp/jelastic-conf-mark
 echo "$(date): pulling common docker images"
 while read item; do
 	crictl pull "$item";
-done < <( kubeadm config images list --config /etc/kubernetes/custom-kubeadm.yaml | grep -E '(pause|kube-proxy)' )
+done < <( kubeadm config images list --config /etc/custom-kubeadm.yaml | grep -E '(pause|kube-proxy)' )
 
 # master dockers
 [ "x${COMPTYPE}" = "xmaster" ] && {
 	echo "$(date): pulling k8s master docker images";
-	kubeadm config images pull --config /etc/kubernetes/custom-kubeadm.yaml;
+	kubeadm config images pull --config /etc/custom-kubeadm.yaml;
 }
 
 # weave

@@ -309,12 +309,12 @@ actions:
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade node || exit 2
     - cmd[${this.id}]: |-
-        grep -q '^failSwapOn:' /var/lib/kubelet/config.yaml || sed -i '/^kind: KubeletConfiguration/a failSwapOn: false' /var/lib/kubelet/config.yaml
         /usr/bin/kubectl uncordon ${this.hostname} || exit 3
 
   upgrade-masters-redeploy:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
+        rm -f /etc/kubernetes/custom-kubeadm.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
@@ -376,6 +376,7 @@ actions:
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
         /usr/bin/kubeadm upgrade node || exit 4
+        rm -f /etc/kubernetes/custom-kubeadm.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
