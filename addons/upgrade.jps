@@ -79,12 +79,12 @@ actions:
         for cluster_comp in "Kubernetes master" "KubeDNS"; do
          echo "$(TERM=dumb kubectl cluster-info 2>/dev/null)" | grep -q "${cluster_comp} is running" || echo "false";
         done
-    - setGlobals:
+    - set:
         k8s_cluster_status: ${response.out}
     - cmd[${nodes.k8sm.master.id}]: echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' && echo "false" || echo "true"
-    - setGlobals:
+    - set:
         k8s_node_status: ${response.out}
-    - if ('${globals.k8s_cluster_status}' || '${globals.k8s_node_status}' == 'false'):
+    - if ('${this.k8s_cluster_status}' || '${this.k8s_node_status}' == 'false'):
         return:
           type: warning
           message: Kubernetes Cluster current state is not suitable for upgrade. Please check its operability, API and nodes status.
@@ -122,10 +122,10 @@ actions:
         kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
         kubectl get daemonset haproxy-ingress -n haproxy-controller &>/dev/null && echo "haproxy" ||:
-    - setGlobals:
+    - set:
         ingress-dir: ${response.out}
     - cmd[${nodes.k8sm.master.id}]: |-
-        case "x${globals.ingress-dir}" in
+        case "x${this.ingress-dir}" in
           xtraefik)
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
@@ -156,7 +156,7 @@ actions:
         kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
          kubectl delete ns kubernetes-dashboard;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
-         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
+         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/dashboard-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment kubernetes-k8dash -n kube-system && {
          kubectl -n kube-system delete deployment kubernetes-k8dash;
@@ -164,15 +164,15 @@ actions:
          kubectl -n kube-system delete ingress kubernetes-k8dash;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-k8dash.yaml && break; done; } ||:
         kubectl get deployment kubernetes-k8dash -n kubernetes-k8dash && {
-         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/k8dash-ingress.yaml; } ||:
+         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/k8dash-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get ingress kubernetes-api -n default && {
-         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml; } ||:
+         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/api-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment hello-kubernetes && {
          kubectl delete -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
-         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
+         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         helm repo add deliveryhero https://charts.deliveryhero.io/
         helm repo update
@@ -190,23 +190,23 @@ actions:
          helm upgrade --namespace kubernetes-monitoring monitoring-grafana --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/. ;
          wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720;
          kubectl patch secret --namespace kubernetes-monitoring monitoring-grafana -p="{\"data\":{\"admin-password\":\"${grafana_base64}\"}}";
-         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml;
-         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml;
-         kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; } ||:
+         kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/prometheus-ingress.yaml;
+         kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/alert-ingress.yaml;
+         kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/grafana-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get secret --namespace observability observability-jaeger-plain && {
-         kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml; } ||:
+         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/jaeger-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get NetworkPolicy,PodSecurityPolicy,DaemonSet,Deployment,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"extensions/v1beta1"')
-    - setGlobals:
+    - set:
         k8s_deprecated_ext: ${response.out}
-    - if ('${globals.k8s_deprecated_ext}'):
+    - if ('${this.k8s_deprecated_ext}'):
         return:
           type: warning
           message: Deprecated Kubernetes Extensions API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
     - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get DaemonSet,Deployment,StatefulSet,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"apps/v1beta')
-    - setGlobals:
+    - set:
         k8s_deprecated_app: ${response.out}
-    - if ('${globals.k8s_deprecated_app}'):
+    - if ('${this.k8s_deprecated_app}'):
         return:
           type: warning
           message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.

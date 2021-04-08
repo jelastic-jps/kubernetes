@@ -409,9 +409,9 @@ actions:
         type: warning
         message: Monitoring components require Storage installed!
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana &>/dev/null && echo "true" || echo "false"
-  - setGlobals:
+  - set:
       monitoring_installed: ${response.out}
-  - if ('${globals.monitoring_installed}' == 'false'):
+  - if ('${this.monitoring_installed}' == 'false'):
       - init-globals-ingress
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -441,14 +441,15 @@ actions:
             curl -X PUT -f -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences" && break || continue
           done
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
-  - setGlobals:
+  - set:
       grafana_secret: ${response.out}
+  - setGlobals:
       monitoring_success: |
           Enter [Prometheus dashboard](${env.url}prometheus/), [Prometheus AlertManager](${env.url}prometheus-alert/)
           and [Grafana dashboard](${env.url}grafana/), using login "admin" and password:
 
-          ```${globals.grafana_secret}```
-  - if ('${globals.monitoring_installed}' == 'true'):
+          ```${this.grafana_secret}```
+  - if ('${this.monitoring_installed}' == 'true'):
       return:
         type: info
         message: ${globals.monitoring_success}
@@ -461,7 +462,7 @@ actions:
               Prometheus Dashboard - ${env.url}prometheus/<br>
               Prometheus AlertManager - ${env.url}prometheus-alert/ <br>
               Grafana Dashboard - ${env.url}grafana/ <br>
-              Credentials - admin / ${globals.grafana_secret}
+              Credentials - admin / ${this.grafana_secret}
       return:
         type: info
         message: ${globals.monitoring_success}
@@ -472,9 +473,9 @@ actions:
         type: warning
         message: Jaeger components require Storage installed!
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret observability-jaeger-plain --namespace=observability &>/dev/null && echo "true" || echo "false"
-  - setGlobals:
+  - set:
       jaeger_installed: ${response.out}
-  - if ('${globals.jaeger_installed}' == 'false'):
+  - if ('${this.jaeger_installed}' == 'false'):
       - init-globals-ingress
       - cmd[${nodes.k8sm.master.id}]: |-
           kubectl create namespace observability
@@ -494,13 +495,14 @@ actions:
           wait-deployment.sh jaeger-operator observability 1 720
           wait-deployment.sh jaeger observability 1 720
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace=observability observability-jaeger-plain -o jsonpath='{.data.auth}' | base64 --decode
-  - setGlobals:
+  - set:
       jaeger_secret: ${response.out}
+  - setGlobals:
       jaeger_success: |
           Enter [Jaeger dashboard](${env.url}jaeger/), using login "admin" and password:
 
-          ```${globals.jaeger_secret}```
-  - if ('${globals.jaeger_installed}' == 'true'):
+          ```${this.jaeger_secret}```
+  - if ('${this.jaeger_installed}' == 'true'):
       return:
         type: info
         message: ${globals.jaeger_success}
@@ -511,7 +513,7 @@ actions:
           body: |-
               Jaeger Tracing Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
               Jaeger Dashboard - ${env.url}jaeger/ <br>
-              Credentials - admin / ${globals.jaeger_secret}
+              Credentials - admin / ${this.jaeger_secret}
       return:
         type: info
         message: ${globals.jaeger_success}
@@ -565,15 +567,15 @@ addons:
       - init-globals-ingress
       - setup-remote-api: ${this.api}
       - if (${this.api:true}):
-          - setGlobals:
+          - set:
               apiStatusMessage: enabled at ${env.url}api
       - else:
-          - setGlobals:
+          - set:
               apiStatusMessage: disabled
       - message.email.send:
           to: "${user.email}"
           subject: Remote API Access Successfully Updated in ${env.name}
-          body: Remote API has been ${globals.apiStatusMessage}
+          body: Remote API has been ${this.apiStatusMessage}
 
       addon-conf-storage:
       - if (${nodes.storage.length:0} > 0):
@@ -921,9 +923,9 @@ addons:
 
       addon-gitlab-remove:
       - cmd[${nodes.k8sm.master.id}]: kubectl get ns gitlab-managed-apps &>/dev/null && echo "true" || echo "false"
-      - setGlobals:
+      - set:
           gitlab_installed: ${response.out}
-      - if ('${globals.gitlab_installed}' == 'false'):
+      - if ('${this.gitlab_installed}' == 'false'):
           return:
             type: info
             message: This cluster has no active GitLab integration!
