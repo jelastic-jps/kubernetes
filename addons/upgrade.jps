@@ -79,12 +79,12 @@ actions:
         for cluster_comp in "Kubernetes master" "KubeDNS"; do
          echo "$(TERM=dumb kubectl cluster-info 2>/dev/null)" | grep -q "${cluster_comp} is running" || echo "false";
         done
-    - setGlobals:
+    - set:
         k8s_cluster_status: ${response.out}
     - cmd[${nodes.k8sm.master.id}]: echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' && echo "false" || echo "true"
-    - setGlobals:
+    - set:
         k8s_node_status: ${response.out}
-    - if ('${globals.k8s_cluster_status}' || '${globals.k8s_node_status}' == 'false'):
+    - if ('${this.k8s_cluster_status}' || '${this.k8s_node_status}' == 'false'):
         return:
           type: warning
           message: Kubernetes Cluster current state is not suitable for upgrade. Please check its operability, API and nodes status.
@@ -206,16 +206,16 @@ actions:
          # k8s-1.19: postpone ingress update
         } ||:
     - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get NetworkPolicy,PodSecurityPolicy,DaemonSet,Deployment,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"extensions/v1beta1"')
-    - setGlobals:
+    - set:
         k8s_deprecated_ext: ${response.out}
-    - if ('${globals.k8s_deprecated_ext}'):
+    - if ('${this.k8s_deprecated_ext}'):
         return:
           type: warning
           message: Deprecated Kubernetes Extensions API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
     - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get DaemonSet,Deployment,StatefulSet,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"apps/v1beta')
-    - setGlobals:
+    - set:
         k8s_deprecated_app: ${response.out}
-    - if ('${globals.k8s_deprecated_app}'):
+    - if ('${this.k8s_deprecated_app}'):
         return:
           type: warning
           message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
