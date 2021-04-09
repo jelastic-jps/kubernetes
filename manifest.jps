@@ -57,10 +57,12 @@ onInstall:
       - setup-remote-api: true
 
   - if (${settings.monitoring:false}):
-        - install-monitoring
+        - install-monitoring:
+            source: main
 
   - if (${settings.jaeger:false}):
-        - install-jaeger
+        - install-jaeger:
+            source: main
 
   - if ('${env.protocol}' == 'http'):
       - api: env.control.AddEndpoint
@@ -404,10 +406,6 @@ actions:
           default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
 
   install-monitoring:
-  - if (${nodes.storage.length:0} == 0):
-      return:
-        type: warning
-        message: Monitoring components require Storage installed!
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana &>/dev/null && echo "true" || echo "false"
   - set:
       monitoring_installed: ${response.out}
@@ -449,12 +447,9 @@ actions:
           and [Grafana dashboard](${env.url}grafana/), using login "admin" and password:
 
           ```${this.grafana_secret}```
-  - if ('${this.monitoring_installed}' == 'true'):
-      return:
-        type: info
-        message: ${globals.monitoring_success}
-  - if (!${settings.monitoring:false}):
-      message.email.send:
+  - if ('${this.source}' == 'addon'):
+      - if ('${this.monitoring_installed}' == 'false'):
+          message.email.send:
             to: "${user.email}"
             subject: Monitoring Tools Successfully Installed in ${env.name}
             body: |-
@@ -463,15 +458,8 @@ actions:
               Prometheus AlertManager - ${env.url}prometheus-alert/ <br>
               Grafana Dashboard - ${env.url}grafana/ <br>
               Credentials - admin / ${this.grafana_secret}
-      return:
-        type: info
-        message: ${globals.monitoring_success}
 
   install-jaeger:
-  - if (${nodes.storage.length:0} == 0):
-      return:
-        type: warning
-        message: Jaeger components require Storage installed!
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret observability-jaeger-plain --namespace=observability &>/dev/null && echo "true" || echo "false"
   - set:
       jaeger_installed: ${response.out}
@@ -502,21 +490,15 @@ actions:
           Enter [Jaeger dashboard](${env.url}jaeger/), using login "admin" and password:
 
           ```${this.jaeger_secret}```
-  - if ('${this.jaeger_installed}' == 'true'):
-      return:
-        type: info
-        message: ${globals.jaeger_success}
-  - if (!${settings.jaeger:false}):
-      message.email.send:
-          to: "${user.email}"
-          subject: Jaeger Tracing Tools Successfully Installed in ${env.name}
-          body: |-
+  - if ('${this.source}' == 'addon'):
+      - if ('${this.jaeger_installed}' == 'false'):
+          message.email.send:
+            to: "${user.email}"
+            subject: Jaeger Tracing Tools Successfully Installed in ${env.name}
+            body: |-
               Jaeger Tracing Tools installed in <b>${env.name}</b> Kubernetes Cluster: <br>
               Jaeger Dashboard - ${env.url}jaeger/ <br>
               Credentials - admin / ${this.jaeger_secret}
-      return:
-        type: info
-        message: ${globals.jaeger_success}
 
   check-health:
       cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/check-install.sh -i=${settings.ingress-controller} -app=${settings.deploy} -dash=${settings.dashboard:none} -m=${settings.monitoring:false} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger:false} -d=${env.domain} &> /var/log/kubernetes/k8s-health-check.log ||
@@ -558,7 +540,7 @@ addons:
         confirmText: Cluster Storage will be added if missing. Continue?
         successText: Cluster storage has been succesfully installed!
       - caption: Jaeger
-        action: install-jaeger
+        action: addon-jaeger
         confirmText: Jaeger will be installed if missing. Continue?
 
     actions:
@@ -664,6 +646,17 @@ addons:
       - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/helm-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --nfs-provisioner=true --nfs-server=${globals.storage_endpoint}
       - set-scaling-parameters
 
+      addon-jaeger:
+      - if (${nodes.storage.length:0} == 0):
+          return:
+            type: warning
+            message: Jaeger components require Storage installed!
+      - install-jaeger:
+          source: addon
+      - return:
+          type: info
+          message: ${globals.jaeger_success}
+
   - id: monitor-k8s-addon
     type: update
     permanent: true
@@ -674,8 +667,20 @@ addons:
 
     buttons:
       - caption: Install Monitoring Tools
-        action: install-monitoring
+        action: addon-monitoring
         confirmText: Monitoring tools will be installed if missing. Continue?
+
+    actions:
+      addon-monitoring:
+      - if (${nodes.storage.length:0} == 0):
+          return:
+            type: warning
+            message: Monitoring components require Storage installed!
+      - install-monitoring:
+          source: addon
+      - return:
+          type: info
+          message: ${globals.monitoring_success}
 
   - id: upgrade-k8s-addon
     type: update
