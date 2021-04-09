@@ -174,6 +174,13 @@ actions:
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
+        helm list | grep -q "nfs-client-provisioner" && {
+         helm get values nfs-client-provisioner -o yaml > /tmp/nfs-provisioner-options.yaml;
+         helm delete nfs-client-provisioner;
+         helm repo add nfs-subdir-external-provisioner https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/;
+         helm repo update;
+         helm install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner -f /tmp/nfs-provisioner-options.yaml; }
+    - cmd[${nodes.k8sm.master.id}]: |-
         helm repo add deliveryhero https://charts.deliveryhero.io/
         helm repo update
         helm list | grep -q "node-problem-detector" && npd_action="upgrade" || npd_action="install"

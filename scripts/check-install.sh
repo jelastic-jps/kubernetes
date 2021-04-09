@@ -385,12 +385,12 @@ checkNfsStorage() {
   printInfo "Checking status on NFS provisioner pods"
   END="2"
   for ((i=0;i<=END;i++)); do
-    NODENAME=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)
+    NODENAME=$(kubectl get pods -l=app=nfs-subdir-external-provisioner -n default -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)
     if [ $? -ne 0 ]; then
       printWarning "Failed to get node name because of array index out of bounds"
       break
     fi
-    PODNAME=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
+    PODNAME=$(kubectl get pods -l=app=nfs-subdir-external-provisioner -n default -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
     if [ $? -ne 0 ]; then
       printError "Failed to find NFS provisioner pods. NFS privioners may have failed or has not been deployed"
       printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
@@ -398,9 +398,9 @@ checkNfsStorage() {
       NFS_STORAGE_STATUS="FAIL"
       break
     fi
-    POD_STATUS=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
-    CT_STATUS=$(kubectl get pods -l=app=nfs-client-provisioner -n default -o jsonpath="{.items[$i].status.containerStatuses[0].ready}" 2> /dev/null)
-      printInfo "Checking nfs-client-provisioner pod status on Node $NODENAME"
+    POD_STATUS=$(kubectl get pods -l=app=nfs-subdir-external-provisioner -n default -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
+    CT_STATUS=$(kubectl get pods -l=app=nfs-subdir-external-provisioner -n default -o jsonpath="{.items[$i].status.containerStatuses[0].ready}" 2> /dev/null)
+      printInfo "Checking nfs-subdir-external-provisioner pod status on Node $NODENAME"
     if [ "$POD_STATUS" != "Running" ] || [ "$CT_STATUS" != "true" ]; then
       printError "Failed pod ${PODNAME} with pod_status $POD_STATUS and ct_status $CT_STATUS"
       kubectl logs ${PODNAME} -n default > ${K8S_LOG_DIR}/${PODNAME}.log

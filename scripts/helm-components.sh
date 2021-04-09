@@ -55,10 +55,12 @@ fi
 	BASE_URL="$(echo ${BASE_URL} | base64 --decode)"
 
 	if [ "x${NFS_INSTALL}" = "xtrue" ] && [ -n "${NFS_SERVER}" ]; then
-		echo "$(date): installing nfs-client-provisioner"
-		helm install nfs-client-provisioner stable/nfs-client-provisioner --set nfs.server=${NFS_SERVER} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume
+		echo "$(date): installing nfs-subdir-external-provisioner"
+		helm repo add nfs-subdir-external-provisioner https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/;
+		helm repo update;
+		helm install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner --set nfs.server=${NFS_SERVER} --set nfs.path=/data --set nfs.mountOptions='{soft,proto=tcp}' --set replicaCount=3 --set storageClass.defaultClass=true --set storageClass.allowVolumeExpansion=true --set storageClass.name=jelastic-dynamic-volume ;
 	else
-		echo "$(date): nfs-client-provisioner installation skipped"
+		echo "$(date): nfs-subdir-external-provisioner installation skipped"
 	fi
 
 	if [ "x${PROBLEM_DETECT}" = "xtrue" ]; then
