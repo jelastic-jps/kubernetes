@@ -331,6 +331,7 @@ actions:
         sed -i 's%\(.*\)--fail-swap-on=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
         sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
         sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
+        rm -f /etc/kubernetes/custom-kubeadm.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
@@ -409,6 +410,7 @@ actions:
         sed -i 's%\(.*\)--fail-swap-on=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
         sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /etc/sysconfig/kubelet
         sed -i 's%\(.*\)--cgroup-driver=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
+        rm -f /etc/kubernetes/custom-kubeadm.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
