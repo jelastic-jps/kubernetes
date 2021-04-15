@@ -41,26 +41,38 @@ fields:
     hidden: true
     markup:
 
-  - name: ingress-controller
-    type: list
-    caption: Ingress Controller
-    values:
-      Nginx: NGINX
-      HAProxy: HAProxy
-      Traefik: Traefik
-    default: Nginx
-    hideLabel: false
-    editable: false
-
-  - name: dashboard
-    type: list
-    caption: Kubernetes Dashboard
-    values:
-      general: Kubernetes Dashboard v2
-      k8dash: Kubernetes K8Dash
-    default: general
-    hideLabel: false
-    editable: false
+  - type: compositefield
+    hideLabel: true
+    pack: start
+    defaultMargins: 0 5 0 0
+    items:
+      - type: displayfield
+        markup: Ingress Controller
+        cls: x-form-item-label
+        height: 40
+      - name: ingress-controller
+        type: list
+        width: 110
+        margins: 0 15 0 5
+        values:
+          Nginx: NGINX
+          HAProxy: HAProxy
+          Traefik: Traefik
+        default: Nginx
+        editable: false
+      - type: displayfield
+        markup: Dashboard
+        cls: x-form-item-label
+      - name: dashboard
+        type: list
+        width: 240
+        margins: 0 15 0 5
+        values:
+          general: Kubernetes Dashboard v2
+          k8dash: Kubernetes K8Dash
+        default: general
+        hideLabel: false
+        editable: false
 
   - type: checkbox
     name: storage
@@ -101,39 +113,63 @@ fields:
     hideLabel: true
     markup:
 
-  - type: list
-    name: version
-    caption: Kubernetes Version
-    values:
-      - value: v1.20.4
-        caption: v1.20.4
-      - value: v1.19.8
-        caption: v1.19.8
-      - value: v1.18.16
-        caption: v1.18.16
-    default: v1.19.8
-    hideLabel: false
-    editable: false
-    width: 120
+  - type: compositefield
+    hideLabel: true
+    pack: start
+    defaultMargins: 0 5 0 0
+    items:
+      - type: displayfield
+        markup: Version
+        cls: x-form-item-label
+        height: 40
+      - type: list
+        name: version
+        width: 120
+        margins: 0 15 0 5
+        values:
+          - value: v1.20.4
+            caption: v1.20.4
+          - value: v1.19.8
+            caption: v1.19.8
+          - value: v1.18.16
+            caption: v1.18.16
+        default: v1.19.8
+        editable: false
+      - type: displayfield
+        markup: Display Name
+        cls: x-form-item-label
+      - type: string
+        name: displayName
+        width: 240
+        margins: 0 15 0 5
+        default: Kubernetes Cluster
 
-  - type: envname
-    name: envName
-    caption: Environment
-    dependsOn: region
-    randomName: true
-    showFullDomain: true
-    required: true
-
-  - type: string
-    name: displayName
-    caption: Display Name
-    default: Kubernetes Cluster
-
-  - type: regionlist
-    name: region
-    caption: Region
-    disableInactive: true
-    selectFirstAvailable: true
-    filter:
-      type: ["vz7"]
-      isActive: true
+  - type: compositefield
+    hideLabel: true
+    pack: start
+    defaultMargins: 0 5 0 0
+    items:
+      - type: displayfield
+        markup: Region
+        cls: x-form-item-label
+        height: 40
+      - type: regionlist
+        name: region
+        width: 160
+        margins: 0 15 0 5
+        disableInactive: true
+        selectFirstAvailable: true
+        filter:
+          type: ["vz7"]
+          isActive: true
+      - type: displayfield
+        markup: Environment
+        cls: x-form-item-label
+      - type: envname
+        name: envName
+        width: 220
+        margins: 0 15 0 5
+        dependsOn: region
+        randomName: true
+        showFullDomain: true
+        required: true
