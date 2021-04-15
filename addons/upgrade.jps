@@ -185,7 +185,7 @@ actions:
         resp = resp.response || resp;
         if (resp.result != 0) return resp;
 
-        var apps = resp.apps, newAddons = {}, newJps, isInstalled;
+        var apps = resp.apps, newAddons = {}, mainApp = {}, newJps;
 
         try {
             newJps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(manifestUrl)));
@@ -206,13 +206,12 @@ actions:
         for (var i = 0, n = apps.length; i < n; i++) {
             var app = apps[i], nodeGroup = "", jps;
 
-            if (!app.isInstalled) continue;
+            if (!app.isInstalled) continue;    
             app.settings.data = app.settings.data || {};
             app.settings.data.version = version;
 
             if (app.app_id == "kubernetes" || app.app_id == "kubernetes-release") {
-                jps = newJps;
-                isInstalled = true;
+                mainApp[app.app_id] = { jps: newJps, data: app.settings.data };
             } else {
                 jps = newAddons[app.app_id];
                 nodeGroup = "k8sm";
@@ -229,10 +228,12 @@ actions:
             if (jps) schedule(jps, batch, app.settings.data);
         }
 
-        for (var appId in newAddons) schedule(buildAddon(newAddons[appId], newJps, true), batch);
+        if (mainApp) {
+            mainApp = mainApp["kubernetes-release"] || mainApp.kubernetes;
+            schedule(mainApp.jps, batch, mainApp.data);
+        } else return { result: com.hivext.api.Response.OBJECT_FORMAT_ERROR, error: "Kubernetes manifest is not found!", data: ex};
 
-        if (!isInstalled)
-            return { result: com.hivext.api.Response.OBJECT_FORMAT_ERROR, error: "Kubernetes manifest is not found!", data: ex};
+        for (var appId in newAddons) schedule(buildAddon(newAddons[appId], newJps, true), batch);
 
         if (batch.methods.length > 0) {
             var batchResp = api.utils.batch.Call(appid, toJSON(batch), false);
