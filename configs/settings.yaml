@@ -105,11 +105,14 @@ fields:
     name: version
     caption: Kubernetes Version
     values:
-      v1.18.16: v1.18.16
-      v1.19.8: v1.19.8
+      - value: v1.19.8
+        caption: v1.19.8
+      - value: v1.18.16
+        caption: v1.18.16
     default: v1.19.8
     hideLabel: false
     editable: false
+    width: 120
 
   - type: envname
     name: envName
