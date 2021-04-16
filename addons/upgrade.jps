@@ -76,7 +76,7 @@ onInstall:
 actions:
   check-cluster-status:
     - cmd[${nodes.k8sm.master.id}]: |-
-        for cluster_comp in "Kubernetes master" "KubeDNS"; do
+        for cluster_comp in "Kubernetes control plane" "KubeDNS"; do
          echo "$(TERM=dumb kubectl cluster-info 2>/dev/null)" | grep -q "${cluster_comp} is running" || echo "false";
         done
     - set:
@@ -308,7 +308,7 @@ actions:
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
-        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-local-data || exit 1
+        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 1
     - if (${this.master}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 2
