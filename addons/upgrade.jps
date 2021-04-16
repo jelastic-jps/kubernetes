@@ -273,7 +273,7 @@ actions:
                     jps = buildAddon(jps, newJps);
                     delete newAddons[app.app_id];
                 } else {
-                    resp = api.marketplace.jps.Uninstall(appid, session, app.uniqueName);
+                    resp = api.marketplace.jps.Uninstall({ appUniqueName: app.uniqueName, force: true });
                     if (resp.result != 0) return resp;
                 }
             }
