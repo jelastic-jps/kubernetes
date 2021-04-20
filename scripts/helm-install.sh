@@ -2,7 +2,7 @@
 # set -x
 
 # core
-HELM_VERSION="v3.5.3"
+HELM_VERSION="v3.5.4"
 
 HELP="Usage:
 	$0 --migrate=(master|slave)
