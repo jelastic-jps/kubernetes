@@ -43,7 +43,7 @@ spec:
       serviceAccountName: jaeger-hotrod
       containers:
         - name: jaeger-hotrod
-          image: jaegertracing/example-hotrod:1.21
+          image: jaegertracing/example-hotrod:1.22
           imagePullPolicy: Always
           env:
             - name: JAEGER_AGENT_HOST
