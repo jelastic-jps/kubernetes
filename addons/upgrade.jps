@@ -185,7 +185,7 @@ actions:
         resp = resp.response || resp;
         if (resp.result != 0) return resp;
 
-        var apps = resp.apps, newAddons = {}, mainApp = {}, newJps;
+        var apps = resp.apps, newAddons = {}, mainApp = {}, newJps, nodeGroup;
 
         try {
             newJps = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(manifestUrl)));
@@ -204,7 +204,7 @@ actions:
         var batch = { alias : { m : "Development.Scripting.Eval" }, global : { appid: "appstore", session: session }, methods: [] };
 
         for (var i = 0, n = apps.length; i < n; i++) {
-            var app = apps[i], nodeGroup = "", jps;
+            var app = apps[i], jps;
 
             if (!app.isInstalled) continue;    
             app.settings.data = app.settings.data || {};
@@ -230,6 +230,7 @@ actions:
 
         if (mainApp) {
             mainApp = mainApp["kubernetes-release"] || mainApp.kubernetes;
+            nodeGroup = "";
             schedule(mainApp.jps, batch, mainApp.data);
         } else return { result: com.hivext.api.Response.OBJECT_FORMAT_ERROR, error: "Kubernetes manifest is not found!", data: ex};
 
