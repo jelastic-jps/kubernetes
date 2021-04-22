@@ -105,6 +105,8 @@ fields:
     name: version
     caption: Kubernetes Version
     values:
+      - value: v1.20.4
+        caption: v1.20.4
       - value: v1.19.8
         caption: v1.19.8
       - value: v1.18.16
