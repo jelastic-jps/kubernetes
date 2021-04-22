@@ -117,6 +117,7 @@ actions:
          kubectl apply -f ${baseUrl}/addons/weave-pack.yaml;
          kubectl -n kube-system wait --for=condition=Ready pod -l name=weave-net --timeout=-1s; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
+        # invalidate in k8s-1.21+
         kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
         kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
@@ -146,7 +147,6 @@ actions:
            ;;
           *)
            echo "Invalid ingress controller used!"
-           exit 1
            ;;
           esac
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -156,23 +156,24 @@ actions:
         kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
          kubectl delete ns kubernetes-dashboard;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
-         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/dashboard-ingress.yaml; } ||:
+         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/dashboard-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
+        # drop in k8s-1.21+
         kubectl get deployment kubernetes-k8dash -n kube-system && {
          kubectl -n kube-system delete deployment kubernetes-k8dash;
          kubectl -n kube-system delete service kubernetes-k8dash;
          kubectl -n kube-system delete ingress kubernetes-k8dash;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-k8dash.yaml && break; done; } ||:
         kubectl get deployment kubernetes-k8dash -n kubernetes-k8dash && {
-         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/k8dash-ingress.yaml; } ||:
+         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/k8dash-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get ingress kubernetes-api -n default && {
-         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/api-ingress.yaml; } ||:
+         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/api-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment hello-kubernetes && {
          kubectl delete -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
-         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/helloworld-ingress.yaml; } ||:
+         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/helloworld-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         helm list | grep -q "nfs-client-provisioner" && {
          helm get values nfs-client-provisioner -o yaml > /tmp/nfs-provisioner-options.yaml;
@@ -201,12 +202,13 @@ actions:
          helm upgrade --namespace kubernetes-monitoring monitoring-grafana --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/. ;
          wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720;
          kubectl patch secret --namespace kubernetes-monitoring monitoring-grafana -p="{\"data\":{\"admin-password\":\"${grafana_base64}\"}}";
-         kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/prometheus-ingress.yaml;
-         kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/alert-ingress.yaml;
-         kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/grafana-ingress.yaml; } ||:
+         if [ -n "${this.ingress-dir}" ]; then
+          kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/prometheus-ingress.yaml;
+          kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/alert-ingress.yaml;
+          kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/grafana-ingress.yaml; fi; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get secret --namespace observability observability-jaeger-plain && {
-         kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/jaeger-ingress.yaml; } ||:
+         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/jaeger-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get NetworkPolicy,PodSecurityPolicy,DaemonSet,Deployment,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"extensions/v1beta1"')
     - set:
         k8s_deprecated_ext: ${response.out}
