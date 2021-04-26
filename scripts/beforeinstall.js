@@ -7,9 +7,8 @@ var resp = {
   ssl: !!jelastic.billing.account.GetQuotas('environment.jelasticssl.enabled').array[0].value,
   nodes: [{
     count: k8smCount,
-    cloudlets: 32,
-    nodeType: "kubernetes",
-    tag: tag,
+    options: ["extra_small_vm"],
+    nodeType: "ubuntu2004",
     scalingMode: "stateless",
     nodeGroup: "k8sm",
     isRedeploySupport: false,
@@ -18,12 +17,11 @@ var resp = {
     extip: false
   }, {
     count: workerCount,
+    options: ["extra_small_vm"],
     nodeGroup: "cp",
-    nodeType: "kubernetes",
-    tag: tag,
+    nodeType: "ubuntu2004",
     scalingMode: "stateless",
     displayName: "Workers",
-    cloudlets: 32,
     isRedeploySupport: false,
     extip: ${settings.extip:false}
   }]
