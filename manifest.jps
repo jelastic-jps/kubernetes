@@ -31,7 +31,7 @@ onInstall:
   - init-main-master
   - init-slave-masters
   - connect-workers: cp
-  - apply-worker-integration: cp
+  - apply-worker-config: ${nodes.cp.join(id,)}
   - setup-overlay
   - if ('${settings.ingress-controller}' == 'Nginx'):
       - setGlobals:
@@ -91,7 +91,7 @@ onAfterScaleOut[cp]:
   - prepare-worker-integration
   - cmd [${this.nodes}]: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
   - connect-workers: ${this.nodes}
-  - apply-worker-integration: ${this.nodes}
+  - apply-worker-config: ${this.nodes}
   - if ('${this.ips}'):
       cmd[${nodes.k8sm.master.id}]: metallb-config -a '${this.ips}'
 
@@ -171,7 +171,8 @@ actions:
     - setGlobals:
         worker_integration: ${response.out}
 
-  apply-worker-integration:
+  apply-worker-config:
+    - cmd[${nodes.k8sm.master.id}]: screen -d -m /usr/local/sbin/worker-config -n ${this} -g cp -r ${env.region}
     - cmd[${this}]: |-
         mkdir /var/lib/worker &>/dev/null || rm -rf /var/lib/worker/*
         echo '${globals.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
