@@ -31,7 +31,9 @@ onInstall:
   - init-main-master
   - init-slave-masters
   - connect-workers: cp
-  - apply-worker-integration: cp
+  - apply-worker-config:
+      nodes: ${nodes.cp.join(id,)}
+      group: cp
   - setup-overlay
   - if ('${settings.ingress-controller}' == 'Nginx'):
       - setGlobals:
@@ -125,7 +127,9 @@ onAfterScaleOut:
       - prepare-worker-integration
       - cmd [${this.nodes}]: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
       - connect-workers: ${this.nodes}
-      - apply-worker-integration: ${this.nodes}
+      - apply-worker-config:
+          nodes: ${this.nodes}
+          group: ${event.response.nodes.nodeGroup}
       - if ('${this.ips}'):
           cmd[${nodes.k8sm.master.id}]: metallb-config -a '${this.ips}'
 
@@ -219,8 +223,9 @@ actions:
     - setGlobals:
         worker_integration: ${response.out}
 
-  apply-worker-integration:
-    - cmd[${this}]: |-
+  apply-worker-config:
+    - cmd[${nodes.k8sm.master.id}]: screen -d -m /usr/local/sbin/worker-config -n ${this.nodes} -g ${this.group} -r ${env.region}
+    - cmd[${this.nodes}]: |-
         mkdir /var/lib/worker &>/dev/null || rm -rf /var/lib/worker/*
         echo '${globals.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
         screen -d -m /usr/bin/bash -c '/usr/local/sbin/worker-integration.sh &>/var/log/kubernetes/k8s-worker-integration.log'

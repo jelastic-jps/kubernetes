@@ -62,6 +62,7 @@ onInstall:
       - forEach(node:nodes.${@group}):
           upgrade-workers:
             id: ${@node.id}
+            group: ${@group}
             hostname: node${@node.id}-${env.domain}
             version: ${settings.version}
   - env.control.ApplyNodeGroupData [${globals.workers}]:
@@ -413,6 +414,7 @@ actions:
         systemctl enable kubelet.service
     - cmd[${nodes.k8sm.master.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
+        /usr/local/sbin/worker-config -n ${this.id} -g ${this.group} -r ${env.region}
         while true; do echo "$(kubectl get pods --field-selector=status.phase=Pending -n kube-system)" | grep -q Pending || break; sleep 3; done
 
 success:
