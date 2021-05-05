@@ -313,6 +313,9 @@ actions:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         # drop in k8s-1.20+
+        if [ -f "/var/log/kubernetes/k8s-master-config.log" ] && [ ! -f "/var/log/kubernetes/k8s-cplane-config.log" ]; then
+         /usr/bin/mv /var/log/kubernetes/k8s-master-config.log /var/log/kubernetes/k8s-cplane-config.log;
+        fi
         wget -nv https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/tools/k8sm-config -O /usr/local/sbin/k8sm-config
         chmod +x /usr/local/sbin/k8sm-config
         /usr/local/sbin/k8sm-config -f
