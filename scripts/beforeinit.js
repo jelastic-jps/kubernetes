@@ -1,9 +1,9 @@
 //checking quotas
 var perEnv = "environment.maxnodescount",
     maxEnvs = "environment.maxcount",
-    perNodeGroup = "environment.maxsamenodescount";
-maxCloudletsPerRec = "environment.maxcloudletsperrec";
-diskIOPSlimit = "disk.iopslimit",
+    perNodeGroup = "environment.maxsamenodescount",
+    maxCloudletsPerRec = "environment.maxcloudletsperrec",
+    diskIOPSlimit = "disk.iopslimit",
     envsCount = jelastic.env.control.GetEnvs({lazy: true}).infos.length,
     nodesPerProdEnv = 10,
     nodesPerProdEnvWOStorage = 7,
