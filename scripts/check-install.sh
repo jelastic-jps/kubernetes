@@ -201,13 +201,13 @@ checkDashboard() {
       KUBERNETES_DASHBOARD_POD=$(kubectl get pods -l=k8s-app="${DASHBOARD_DEPLOYMENT_NAME}" -n ${DASHBOARD_NAMESPACE} --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}')
       if [ -z $KUBERNETES_DASHBOARD_POD ]; then
         printError "Failed to find ${DASHBOARD_DEPLOYMENT_NAME} pod"
-        printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+        printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE} on a control-plane node"
         WITH_ERROR="true"
       else
         DASHBOARD_POD_STATUS=$(kubectl get pods/$KUBERNETES_DASHBOARD_POD -n ${DASHBOARD_NAMESPACE} -o jsonpath="{.status.phase}" 2> /dev/null)
         printError "Kubernetes Dashboard is not running. Current status is: ${DASHBOARD_POD_STATUS}"
         printError "${DASHBOARD_DEPLOYMENT_NAME} pod logs are available in ${K8S_LOG_DIR}/kubernetes-dashboard.log"
-        printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+        printError "Inspect K8s events in ${K8S_EVENTS_LOG_FILE} on a control-plane node"
         kubectl logs ${KUBERNETES_DASHBOARD_POD} -n ${DASHBOARD_NAMESPACE} > ${K8S_LOG_DIR}/kubernetes-dashboard.log
         WITH_ERROR="true"
       fi
@@ -223,12 +223,12 @@ checkTraefikIngressController() {
   POD_STATUS=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[0]}" 2> /dev/null)
   if [ $? -ne 0 ]; then
     printError "No traefik pods found. Either daemon set was not created or something prevented pods from scheduling"
-    printError "Check K8s event in ${K8S_EVENTS_LOG_FILE} on a master node"
+    printError "Check K8s event in ${K8S_EVENTS_LOG_FILE} on a control-plane node"
   else
   # get number of nodes and make sure there's the same number of Traefik pods in Running state
-  MASTER_NODES=$(kubectl get nodes -l=node-role.kubernetes.io/master="" --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
+  CPLANE_NODES=$(kubectl get nodes -l=node-role.kubernetes.io/control-plane="" --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
   NODES_NUMBER=$(kubectl get nodes --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
-  NODES=`expr $NODES_NUMBER - $MASTER_NODES`
+  NODES=`expr $NODES_NUMBER - $CPLANE_NODES`
   END=`expr $NODES - 1`
   for ((i=0;i<=END;i++)); do
     NODENAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)
@@ -267,7 +267,7 @@ checkNginxIngressController() {
       INGRESS_STATUS="FAIL"
       WITH_ERROR="true"
     fi
-    printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+    printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a control-plane node"
   else
     NGINX_POD_STATUS=$(kubectl get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -n ingress-nginx -o jsonpath='{.items[0].status.phase}' 2> /dev/null)
     if [ "$NGINX_POD_STATUS" != "Running" ]; then
@@ -297,7 +297,7 @@ checkHaproxyIngressController() {
       INGRESS_STATUS="FAIL"
       WITH_ERROR="true"
     fi
-    printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+    printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a control-plane node"
   else
     HAPROXY_POD_STATUS=$(kubectl get pods -l=run=haproxy-ingress -n haproxy-controller -o jsonpath='{.items[0].status.phase}' 2> /dev/null)
     if [ "$HAPROXY_POD_STATUS" != "Running" ]; then
@@ -393,7 +393,7 @@ checkNfsStorage() {
     PODNAME=$(kubectl get pods -l=app=nfs-subdir-external-provisioner -n default -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
     if [ $? -ne 0 ]; then
       printError "Failed to find NFS provisioner pods. NFS privioners may have failed or has not been deployed"
-      printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+      printError "Check K8s events in ${K8S_EVENTS_LOG_FILE} on a control-plane node"
       WITH_ERROR="true"
       NFS_STORAGE_STATUS="FAIL"
       break
@@ -433,7 +433,7 @@ checkMonitoring() {
   do
     readyReplicas=$(kubectl get deployment/"${DEPLOYMENTS[i]}" -o=jsonpath='{.status.readyReplicas}' -n kubernetes-monitoring 2> /dev/null)
     if [ $? -ne 0 ]; then
-      printError "deployment ${DEPLOYMENTS[i]} not found. Check installation logs (CS) and K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+      printError "deployment ${DEPLOYMENTS[i]} not found. Check installation logs (CS) and K8s events in ${K8S_EVENTS_LOG_FILE} on a control-plane node"
       MONIT_ERROR="true"
       MONITORING_STATUS="FAIL"
     else
@@ -507,14 +507,14 @@ checkNodeProblemDetector(){
       writeLog "kubectl get pods -n default" ${DEFAULT_NS_PODS_LOG_FILE}
       writeLog "kubectl get pods -l=app=node-problem-detector -n default" ${NODE_PROBLEM_DETECTOR_PODS_LOG_FILE}
       printError "No node-problem-detector pods found. Daemon set has been created but no pods have been scheduled yet"
-      printError "Check ${NODE_PROBLEM_DETECTOR_PODS_LOG_FILE}, ${DEFAULT_NS_PODS_LOG_FILE}, ${K8S_LOG_DIR}/node-problem-detector.yaml, and K8s events in ${K8S_EVENTS_LOG_FILE} on a master node"
+      printError "Check ${NODE_PROBLEM_DETECTOR_PODS_LOG_FILE}, ${DEFAULT_NS_PODS_LOG_FILE}, ${K8S_LOG_DIR}/node-problem-detector.yaml, and K8s events in ${K8S_EVENTS_LOG_FILE} on a control-plane node"
       WITH_ERROR="true"
     fi
   else
     # get number of nodes and make sure there's the same number of pods in Running state
-    MASTER_NODES=$(kubectl get nodes -l=node-role.kubernetes.io/master="" --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
+    CPLANE_NODES=$(kubectl get nodes -l=node-role.kubernetes.io/control-plane="" --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
     NODES_NUMBER=$(kubectl get nodes --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
-    NODES=`expr $NODES_NUMBER - $MASTER_NODES`
+    NODES=`expr $NODES_NUMBER - $CPLANE_NODES`
     END=`expr $NODES - 1`
     for ((i=0;i<=END;i++)); do
       NODENAME=$(kubectl get pods -l=app=node-problem-detector -n default -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)

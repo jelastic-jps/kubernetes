@@ -28,8 +28,8 @@ globals:
 onInstall:
   - set-scaling-parameters
   - prepare-instances
-  - init-main-master
-  - init-slave-masters
+  - init-main-cplane
+  - init-secondary-cplanes
   - connect-workers: cp
   - apply-worker-config:
       nodes: ${nodes.cp.join(id,)}
@@ -48,9 +48,9 @@ onInstall:
           ingress-dir: traefik
       - install-traefik
   - install-components
-  - install-helm-master
-  - if ('${globals.k8sm-slave-ids}'):
-      install-helm-slave: ${globals.k8sm-slave-ids}
+  - install-helm-main
+  - if ('${globals.k8sm-secondary-ids}'):
+      install-helm-secondary: ${globals.k8sm-secondary-ids}
   - generate-admin-token
   - helm-components
   - deploy
@@ -212,7 +212,7 @@ actions:
   prepare-instances:
     execCmd:
       - nodeGroup: k8sm
-        commands: init-instance.sh --type=master --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
+        commands: init-instance.sh --type=cplane --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
       - nodeGroup: cp
         commands: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
     user: root
@@ -230,7 +230,7 @@ actions:
         echo '${globals.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
         screen -d -m /usr/bin/bash -c '/usr/local/sbin/worker-integration.sh &>/var/log/kubernetes/k8s-worker-integration.log'
 
-  init-main-master:
+  init-main-cplane:
     - if (${nodes.mbl.length:0}):
         cmd[mbl]: |-
           sed -i '/^<\/mappings>.*/i \\t<pair frontend_port="6443" backend_port="6443" description="CPlane balancing" option="tcp-check" params="check fall 3 rise 2">' /etc/haproxy/tcpmaps/mappings.xml
@@ -248,16 +248,16 @@ actions:
         while true; do [ -f "/tmp/jelastic-init-mark" ] && break; echo "Waiting for cluster initial configuration"; sleep 3; done
         kubeadm init --config /etc/custom-kubeadm.yaml --upload-certs --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-init.log
         mkdir /var/lib/kubelet/worker-data
-    - configure-master: ${nodes.k8sm.master.id}
+    - configure-cplane: ${nodes.k8sm.master.id}
     - cmd[${nodes.k8sm.master.id}]: sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'control-plane'
     - setGlobals:
-        master_join_cmd: ${response.out}
+        cplane_join_cmd: ${response.out}
     - cmd[${nodes.k8sm.master.id}]: sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'
     - setGlobals:
         worker_join_cmd: ${response.out}
     - prepare-worker-integration
 
-  init-slave-masters:
+  init-secondary-cplanes:
     - script: |
         return {
           result : 0,
@@ -265,20 +265,20 @@ actions:
           ips: '${nodes.k8sm.join(intIP,)}'.replace(/\b${nodes.k8sm.master.intIP},?\b/, '').replace(/,/g, ' ')
         };
     - setGlobals:
-        k8sm-slave-ids: ${response.nodes.join(,)}
-        k8sm-slave-ips: ${response.ips}
-    - if ('${globals.k8sm-slave-ids}'):
+        k8sm-secondary-ids: ${response.nodes.join(,)}
+        k8sm-secondary-ips: ${response.ips}
+    - if ('${globals.k8sm-secondary-ids}'):
       - forEach(node:response.nodes):
           - cmd[${@node}]: |-
               sleep 5
               while true; do [ -f "/tmp/jelastic-init-mark" ] && break; echo "Waiting for cluster initial configuration"; sleep 3; done
               systemctl daemon-reload > /dev/null 2>&1
               systemctl restart systemd-journald.service
-              ${globals.master_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
-      - configure-master: ${globals.k8sm-slave-ids}
-      - add-master-balancer: ${globals.k8sm-slave-ips}
+              ${globals.cplane_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
+      - configure-cplane: ${globals.k8sm-secondary-ids}
+      - add-cplane-balancer: ${globals.k8sm-secondary-ips}
 
-  configure-master:
+  configure-cplane:
     cmd[${this}]: |-
       mkdir -p $HOME/.kube
       /usr/bin/cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
@@ -286,9 +286,9 @@ actions:
       systemctl enable kubelet.service
       /usr/local/sbin/k8sm-config -f
       while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
-      /usr/local/sbin/master-postconfig.sh
+      /usr/local/sbin/cplane-postconfig.sh
 
-  add-master-balancer:
+  add-cplane-balancer:
     - cmd[mbl]: |-
         for item in ${this}; do echo "${item}" >> /etc/haproxy/hosts; done
         jem balancer rebuildCommon
@@ -326,12 +326,12 @@ actions:
   install-components:
     - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --admin-account=true --metallb=true --metrics-server=true --dashboard=${settings.dashboard:none} --ingress-name=${globals.ingress-dir}
 
-  install-helm-master:
+  install-helm-main:
     cmd[${nodes.k8sm.master.id}]: |-
-      /usr/local/sbin/helm-install.sh | tee /var/log/kubernetes/k8s-helm-master.log
+      /usr/local/sbin/helm-install.sh | tee /var/log/kubernetes/k8s-helm-main.log
 
-  install-helm-slave:
-    cmd[${this}]: screen -d -m /usr/bin/bash -c '/usr/local/sbin/helm-install.sh &>/var/log/kubernetes/k8s-helm-slave.log'
+  install-helm-secondary:
+    cmd[${this}]: screen -d -m /usr/bin/bash -c '/usr/local/sbin/helm-install.sh &>/var/log/kubernetes/k8s-helm-secondary.log'
 
   generate-admin-token:
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -507,7 +507,7 @@ actions:
 
   check-health:
       cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/check-install.sh -i=${settings.ingress-controller} -app=${settings.deploy} -dash=${settings.dashboard:none} -m=${settings.monitoring:false} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger:false} -d=${env.domain} &> /var/log/kubernetes/k8s-health-check.log ||
-         echo "> **Note:** Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on master node and contact support."
+         echo "> **Note:** Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on control-plane node and contact support."
       setGlobals:
          check_message: ${response.out}
 

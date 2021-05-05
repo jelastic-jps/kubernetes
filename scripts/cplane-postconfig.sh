@@ -7,7 +7,7 @@ POPEYE="0.9.1"
 STERN="1.11.0"
 KUBECTX="0.9.3"
 
-( ( echo "$(date): --- master postconfig started";
+( ( echo "$(date): --- cplane postconfig started";
 
 	# utilities
 	echo "$(date): retrieving k8s utilities";
@@ -26,15 +26,15 @@ KUBECTX="0.9.3"
 		wget -O- "https://github.com/ahmetb/kubectx/archive/v${KUBECTX}.tar.gz" | tar xz --strip-components=2 -C /etc/bash_completion.d kubectx-${KUBECTX}/completion/kubens.bash kubectx-${KUBECTX}/completion/kubectx.bash;
 	};
 
-	# validate master configuration
+	# validate cplane configuration
 	/usr/local/sbin/k8sm-config -f
 
 	# cleanup
 	rm -f /tmp/jelastic-{init,conf}-mark;
 
-	echo "$(date): --- master postconfig finished";
-) &>>/var/log/kubernetes/k8s-master-postconfig.log & )&
+	echo "$(date): --- cplane postconfig finished";
+) &>>/var/log/kubernetes/k8s-cplane-postconfig.log & )&
 
-echo "${HOSTNAME} master postconfig spawned"
+echo "${HOSTNAME} cplane postconfig spawned"
 
 exit 0

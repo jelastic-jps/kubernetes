@@ -5,9 +5,9 @@
 WEAVE="2.8.1"
 
 HELP="Usage:
-	$0 --type=(master|worker) --base-url=<base64-encoded-url>
+	$0 --type=(cplane|worker) --base-url=<base64-encoded-url>
 Options:
-	--type=       instance type (values: master, worker)
+	--type=       instance type (values: cplane, worker)
 	--base-url=   manifest baseUrl
 	-h, --help    show this help
 "
@@ -39,10 +39,10 @@ for key in "$@"; do
 done
 
 if [ -z "${COMPTYPE}" ]; then
-	echo -e "Missing mandatory argument --type=(master|worker)"
+	echo -e "Missing mandatory argument --type=(cplane|worker)"
 	exit 1
 fi
-if [ "x${COMPTYPE}" != "xmaster" ] && [ "x${COMPTYPE}" != "xworker" ]; then
+if [ "x${COMPTYPE}" != "xcplane" ] && [ "x${COMPTYPE}" != "xworker" ]; then
 	echo -e "Invalid argument value --type=${COMPTYPE}"
 	exit 1
 fi
@@ -52,8 +52,8 @@ if [ -z "${BASE_URL}" ]; then
 fi
 
 # scripts
-if [ "x${COMPTYPE}" = "xmaster" ]; then
-	SCRIPT_SET=( 'install-components' 'master-postconfig' 'helm-install' 'helm-components' 'check-install' )
+if [ "x${COMPTYPE}" = "xcplane" ]; then
+	SCRIPT_SET=( 'install-components' 'cplane-postconfig' 'helm-install' 'helm-components' 'check-install' )
 else
 	SCRIPT_SET=( 'helm-install' 'worker-integration' )
 fi
@@ -69,27 +69,27 @@ done
 # bootstrap configuration complete
 touch /tmp/jelastic-conf-mark
 
-# common dockers
+# common images
 echo "$(date): pulling common docker images"
 while read item; do
 	crictl pull "$item";
 done < <( kubeadm config images list --config /etc/custom-kubeadm.yaml | grep -E '(pause|kube-proxy)' )
 
-# master dockers
-[ "x${COMPTYPE}" = "xmaster" ] && {
-	echo "$(date): pulling k8s master docker images";
+# cplane images
+[ "x${COMPTYPE}" = "xcplane" ] && {
+	echo "$(date): pulling k8s cplane images";
 	kubeadm config images pull --config /etc/custom-kubeadm.yaml;
 }
 
 # weave
 [ -n "${WEAVE}" ] && {
-	echo "$(date): pulling weave docker images";
+	echo "$(date): pulling weave images";
 	crictl pull public.ecr.aws/t6h9l3f8/weave-npc:${WEAVE};
 	crictl pull public.ecr.aws/t6h9l3f8/weave-kube:${WEAVE};
 }
 
 # additional
-[ "x${COMPTYPE}" = "xmaster" ] && {
+[ "x${COMPTYPE}" = "xcplane" ] && {
 	[ -n "${WEAVE}" ] && {
 		echo "$(date): retrieving weaveexec components";
 		crictl pull weaveworks/weaveexec:${WEAVE};

@@ -9,7 +9,7 @@ var envsCount = jelastic.env.control.GetEnvs({lazy: true}).infos.length,
     nodesPerProdEnvWOStorage = 7,
     nodesPerDevEnv = 3,
     nodesPerDevEnvWOStorage = 2,
-    nodesPerMasterNG = 3,
+    nodesPerCplaneNG = 3,
     nodesPerWorkerNG = 2,
     maxCloudlets = 16,
     iopsLimit = 1000,
@@ -49,8 +49,8 @@ for (var i = 0; i < quotas.length; i++){
 
     if (n == perEnv && nodesPerProdEnvWOStorage  == q.value) prodStorage = false;
 
-    if (n == perNodeGroup && nodesPerMasterNG > q.value){
-        if (!markup) err(q, "required", nodesPerMasterNG);
+    if (n == perNodeGroup && nodesPerCplaneNG > q.value){
+        if (!markup) err(q, "required", nodesPerCplaneNG);
         prod = false;
     }
 

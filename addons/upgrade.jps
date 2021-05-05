@@ -18,40 +18,40 @@ onInstall:
   - check-cluster-status
   - upgrade-configuration
   - init-globals-workers
-  - upgrade-masters-cluster:
+  - upgrade-cplanes-cluster:
       id: ${nodes.k8sm.master.id}
-      master: true
+      main: true
       hostname: node${nodes.k8sm.master.id}-${env.domain}
       version: ${settings.version}
   - forEach(nodes.k8sm):
       if (!${@i.ismaster}):
-        upgrade-masters-cluster:
+        upgrade-cplanes-cluster:
           id: ${@i.id}
-          master: false
+          main: false
           hostname: node${@i.id}-${env.domain}
           version: ${settings.version}
   - upgrade-jps-manifests: ${settings.version}
   - env.control.ApplyNodeGroupData [k8sm]:
       data:
         isRedeploySupport: true
-  - upgrade-masters-redeploy:
+  - upgrade-cplanes-redeploy:
       id: ${nodes.k8sm.master.id}
-      master: true
+      main: true
       version: ${settings.version}
   - forEach(nodes.k8sm):
       if (!${@i.ismaster}):
-        upgrade-masters-redeploy:
+        upgrade-cplanes-redeploy:
           id: ${@i.id}
-          master: false
+          main: false
           version: ${settings.version}
-  - upgrade-masters-post:
+  - upgrade-cplanes-post:
       id: ${nodes.k8sm.master.id}
-      master: true
+      main: true
   - forEach(nodes.k8sm):
       if (!${@i.ismaster}):
-        upgrade-masters-post:
+        upgrade-cplanes-post:
           id: ${@i.id}
-          master: false
+          main: false
   - env.control.ApplyNodeGroupData [k8sm]:
       data:
         isRedeploySupport: false
@@ -307,25 +307,30 @@ actions:
 
         return { result: 0 };
 
-  upgrade-masters-cluster:
+  upgrade-cplanes-cluster:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
+        # drop in k8s-1.21+
+        if [ -f "/var/log/kubernetes/k8s-master-config.log" ] && [ ! -f "/var/log/kubernetes/k8s-cplane-config.log" ]; then
+         /usr/bin/mv /var/log/kubernetes/k8s-master-config.log /var/log/kubernetes/k8s-cplane-config.log;
+        fi
+        rm -f /var/log/kubernetes/k8s-master-config.log
         /usr/local/sbin/k8sm-config -f
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 1
-    - if (${this.master}):
+    - if (${this.main}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 2
             /usr/bin/kubeadm upgrade apply ${this.version} || exit 2
-    - if (!${this.master}):
+    - if (!${this.main}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade node || exit 2
     - cmd[${this.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 3
 
-  upgrade-masters-redeploy:
+  upgrade-cplanes-redeploy:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         rm -f /etc/kubernetes/custom-kubeadm.yaml
@@ -343,7 +348,7 @@ actions:
         nodeId: ${this.id}
         tag: ${this.version}
     - cmd[${this.id}]: |-
-        init-instance.sh --type=master --base-url=$(echo '${baseUrl}' | base64 -w 0)
+        init-instance.sh --type=cplane --base-url=$(echo '${baseUrl}' | base64 -w 0)
         [ -f "/root/wait-deployment.sh" ] && {
          rm -f /root/wait-deployment.sh; } ||:
         while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
@@ -352,21 +357,32 @@ actions:
         systemctl restart kubelet.service
         systemctl enable kubelet.service
 
-  upgrade-masters-post:
+  upgrade-cplanes-post:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
     - script: 'return { result : 0 };'
-    - if (${this.master}):
+    - if (${this.main}):
         - cmd[${this.id}]: |-
-            /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-master.log
+            # drop in k8s-1.21+
+            if [ -f "/var/log/kubernetes/k8s-helm-master.log" ] && [ ! -f "/var/log/kubernetes/k8s-helm-main.log" ]; then
+             /usr/bin/mv /var/log/kubernetes/k8s-helm-master.log /var/log/kubernetes/k8s-helm-main.log;
+            fi
+            rm -f /var/log/kubernetes/k8s-helm-master.log
+            /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-main.log
             /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --metallb=true
         - cmd[${this.id}]: |-
             [ -d "/var/lib/kubelet/worker-data" ] || mkdir -p /var/lib/kubelet/worker-data
             tar zcfv - /var/lib/kubelet/worker-data 2>/dev/null | base64 -w 0
         - setGlobals:
             worker_integration: ${response.out}
-    - if (!${this.master}):
-        - cmd[${this.id}]: /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-slave.log
+    - if (!${this.main}):
+        - cmd[${this.id}]: |-
+            # drop in k8s-1.21+
+            if [ -f "/var/log/kubernetes/k8s-helm-slave.log" ] && [ ! -f "/var/log/kubernetes/k8s-helm-secondary.log" ]; then
+             /usr/bin/mv /var/log/kubernetes/k8s-helm-slave.log /var/log/kubernetes/k8s-helm-secondary.log;
+            fi
+            rm -f /var/log/kubernetes/k8s-helm-slave.log
+            /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-secondary.log
     - cmd[${this.id}]: |-
         if [ -f "$HOME/.kube/config" ]; then
           client_certificate_data=$(grep 'client-certificate-data' /etc/kubernetes/admin.conf | awk '{print $2}')
@@ -378,7 +394,12 @@ actions:
           /usr/bin/cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
         fi
         chown root:root $HOME/.kube/config
-        /usr/local/sbin/master-postconfig.sh
+        # drop in k8s-1.21+
+        if [ -f "/var/log/kubernetes/k8s-master-postconfig.log" ] && [ ! -f "/var/log/kubernetes/k8s-cplane-postconfig.log" ]; then
+         /usr/bin/mv /var/log/kubernetes/k8s-master-postconfig.log /var/log/kubernetes/k8s-cplane-postconfig.log;
+        fi
+        rm -f /var/log/kubernetes/k8s-master-postconfig.log
+        /usr/local/sbin/cplane-postconfig.sh
 
   upgrade-workers:
     - cmd[${nodes.k8sm.master.id}]: |-

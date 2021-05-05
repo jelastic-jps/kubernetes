@@ -5,9 +5,9 @@
 HELM_VERSION="v3.5.4"
 
 HELP="Usage:
-	$0 --migrate=(master|slave)
+	$0 --migrate=(main|secondary)
 Options:
-	--migrate=    migration instance type (values: master, slave)
+	--migrate=    migration instance type (values: main, secondary)
 	-h, --help    show this help
 "
 
@@ -29,7 +29,7 @@ for key in "$@"; do
 	esac
 done
 
-if [ -n "${MIG_TYPE}" ] && [ "x${MIG_TYPE}" != "xmaster" ] && [ "x${MIG_TYPE}" != "xslave" ]; then
+if [ -n "${MIG_TYPE}" ] && [ "x${MIG_TYPE}" != "xmain" ] && [ "x${MIG_TYPE}" != "xsecondary" ]; then
 	echo -e "Invalid argument value --migrate=${MIG_TYPE}"
 	exit 1
 fi
@@ -60,7 +60,7 @@ mv -f /usr/local/bin/helm /usr/local/bin/helm_old &>/dev/null
 export DESIRED_VERSION="$HELM_VERSION"
 
 while true; do
-	curl -s https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash;
+	curl -s https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash;
 	[ -f /usr/local/bin/helm ] && break; sleep 5;
 done
 
@@ -68,10 +68,10 @@ if [ -n "${MIG_TYPE}" ]; then
 
 	if /usr/local/bin/helm_old version | grep -q 'SemVer:\"v2\.'; then
 		case "x${MIG_TYPE}" in
-		xmaster)
+		xmain)
 			migrate_full
 			;;
-		xslave)
+		xsecondary)
 			migrate_config
 			;;
 		esac
