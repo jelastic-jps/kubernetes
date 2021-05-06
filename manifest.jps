@@ -257,6 +257,8 @@ actions:
     cmd[${nodes.k8sm.master.id}]: |-
       kubectl apply -f ${baseUrl}/addons/nginx/nginx-deployment.yaml
       while [[ $(kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
+      while true; do kubectl get -A ValidatingWebhookConfiguration && break; sleep 5; done
+      while true; do kubectl -n ingress-nginx get svc ingress-nginx-controller-admission && break; sleep 5; done
 
   install-haproxy:
     cmd[${nodes.k8sm.master.id}]: |-
