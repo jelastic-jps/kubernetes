@@ -139,6 +139,8 @@ actions:
            kubectl delete ns ingress-nginx
            for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/nginx/nginx-deployment.yaml && break; done;
            while [[ $(kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
+           while true; do kubectl get -A ValidatingWebhookConfiguration && break; sleep 5; done
+           while true; do kubectl -n ingress-nginx get svc ingress-nginx-controller-admission && break; sleep 5; done
            ;;
           xhaproxy)
            kubectl delete ns ingress-controller
