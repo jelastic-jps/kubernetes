@@ -29,9 +29,9 @@ fields:
     type: radio-fieldset
     values:
         - value: 0-dev
-          caption: '<b>Development:</b> one master (1) and one scalable worker (1+)'
+          caption: '<b>Development:</b> one control-plane (1) and one scalable worker (1+)'
         - value: 1-prod
-          caption: '<b>Production:</b> multi master (3) with API balancers (2+) and scalable workers (2+)'
+          caption: '<b>Production:</b> multi control-plane (3) with API balancers (2+) and scalable workers (2+)'
     default: 0-dev
 
   - type: displayfield

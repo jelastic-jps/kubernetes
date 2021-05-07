@@ -9,7 +9,7 @@ var envsCount = jelastic.env.control.GetEnvs({lazy: true}).infos.length,
     nodesPerProdEnvWOStorage = 7,
     nodesPerDevEnv = 3,
     nodesPerDevEnvWOStorage = 2,
-    nodesPerMasterNG = 3,
+    nodesPerCplaneNG = 3,
     nodesPerWorkerNG = 2,
     maxCloudlets = 16,
     iopsLimit = 1000,
@@ -49,8 +49,8 @@ for (var i = 0; i < quotas.length; i++){
 
     if (n == perEnv && nodesPerProdEnvWOStorage  == q.value) prodStorage = false;
 
-    if (n == perNodeGroup && nodesPerMasterNG > q.value){
-        if (!markup) err(q, "required", nodesPerMasterNG);
+    if (n == perNodeGroup && nodesPerCplaneNG > q.value){
+        if (!markup) err(q, "required", nodesPerCplaneNG);
         prod = false;
     }
 
@@ -60,7 +60,7 @@ for (var i = 0; i < quotas.length; i++){
     }
 }
 var resp = {result:0};
-var url = "https://raw.githubusercontent.com/jelastic-jps/kubernetes/master/configs/settings.yaml";
+var url = "https://raw.githubusercontent.com/jelastic-jps/kubernetes/main/configs/settings.yaml";
 resp.settings = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(url)));
 var f = resp.settings.fields;
 

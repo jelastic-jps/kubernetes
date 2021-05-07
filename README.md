@@ -6,9 +6,9 @@ The clusters can be automatically installed on top of Jelastic PaaS in two ways:
 * **Custom** helm or stack deployment via shell command
 
 Also, there are different topologies available out-of-box:
-* **Development** - one master (1) and one scalable worker (1+)
-* **Production** - multi master (3) with API balancers (2+) and scalable workers (2+)
- 
+* **Development** - one control-plane (1) and one scalable worker (1+)
+* **Production** - multi control-plane (3) with API balancers (2+) and scalable workers (2+)
+
 The number of worker nodes can be changed after the initial installation is completed. All the newly added nodes are automatically connected to the cluster.
 
 <img src="https://jelastic.com/wp-content/themes/salient/img/templates/kubernetes-cloud-services/kube.webp" width="400" alt="Managed Kubernetes Hosting Multi-Cloud" />
