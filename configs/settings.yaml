@@ -34,11 +34,11 @@ fields:
         editable: false
 
   - type: compositefield
-    name: topo
     caption: Topology
     defaultMargins: 0 10 0 0
     items:
-      - type: list
+      - name: topo
+        type: list
         value: 0-dev
         width: 155
         values:
@@ -123,11 +123,13 @@ fields:
             - type: checkbox
               name: monitoring
               caption: Prometheus & Grafana
+              width: 170
 
             - type: checkbox
               name: jaeger
               caption: Jaeger Tracing Tools
               margins: 0 0 0 25
+              width: 170
 
       false:
         - type: compositefield
@@ -139,6 +141,7 @@ fields:
               caption: Prometheus & Grafana
               value: false
               disabled: true
+              width: 170
 
             - type: checkbox
               name: jaeger
@@ -146,6 +149,7 @@ fields:
               value: false
               disabled: true
               margins: 0 0 0 25
+              width: 170
 
   - type: compositefield
     pack: start
@@ -154,6 +158,7 @@ fields:
         name: api
         caption: Remote API Access
         value: false
+        width: 170
 
   - type: displayfield
     height: 10
