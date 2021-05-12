@@ -1,11 +1,98 @@
 fields:
+  - type: compositefield
+    caption: Version
+    defaultMargins: 0 10 0 0
+    items:
+      - type: list
+        name: version
+        values:
+          - value: v1.20.4
+            caption: v1.20.4
+          - value: v1.19.8
+            caption: v1.19.8
+          - value: v1.18.16
+            caption: v1.18.16
+        default: v1.19.8
+        hideLabel: false
+        editable: false
+        width: 155
+
+      - type: displayfield
+        markup: K8s Dashboard
+        width: 113
+        cls: x-form-item-label
+        margins: 0 11 0 0
+
+      - name: dashboard
+        type: list
+        width: 155
+        values:
+          general: v2
+          k8dash: K8Dash
+        default: general
+        hideLabel: false
+        editable: false
+
+  - type: compositefield
+    caption: Topology
+    defaultMargins: 0 10 0 0
+    items:
+      - name: topo
+        type: list
+        value: 0-dev
+        width: 155
+        values:
+          - value: 0-dev
+            caption: Development
+            tooltip: One control-plane (1) and one scalable worker (1+)
+
+          - value: 1-prod
+            caption: Production
+            tooltip: Multi control-plane (3) with API balancers (2+) and scalable workers (2+)
+
+      - type: displayfield
+        markup: Ingress Controller
+        cls: x-form-item-label
+        width: 113
+        margins: 0 11 0 0
+
+      - name: ingress-controller
+        type: list
+        width: 155
+        margins: 0 10 0 0
+        values:
+          Nginx: NGINX
+          HAProxy: HAProxy
+          Traefik: Traefik
+        default: Nginx
+        hideLabel: false
+        editable: false
+
+  - type: displayfield
+    cls: warning
+    height: 30
+    hideLabel: true
+    hidden: true
+    markup:
+
   - name: deploy
-    type: radio-fieldset
+    type: radiolist
+    caption: Deployment
+    columns: 3
     values:
-        - value: cc
-          caption: Clean cluster with pre-deployed HelloWorld example
-        - value: cmd
-          caption: Deploy custom helm or stack via shell command
+      - value: cc
+        caption: Clean cluster
+        tooltip:
+          text: Clean cluster with pre-deployed HelloWorld example
+          maxWidth: 210
+          y: -1
+      - value: cmd
+        caption: Custom
+        tooltip:
+          text: Deploy custom helm or stack via shell command
+          maxWidth: 165
+          y: -1
+
     default: cc
     showIf:
       cmd:
@@ -22,99 +109,61 @@ fields:
           curl -L https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/master/deploy/releases/0.7.0/openliberty-app-operator.yaml  | sed -e "s/OPEN_LIBERTY_WATCH_NAMESPACE/${OPERATOR_NAMESPACE}/"  | kubectl apply -n ${OPERATOR_NAMESPACE} -f -
           kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/${settings.version}/addons/open-liberty.yaml
 
-  - name: label
-    caption: Topology
-    type: displayfield
-  - name: topo
-    type: radio-fieldset
-    values:
-        - value: 0-dev
-          caption: '<b>Development:</b> one control-plane (1) and one scalable worker (1+)'
-        - value: 1-prod
-          caption: '<b>Production:</b> multi control-plane (3) with API balancers (2+) and scalable workers (2+)'
-    default: 0-dev
-
-  - type: displayfield
-    cls: warning
-    height: 30
-    hideLabel: true
-    hidden: true
-    markup:
-
-  - name: ingress-controller
-    type: list
-    caption: Ingress Controller
-    values:
-      Nginx: NGINX
-      HAProxy: HAProxy
-      Traefik: Traefik
-    default: Nginx
-    hideLabel: false
-    editable: false
-
-  - name: dashboard
-    type: list
-    caption: Kubernetes Dashboard
-    values:
-      general: Kubernetes Dashboard v2
-      k8dash: Kubernetes K8Dash
-    default: general
-    hideLabel: false
-    editable: false
-
-  - type: checkbox
+  - type: toggle
     name: storage
-    caption: Attach dedicated NFS Storage with dynamic volume provisioning
+    caption: NFS Storage
+    tooltip: Attach dedicated NFS Storage with dynamic volume provisioning
     value: true
     showIf:
       true:
-      - type: checkbox
-        name: monitoring
-        caption: Install Prometheus & Grafana
-        value: false
+        - type: compositefield
+          caption: Modules
+          pack: start
+          items:
+            - type: checkbox
+              name: monitoring
+              caption: Prometheus & Grafana
+              width: 170
 
-      - type: checkbox
-        name: jaeger
-        caption: Install Jaeger tracing tools
-        value: false
+            - type: checkbox
+              name: jaeger
+              caption: Jaeger Tracing Tools
+              margins: 0 0 0 25
+              width: 170
 
       false:
-      - type: checkbox
-        name: monitoring
-        caption: Install Prometheus & Grafana
-        value: false
-        disabled: true
+        - type: compositefield
+          caption: Modules
+          pack: start
+          items:
+            - type: checkbox
+              name: monitoring
+              caption: Prometheus & Grafana
+              value: false
+              disabled: true
+              width: 170
 
-      - type: checkbox
-        name: jaeger
-        caption: Install Jaeger tracing tools
-        value: false
-        disabled: true
+            - type: checkbox
+              name: jaeger
+              caption: Jaeger Tracing Tools
+              value: false
+              disabled: true
+              margins: 0 0 0 25
+              width: 170
 
-  - type: checkbox
-    name: api
-    caption: Enable Remote API Access
-    value: false
+  - type: compositefield
+    pack: start
+    items:
+      - type: checkbox
+        name: api
+        caption: Remote API Access
+        value: false
+        width: 170
 
   - type: displayfield
     height: 10
     hideLabel: true
     markup:
-
-  - type: list
-    name: version
-    caption: Kubernetes Version
-    values:
-      - value: v1.20.4
-        caption: v1.20.4
-      - value: v1.19.8
-        caption: v1.19.8
-      - value: v1.18.16
-        caption: v1.18.16
-    default: v1.19.8
-    hideLabel: false
-    editable: false
-    width: 120
 
   - type: envname
     name: envName
