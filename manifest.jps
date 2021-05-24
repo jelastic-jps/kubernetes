@@ -1159,6 +1159,7 @@ addons:
     actions:
       addon-regcreds-config:
       - cmd[${nodes.k8sm.master.id}]: |-
+          kubectl -n registry-creds-system delete pods -l control-plane=registry-creds-controller
           kubectl apply -f ${baseUrl}/addons/registry-creds/registry-creds-system.yaml
           wait-deployment.sh registry-creds-registry-creds-controller registry-creds-system 1 600
           kubectl delete -f ${baseUrl}/addons/registry-creds/dockerhub-secret.yaml
