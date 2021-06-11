@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.20.6
-name: Kubernetes Upgrade to 1.20.6
+id: kubernetes-upgrade-to-1.21.1
+name: Kubernetes Upgrade to 1.21.1
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.20.6
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.21.1
 logo: /images/k8s-logo.png
 
 description:
@@ -118,11 +118,8 @@ actions:
          kubectl apply -f ${baseUrl}/addons/weave-pack.yaml;
          kubectl -n kube-system wait --for=condition=Ready pod -l name=weave-net --timeout=-1s; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
-        # invalidate in k8s-1.21+
         kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
-        kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
-        kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
         kubectl get daemonset haproxy-ingress -n haproxy-controller &>/dev/null && echo "haproxy" ||:
     - set:
         ingress-dir: ${response.out}
@@ -131,7 +128,6 @@ actions:
           xtraefik)
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
-           kubectl apply -f ${baseUrl}/addons/traefik/traefik-ui.yaml
            kubectl -n kube-system wait --for=condition=Ready pod -l name=traefik-ingress-lb --timeout=-1s
            ;;
           xnginx)
@@ -149,7 +145,7 @@ actions:
            wait-deployment.sh ingress-default-backend haproxy-controller 1 720
            ;;
           *)
-           echo "Invalid ingress controller used!"
+           echo "Unknown ingress controller used, skipped"
            ;;
           esac
     - cmd[${nodes.k8sm.master.id}]: |-
@@ -161,13 +157,8 @@ actions:
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
          [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/dashboard-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
-        # drop in k8s-1.21+
-        kubectl get deployment kubernetes-k8dash -n kube-system && {
-         kubectl -n kube-system delete deployment kubernetes-k8dash;
-         kubectl -n kube-system delete service kubernetes-k8dash;
-         kubectl -n kube-system delete ingress kubernetes-k8dash;
-         for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-k8dash.yaml && break; done; } ||:
         kubectl get deployment kubernetes-k8dash -n kubernetes-k8dash && {
+         for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-k8dash.yaml && break; done;
          [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/k8dash-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get ingress kubernetes-api -n default && {
