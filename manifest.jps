@@ -88,7 +88,6 @@ onAfterScaleOut[cp]:
   - set:
       nodes: ${event.response.nodes.join(id,)}
       ips: ${event.response.nodes.join(extIPs,)}
-  - prepare-worker-integration
   - cmd [${this.nodes}]: init-instance.sh --type=worker --initial=true --base-url=$(echo '${baseUrl}' | base64 -w 0)
   - connect-workers: ${this.nodes}
   - apply-worker-config: ${this.nodes}
@@ -166,17 +165,19 @@ actions:
     user: root
     sync: false
 
-  prepare-worker-integration:
+  apply-worker-integration:
     - cmd[${nodes.k8sm.master.id}]: tar zcfv - /var/lib/kubelet/worker-data 2>/dev/null | base64 -w 0
-    - setGlobals:
+    - set:
         worker_integration: ${response.out}
+    - cmd[${this.nodes}]: |-
+        mkdir /var/lib/worker &>/dev/null || rm -rf /var/lib/worker/*
+        echo '${this.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
+        screen -d -m /usr/bin/bash -c '/usr/local/sbin/worker-integration.sh &>/var/log/kubernetes/k8s-worker-integration.log'
 
   apply-worker-config:
     - cmd[${nodes.k8sm.master.id}]: screen -d -m /usr/local/sbin/worker-config -n ${this} -g cp -r ${env.region}
-    - cmd[${this}]: |-
-        mkdir /var/lib/worker &>/dev/null || rm -rf /var/lib/worker/*
-        echo '${globals.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
-        screen -d -m /usr/bin/bash -c '/usr/local/sbin/worker-integration.sh &>/var/log/kubernetes/k8s-worker-integration.log'
+    - apply-worker-integration:
+        nodes: ${this}
 
   init-main-master:
     - if (${nodes.mbl.length:0}):
@@ -203,7 +204,6 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'
     - setGlobals:
         worker_join_cmd: ${response.out}
-    - prepare-worker-integration
 
   init-slave-masters:
     - script: |
@@ -821,7 +821,7 @@ addons:
             csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /new_cluster.*?authenticity_token"[[:blank:]]value="(.+?)"/' | sed -n 1p)
             echo "Add cluster CSRF token: ${csrf_token}"
             [ -n "${csrf_token}" ] || continue
-            page_content=$(curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "cluster[name]=Kubernetes&cluster[platform_kubernetes_attributes][authorization_type]=rbac&cluster[managed]=1" --data-urlencode "cluster[platform_kubernetes_attributes][api_url]=${this.gitlab_api_url}" --data-urlencode "cluster[platform_kubernetes_attributes][ca_cert]=${this.gitlab_ca_cert}" --data-urlencode "cluster[platform_kubernetes_attributes][token]=${this.gitlab_token}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/create_user')
+            page_content=$(curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "cluster[name]=Kubernetes&cluster[platform_kubernetes_attributes][authorization_type]=rbac&cluster[managed]=1&cluster[namespace_per_environment]=1" --data-urlencode "cluster[platform_kubernetes_attributes][api_url]=${this.gitlab_api_url}" --data-urlencode "cluster[platform_kubernetes_attributes][ca_cert]=${this.gitlab_ca_cert}" --data-urlencode "cluster[platform_kubernetes_attributes][token]=${this.gitlab_token}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/create_user')
             cluster_url=$(echo ${page_content} | perl -ne 'print "$1\n" if /You[[:blank:]]are[[:blank:]]being[[:blank:]]\<a[[:blank:]]href="(.+?)"\>redirected/' | sed -n 1p)
             echo "Kubernetes GitLab cluster: ${cluster_url}"
             [ -n "${cluster_url}" ] && break || continue
@@ -849,8 +849,8 @@ addons:
           echo 'GITLAB_REGISTRY="${this.gitlab_domain}:${this.gitlab_reg_port}"' > /var/lib/kubelet/worker-data/gitlab-integration.conf
           wget -nv ${baseUrl}/addons/gitlab/gitlab-integration.sh -O /var/lib/kubelet/worker-data/gitlab-integration.sh
           chmod +x /var/lib/kubelet/worker-data/gitlab-integration.sh
-      - prepare-worker-integration
-      - apply-worker-integration: cp
+      - apply-worker-integration:
+          nodes: cp
 
       addon-gitlab-remove:
       - cmd[${nodes.k8sm.master.id}]: kubectl get ns gitlab-managed-apps &>/dev/null && echo "true" || echo "false"
