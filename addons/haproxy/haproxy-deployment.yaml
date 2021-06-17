@@ -146,11 +146,12 @@ spec:
       serviceAccountName: haproxy-ingress-service-account
       containers:
       - name: haproxy-ingress
-        image: haproxytech/kubernetes-ingress:1.5.4
+        image: haproxytech/kubernetes-ingress:1.6.1
         args:
           - --configmap=default/haproxy-configmap
           - --default-backend-service=haproxy-controller/ingress-default-backend
           - --ingress.class=haproxy
+          - --empty-ingress-class
         securityContext:
           capabilities:
             drop:
