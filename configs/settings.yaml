@@ -12,7 +12,7 @@ fields:
             caption: v1.19.10
           - value: v1.18.18
             caption: v1.18.18
-        default: v1.19.10
+        default: v1.20.6
         hideLabel: false
         editable: false
         width: 155
