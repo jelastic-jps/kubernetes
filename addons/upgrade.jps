@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.18.18
-name: Kubernetes Upgrade to 1.18.18
+id: kubernetes-upgrade-to-1.18.20
+name: Kubernetes Upgrade to 1.18.20
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.18
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.18.20
 logo: /images/k8s-logo.png
 
 description:
