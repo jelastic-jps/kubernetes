@@ -3,7 +3,7 @@
 
 # components
 K9S="0.24.10"
-POPEYE="0.9.1"
+POPEYE="0.9.2"
 STERN="1.11.0"
 KUBECTX="0.9.3"
 

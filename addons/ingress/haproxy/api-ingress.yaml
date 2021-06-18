@@ -7,6 +7,7 @@ metadata:
     kubernetes.io/ingress.class: haproxy
     haproxy.org/path-rewrite: /api(/|$)(.*) /\2
     haproxy.org/server-ssl: 'true'
+    haproxy.org/server-proto: h1
     haproxy.org/check: 'false'
 spec:
   rules:
