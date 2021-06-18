@@ -139,7 +139,7 @@ actions:
            while true; do kubectl -n ingress-nginx get svc ingress-nginx-controller-admission && break; sleep 5; done
            ;;
           xhaproxy)
-           kubectl delete ns ingress-controller
+           kubectl delete ns haproxy-controller
            for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/haproxy/haproxy-deployment.yaml && break; done;
            while [[ $(kubectl -n haproxy-controller get pods -l run=haproxy-ingress -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
            wait-deployment.sh ingress-default-backend haproxy-controller 1 720
@@ -304,11 +304,6 @@ actions:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/local/sbin/k8sm-config -f
-        # drop in k8s-1.21+
-        if [ -f "/var/log/kubernetes/k8s-master-config.log" ] && [ ! -f "/var/log/kubernetes/k8s-cplane-config.log" ]; then
-         /usr/bin/mv /var/log/kubernetes/k8s-master-config.log /var/log/kubernetes/k8s-cplane-config.log;
-        fi
-        rm -f /var/log/kubernetes/k8s-master-config.log
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
@@ -331,11 +326,6 @@ actions:
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
         sed '/^$/d' /tmp/redeploy.conf.merged | sort | uniq > /etc/jelastic/redeploy.conf
-        # drop in k8s-1.21+
-        sed -i '/^\/var\/lib\/docker$/d' /etc/jelastic/redeploy.conf
-        /usr/bin/grep -q "\-\-container\-runtime=remote" /var/lib/kubelet/kubeadm-flags.env || \
-         sed -i "/^KUBELET_KUBEADM_ARGS/ s/\"$/ --container-runtime=remote --container-runtime-endpoint=unix:\/\/\/run\/containerd\/containerd.sock\"/" /var/lib/kubelet/kubeadm-flags.env
-        sed -i 's%\(.*\)--pod-infra-container-image=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
         sleep 10
     - env.control.RedeployContainers:
         nodeId: ${this.id}
@@ -356,11 +346,6 @@ actions:
     - script: 'return { result : 0 };'
     - if (${this.main}):
         - cmd[${this.id}]: |-
-            # drop in k8s-1.21+
-            if [ -f "/var/log/kubernetes/k8s-helm-master.log" ] && [ ! -f "/var/log/kubernetes/k8s-helm-main.log" ]; then
-             /usr/bin/mv /var/log/kubernetes/k8s-helm-master.log /var/log/kubernetes/k8s-helm-main.log;
-            fi
-            rm -f /var/log/kubernetes/k8s-helm-master.log
             /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-main.log
             /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --metallb=true
         - cmd[${this.id}]: |-
@@ -370,11 +355,6 @@ actions:
             worker_integration: ${response.out}
     - if (!${this.main}):
         - cmd[${this.id}]: |-
-            # drop in k8s-1.21+
-            if [ -f "/var/log/kubernetes/k8s-helm-slave.log" ] && [ ! -f "/var/log/kubernetes/k8s-helm-secondary.log" ]; then
-             /usr/bin/mv /var/log/kubernetes/k8s-helm-slave.log /var/log/kubernetes/k8s-helm-secondary.log;
-            fi
-            rm -f /var/log/kubernetes/k8s-helm-slave.log
             /usr/local/sbin/helm-install.sh | tee -a /var/log/kubernetes/k8s-helm-secondary.log
     - cmd[${this.id}]: |-
         if [ -f "$HOME/.kube/config" ]; then
@@ -387,11 +367,6 @@ actions:
           /usr/bin/cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
         fi
         chown root:root $HOME/.kube/config
-        # drop in k8s-1.21+
-        if [ -f "/var/log/kubernetes/k8s-master-postconfig.log" ] && [ ! -f "/var/log/kubernetes/k8s-cplane-postconfig.log" ]; then
-         /usr/bin/mv /var/log/kubernetes/k8s-master-postconfig.log /var/log/kubernetes/k8s-cplane-postconfig.log;
-        fi
-        rm -f /var/log/kubernetes/k8s-master-postconfig.log
         /usr/local/sbin/cplane-postconfig.sh
 
   upgrade-workers:
@@ -409,11 +384,6 @@ actions:
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
         sed '/^$/d' /tmp/redeploy.conf.merged | sort | uniq > /etc/jelastic/redeploy.conf
-        # drop in k8s-1.21+
-        sed -i '/^\/var\/lib\/docker$/d' /etc/jelastic/redeploy.conf
-        /usr/bin/grep -q "\-\-container\-runtime=remote" /var/lib/kubelet/kubeadm-flags.env || \
-         sed -i "/^KUBELET_KUBEADM_ARGS/ s/\"$/ --container-runtime=remote --container-runtime-endpoint=unix:\/\/\/run\/containerd\/containerd.sock\"/" /var/lib/kubelet/kubeadm-flags.env
-        sed -i 's%\(.*\)--pod-infra-container-image=[^[:space:]\"]\+%\1%g' /var/lib/kubelet/kubeadm-flags.env
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}

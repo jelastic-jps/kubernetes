@@ -88,14 +88,4 @@ done < <( kubeadm config images list --config /etc/custom-kubeadm.yaml | grep -E
 	crictl pull public.ecr.aws/t6h9l3f8/weave-kube:${WEAVE};
 }
 
-# additional
-[ "x${COMPTYPE}" = "xcplane" ] && {
-	[ -n "${WEAVE}" ] && {
-		echo "$(date): retrieving weaveexec components";
-		crictl pull weaveworks/weaveexec:${WEAVE};
-		wget -nv "https://github.com/weaveworks/weave/releases/download/v${WEAVE}/weave" -O /usr/bin/weave;
-		chmod +x /usr/bin/weave;
-	};
-}
-
 exit 0
