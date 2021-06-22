@@ -6,13 +6,13 @@ fields:
       - type: list
         name: version
         values:
-          - value: v1.20.4
-            caption: v1.20.4
-          - value: v1.19.8
-            caption: v1.19.8
-          - value: v1.18.16
-            caption: v1.18.16
-        default: v1.19.8
+          - value: v1.20.6
+            caption: v1.20.6
+          - value: v1.19.10
+            caption: v1.19.10
+          - value: v1.18.18
+            caption: v1.18.18
+        default: v1.19.10
         hideLabel: false
         editable: false
         width: 155
