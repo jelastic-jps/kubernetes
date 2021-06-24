@@ -137,7 +137,7 @@ checkWeaveStatus() {
 
   # skip Weave command check due to Docker dependency
 
-      # get number of nodes and make sure there's the same number of Traefik pods in Running state
+      # get number of nodes and make sure there's the same number of IC pods in Running state
       NODES_NUMBER=$(kubectl get nodes --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | tee >(wc -l) | tail -1)
       END=`expr $NODES_NUMBER - 1`
       for ((i=0;i<=END;i++)); do
@@ -220,7 +220,7 @@ checkDashboard() {
 
 checkTraefikIngressController() {
   # check if there is at least one running Traefik pod
-  POD_STATUS=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[0]}" 2> /dev/null)
+  POD_STATUS=$(kubectl get pods -l=app.kubernetes.io/component=controller -n ingress-traefik -o jsonpath="{.items[0]}" 2> /dev/null)
   if [ $? -ne 0 ]; then
     printError "No traefik pods found. Either daemon set was not created or something prevented pods from scheduling"
     printError "Check K8s event in ${K8S_EVENTS_LOG_FILE} on a control-plane node"
@@ -231,17 +231,17 @@ checkTraefikIngressController() {
   NODES=`expr $NODES_NUMBER - $CPLANE_NODES`
   END=`expr $NODES - 1`
   for ((i=0;i<=END;i++)); do
-    NODENAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)
+    NODENAME=$(kubectl get pods -l=app.kubernetes.io/component=controller -n ingress-traefik -o jsonpath="{.items[$i].spec.nodeName}" 2> /dev/null)
     if [ $? -ne 0 ]; then
       printWarning "Failed to get node name because of array index out of bounds"
       break
     fi
-    PODNAME=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
-    STATUS=$(kubectl get pods -l=name=traefik-ingress-lb -n kube-system -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
+    PODNAME=$(kubectl get pods -l=app.kubernetes.io/component=controller -n ingress-traefik -o jsonpath="{.items[$i].metadata.name}" 2> /dev/null)
+    STATUS=$(kubectl get pods -l=app.kubernetes.io/component=controller -n ingress-traefik -o jsonpath="{.items[$i].status.phase}" 2> /dev/null)
     printInfo "Checking Traefik pod status on Node $NODENAME"
     if [ "$STATUS" != "Running" ]; then
       printError "Failed Traefik pod ${PODNAME} on $NODENAME with status: $STATUS"
-      kubectl logs ${PODNAME} -n kube-system > ${K8S_LOG_DIR}/${PODNAME}.log
+      kubectl logs ${PODNAME} -n ingress-traefik > ${K8S_LOG_DIR}/${PODNAME}.log
       printError "Check logs in ${K8S_LOG_DIR}/${PODNAME}.log"
       WITH_ERROR="true"
       INGRESS_STATUS="FAIL"

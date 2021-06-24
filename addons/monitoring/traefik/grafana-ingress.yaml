@@ -6,7 +6,7 @@ metadata:
   namespace: kubernetes-monitoring
   annotations:
     kubernetes.io/ingress.class: traefik
-    traefik.frontend.rule.type: PathPrefixStrip
+    traefik.ingress.kubernetes.io/router.middlewares: kubernetes-monitoring-grafana-prefix@kubernetescrd
 spec:
   rules:
   - http:
@@ -18,3 +18,14 @@ spec:
             name: monitoring-grafana
             port:
               number: 80
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: grafana-prefix
+  namespace: kubernetes-monitoring
+spec:
+  stripPrefix:
+    prefixes:
+      - /grafana

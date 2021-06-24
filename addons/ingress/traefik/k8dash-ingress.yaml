@@ -1,3 +1,4 @@
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -5,7 +6,7 @@ metadata:
   namespace: kubernetes-k8dash
   annotations:
     kubernetes.io/ingress.class: traefik
-    traefik.frontend.rule.type: PathPrefixStrip
+    traefik.ingress.kubernetes.io/router.middlewares: kubernetes-k8dash-strip-prefix@kubernetescrd
 spec:
   rules:
   - http:
@@ -17,3 +18,14 @@ spec:
             name: kubernetes-k8dash
             port:
               number: 80
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix
+  namespace: kubernetes-k8dash
+spec:
+  stripPrefix:
+    prefixes:
+      - /kubernetes-dashboard

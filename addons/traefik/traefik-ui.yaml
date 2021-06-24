@@ -1,34 +1,15 @@
 ---
-apiVersion: v1
-kind: Service
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
 metadata:
-  name: traefik-web-ui
-  namespace: kube-system
+  name: traefik-dashboard
+  namespace: ingress-traefik
 spec:
-  selector:
-    k8s-app: traefik-ingress-lb
-  ports:
-  - name: web
-    port: 80
-    targetPort: 8080
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: traefik-web-ui
-  namespace: kube-system
-  annotations:
-    kubernetes.io/ingress.class: traefik
-    ingress.kubernetes.io/secure-backends: "true"
-    traefik.frontend.rule.type: PathPrefixStrip
-spec:
-  rules:
-  - http:
-      paths:
-      - path: /traefik-web-ui
-        pathType: Prefix
-        backend:
-          service:
-            name: traefik-web-ui
-            port:
-              name: "web"
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/api`) || PathPrefix(`/dashboard`)
+      kind: Rule
+      services:
+        - name: api@internal
+          kind: TraefikService

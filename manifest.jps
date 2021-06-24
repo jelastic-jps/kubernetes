@@ -321,8 +321,11 @@ actions:
 
   install-traefik:
      cmd[${nodes.k8sm.master.id}]: |-
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-ns.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-crd.yaml
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
+      while [[ $(kubectl -n ingress-traefik get pods -l app.kubernetes.io/name=ingress-traefik,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
 
   install-components:
     - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --admin-account=true --metallb=true --metrics-server=true --dashboard=${settings.dashboard:none} --ingress-name=${globals.ingress-dir}
@@ -365,10 +368,8 @@ actions:
 
   init-globals-ingress:
     - cmd[${nodes.k8sm.master.id}]: |-
-        /usr/bin/kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
-        /usr/bin/kubectl get deployment nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
+        /usr/bin/kubectl get daemonset traefik-ingress-controller -n ingress-traefik &>/dev/null && echo "traefik" ||:
         /usr/bin/kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
-        /usr/bin/kubectl get daemonset haproxy-ingress -n ingress-controller &>/dev/null && echo "haproxy" ||:
         /usr/bin/kubectl get daemonset haproxy-ingress -n haproxy-controller &>/dev/null && echo "haproxy" ||:
     - setGlobals:
         ingress-dir: ${response.out}

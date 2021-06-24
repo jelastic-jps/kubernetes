@@ -1,0 +1,26 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: jaeger-hotrod-traefik
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/hotrod`)
+      kind: Rule
+      services:
+        - name: jaeger-hotrod
+          port: 80
+      middlewares:
+        - name: hotrod-prefix
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: hotrod-prefix
+spec:
+  stripPrefix:
+    prefixes:
+      - /hotrod

@@ -6,9 +6,7 @@ metadata:
   namespace: kubernetes-monitoring
   annotations:
     kubernetes.io/ingress.class: traefik
-    traefik.frontend.rule.type: PathPrefixStrip
-    ingress.kubernetes.io/auth-type: basic
-    ingress.kubernetes.io/auth-secret: monitoring-prometheus
+    traefik.ingress.kubernetes.io/router.middlewares: kubernetes-monitoring-alert-auth@kubernetescrd, kubernetes-monitoring-alert-prefix@kubernetescrd
 spec:
   rules:
   - http:
@@ -20,3 +18,24 @@ spec:
             name: monitoring-prometheus-alertmanager
             port:
               number: 80
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: alert-auth
+  namespace: kubernetes-monitoring
+spec:
+  basicAuth:
+    secret: monitoring-prometheus
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: alert-prefix
+  namespace: kubernetes-monitoring
+spec:
+  stripPrefix:
+    prefixes:
+      - /prometheus-alert

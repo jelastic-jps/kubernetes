@@ -6,8 +6,7 @@ metadata:
   namespace: kubernetes-monitoring
   annotations:
     kubernetes.io/ingress.class: traefik
-    ingress.kubernetes.io/auth-type: basic
-    ingress.kubernetes.io/auth-secret: monitoring-prometheus
+    traefik.ingress.kubernetes.io/router.middlewares: kubernetes-monitoring-server-auth@kubernetescrd
 spec:
   rules:
   - http:
@@ -19,3 +18,13 @@ spec:
             name: monitoring-prometheus-server
             port:
               number: 80
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: server-auth
+  namespace: kubernetes-monitoring
+spec:
+  basicAuth:
+    secret: monitoring-prometheus

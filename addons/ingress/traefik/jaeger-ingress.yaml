@@ -1,3 +1,4 @@
+---
 apiVersion: jaegertracing.io/v1
 kind: Jaeger
 metadata:
@@ -10,5 +11,14 @@ spec:
         base-path: /jaeger
   annotations:
     kubernetes.io/ingress.class: traefik
-    ingress.kubernetes.io/auth-type: basic
-    ingress.kubernetes.io/auth-secret: observability-jaeger
+    traefik.ingress.kubernetes.io/router.middlewares: observability-auth@kubernetescrd
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: auth
+  namespace: observability
+spec:
+  basicAuth:
+    secret: observability-jaeger

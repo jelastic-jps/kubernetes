@@ -1,3 +1,4 @@
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -5,7 +6,7 @@ metadata:
   namespace: default
   annotations:
     kubernetes.io/ingress.class: traefik
-    traefik.frontend.rule.type: PathPrefixStrip
+    traefik.ingress.kubernetes.io/router.middlewares: default-api-prefix@kubernetescrd
 spec:
   rules:
   - http:
@@ -17,3 +18,14 @@ spec:
             name: kubernetes
             port:
               number: 443
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: api-prefix
+  namespace: default
+spec:
+  stripPrefix:
+    prefixes:
+      - /api

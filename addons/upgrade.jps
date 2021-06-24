@@ -118,7 +118,9 @@ actions:
          kubectl apply -f ${baseUrl}/addons/weave-pack.yaml;
          kubectl -n kube-system wait --for=condition=Ready pod -l name=weave-net --timeout=-1s; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
+        # invalidate in k8s-1.22+
         kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
+        kubectl get daemonset traefik-ingress-controller -n ingress-traefik &>/dev/null && echo "traefik" ||:
         kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         kubectl get daemonset haproxy-ingress -n haproxy-controller &>/dev/null && echo "haproxy" ||:
     - set:
@@ -126,9 +128,15 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: |-
         case "x${this.ingress-dir}" in
           xtraefik)
+           # drop in k8s-1.22+
+           kubectl delete -f ${baseUrl}/addons/traefik/legacy/traefik-rbac.yaml
+           kubectl delete -f ${baseUrl}/addons/traefik/legacy/traefik-ds.yaml
+           kubectl delete -f ${baseUrl}/addons/traefik/legacy/traefik-ui.yaml
+           kubectl apply -f ${baseUrl}/addons/traefik/traefik-ns.yaml
+           kubectl apply -f ${baseUrl}/addons/traefik/traefik-crd.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
-           kubectl -n kube-system wait --for=condition=Ready pod -l name=traefik-ingress-lb --timeout=-1s
+           while [[ $(kubectl -n ingress-traefik get pods -l app.kubernetes.io/name=ingress-traefik,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
            ;;
           xnginx)
            kubectl -n ingress-nginx delete deployment nginx-ingress-controller
