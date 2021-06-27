@@ -16,8 +16,14 @@ datasources:
 
 dashboards:
     default:
-      kube-prometeus-dashboard:
-        file: dashboards/kubernetes-prometeus-dashboard.json
+      kube-prometheus-dashboard:
+        file: dashboards/kubernetes-prometheus-dashboard.json
+      kubernetes-rchakra3-dashboard:
+        file: dashboards/kubernetes-rchakra3-dashboard.json
+      kubernetes-chaiyd-dashboard:
+        file: dashboards/kubernetes-chaiyd-dashboard.json
+      kubernetes-vuxuanlai266-dashboard:
+        file: dashboards/kubernetes-vuxuanlai266-dashboard.json
 
 dashboardProviders:
   dashboardproviders.yaml:
