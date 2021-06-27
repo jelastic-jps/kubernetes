@@ -356,7 +356,7 @@ actions:
           helm install monitoring-prometheus --create-namespace --namespace kubernetes-monitoring prometheus-community/prometheus --set server.prefixURL=/prometheus --set server.baseURL=/prometheus
           wait-deployment.sh monitoring-prometheus-server kubernetes-monitoring 1 720
           rm -rf /root/grafana && helm fetch grafana/grafana --untar
-          for dash_name in "kubernetes-prometeus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-vanniekerk-dashboard"; do
+          for dash_name in "kubernetes-prometheus-dashboard" "kubernetes-rchakra3-dashboard" "kubernetes-chaiyd-dashboard" "kubernetes-vuxuanlai266-dashboard"; do
             wget "${baseUrl}/addons/monitoring/${dash_name}.json" -O "grafana/dashboards/${dash_name}.json"
           done
           helm install monitoring-grafana --namespace kubernetes-monitoring --set 'grafana\.ini'.server.root_url=${env.url}grafana -f ${baseUrl}/addons/monitoring/jelastic-values.yaml grafana/.
