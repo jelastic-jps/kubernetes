@@ -912,17 +912,6 @@ addons:
           [ -n "${cluster_id}" ] || exit 4
           kubectl create ns gitlab-managed-apps
           kubectl create configmap gitlab-configuration --from-literal cluster_url="${cluster_url}" --from-literal cluster_id="${cluster_id}" --from-literal cluster_env="${settings.envlist}" -n gitlab-managed-apps
-      - cmd[${nodes.k8sm.master.id}]: kubectl get configmaps -n gitlab-managed-apps gitlab-configuration -o jsonpath='{.data.cluster_url}'
-      - set:
-          gitlab_cluster_url: ${response.out}
-      - cmd[${nodes.k8sm.master.id}]: |-
-          # Runner
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt "${this.gitlab_cluster_url}")
-          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
-          echo "Runner CSRF token: ${csrf_token}"
-          [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -H "X-CSRF-Token: ${csrf_token}" "${this.gitlab_cluster_url}/applications/runner" || exit 5
-          wait-deployment.sh runner-gitlab-runner gitlab-managed-apps 1 720
       - cmd[${nodes.k8sm.master.id}]: |-
           # Integration
           echo '${this.gitlab_ca_instance}' | base64 -d > /var/lib/kubelet/worker-data/gitlab-cacert.crt
