@@ -24,6 +24,15 @@ var resp = {
     displayName: "Workers",
     isRedeploySupport: false,
     extip: ${settings.extip:false}
+  }, {
+    count: workerCount,
+    options: ["extra_small_vm"],
+    nodeGroup: "wincp",
+    nodeType: "windows2019",
+    scalingMode: "stateless",
+    displayName: "WinWorkers",
+    isRedeploySupport: false,
+    extip: ${settings.extip:false}
   }]
 }
 
