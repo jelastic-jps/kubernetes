@@ -345,15 +345,23 @@ actions:
         token: ${response.out}
 
   deploy:
+    - if ('${globals.ingress-dir}' == 'nginx'):
+        cmd[${nodes.k8sm.master.id}]: while true; do kubectl -n ingress-nginx get svc ingress-nginx-controller-admission && break; sleep 5; done
+    - elif ('${globals.ingress-dir}' == 'haproxy'):
+        cmd[${nodes.k8sm.master.id}]: while true; do kubectl -n haproxy-controller get svc haproxy-ingress && break; sleep 5; done
+    - else:
+        cmd[${nodes.k8sm.master.id}]: while true; do kubectl -n ingress-traefik get svc traefik-ingress-service && break; sleep 5; done
     - if ('${settings.deploy}' == 'cc'):
         cmd[${nodes.k8sm.master.id}]: |-
           kubectl apply -f ${baseUrl}/addons/helloworld.yaml
-          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml
-    - if ('${settings.deploy}' == 'cmd'):
+          while true; do kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml && break; sleep 5; done
+    - elif ('${settings.deploy}' == 'cmd'):
         cmd[${nodes.k8sm.master.id}]: |-
           ${settings.cmd}
-    - if ('${settings.deploy}' == 'yml'):
+    - elif ('${settings.deploy}' == 'yml'):
         cmd[${nodes.k8sm.master.id}]: kubectl apply -f ${settings.yml}
+    - else:
+        log: Unknown package deploy option '${settings.deploy}', skipped
 
   helm-components:
      - init-globals-storage
@@ -404,10 +412,13 @@ actions:
         return { result: 0, onAfterReturn: { setGlobals: { workers: nodeGroups.join() } } }
 
   setup-remote-api:
-  - log: '${this}'
+  - log: 'api: ${this}'
   - cmd[${nodes.k8sm.master.id}]: |-
-      action=$([ "${this}" == "true" ] && echo "apply" || echo "delete")
-      kubectl $action -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
+      if [ "${this}" == "true" ]; then
+        while true; do kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml && break; sleep 5; done
+      else
+        kubectl delete -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
+      fi
   - if (${settings.api:true}):
       - setGlobals:
           default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
