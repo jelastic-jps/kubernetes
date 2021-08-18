@@ -881,8 +881,8 @@ addons:
           curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "user[login]=root&user[password]=${this.gitlab_pass}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/users/sign_in'
       - cmd[${nodes.k8sm.master.id}]: |-
           # Cluster
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters')
-          echo ${page_content} | perl -ne 'print "$1\n" if /data-qa-cluster-name="Kubernetes"[[:blank:]]href="\/admin\/clusters\/(.+?)"/' | sed -n 1p
+          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters.json')
+          echo ${page_content} | perl -ne 'print "$1\n" if /"path":"\/admin\/clusters\/(.+?)"/' | sed -n 1p
       - if ('${response.out}'):
           return:
             type: warning
