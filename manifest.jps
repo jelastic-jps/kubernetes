@@ -346,7 +346,7 @@ actions:
     - if ('${settings.deploy}' == 'cc'):
         cmd[${nodes.k8sm.master.id}]: |-
           kubectl apply -f ${baseUrl}/addons/helloworld.yaml
-          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml
+          while true; do kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml && break; sleep 5; done
     - if ('${settings.deploy}' == 'cmd'):
         cmd[${nodes.k8sm.master.id}]: |-
           ${settings.cmd}
@@ -404,10 +404,13 @@ actions:
         return { result: 0, onAfterReturn: { setGlobals: { workers: nodeGroups.join() } } }
 
   setup-remote-api:
-  - log: '${this}'
+  - log: 'api: ${this}'
   - cmd[${nodes.k8sm.master.id}]: |-
-      action=$([ "${this}" == "true" ] && echo "apply" || echo "delete")
-      kubectl $action -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
+      if [ "${this}" == "true" ]; then
+        while true; do kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml && break; sleep 5; done
+      else
+        kubectl delete -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
+      fi
   - if (${settings.api:true}):
       - setGlobals:
           default_api: or [Remote API Endpoint](${env.protocol}://${env.domain}/api/)
