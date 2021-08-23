@@ -5,7 +5,7 @@
 METALLB_VER="0.9.6"
 
 HELP="Usage:
-	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metallb=(true|false) --metrics-server=(true|false) --dashboard=version(1|2) --ingress-name=<ingress-controller>
+	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metallb=(true|false) --metrics-server=(true|false) --dashboard=(general|skooner) --ingress-name=<ingress-controller>
 Options:
 	--base-url=         manifest baseUrl
 	--admin-account=    setup admin account
@@ -98,11 +98,11 @@ fi
 		case "${DASHBOARD}" in
 		general)
 			kubectl create -f "${BASE_URL}/addons/kubernetes-dashboard.yaml";
-			kubectl create -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress.yaml";
+			while true; do kubectl create -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress.yaml" && break; sleep 5; done;
 		;;
-		k8dash)
-			kubectl apply -f "${BASE_URL}/addons/kubernetes-k8dash.yaml";
-			kubectl apply -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/k8dash-ingress.yaml";
+		skooner|k8dash)
+			kubectl apply -f "${BASE_URL}/addons/kubernetes-skooner.yaml";
+			while true; do kubectl apply -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/skooner-ingress.yaml" && break; sleep 5; done;
 		;;
 		*)
 			echo "$(date): unknown kubernetes-dashboard version '${DASHBOARD}', skipped"

@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: kubernetes-k8dash
-  namespace: kubernetes-k8dash
+  name: kubernetes-skooner
+  namespace: kubernetes-skooner
   annotations:
     kubernetes.io/ingress.class: haproxy
     haproxy.org/path-rewrite: /kubernetes-dashboard(/|$)(.*) /\2
@@ -14,6 +14,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: kubernetes-k8dash
+            name: kubernetes-skooner
             port:
               number: 80

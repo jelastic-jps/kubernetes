@@ -57,7 +57,7 @@ fields:
     caption: Kubernetes Dashboard
     values:
       general: Kubernetes Dashboard v2
-      k8dash: Kubernetes K8Dash
+      skooner: Kubernetes Skooner
     default: general
     hideLabel: false
     editable: false
