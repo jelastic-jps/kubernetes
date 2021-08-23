@@ -2,11 +2,11 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: kubernetes-k8dash
-  namespace: kubernetes-k8dash
+  name: kubernetes-skooner
+  namespace: kubernetes-skooner
   annotations:
     kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/router.middlewares: kubernetes-k8dash-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: kubernetes-skooner-strip-prefix@kubernetescrd
 spec:
   rules:
   - http:
@@ -15,7 +15,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: kubernetes-k8dash
+            name: kubernetes-skooner
             port:
               number: 80
 
@@ -24,7 +24,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: strip-prefix
-  namespace: kubernetes-k8dash
+  namespace: kubernetes-skooner
 spec:
   stripPrefix:
     prefixes:

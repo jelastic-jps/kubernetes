@@ -94,9 +94,9 @@ case "${DASHBOARD_NAME}" in
       DASHBOARD_DEPLOYMENT_NAME="kubernetes-dashboard"
       DASHBOARD_NAMESPACE="kubernetes-dashboard"
       ;;
-    k8dash)
-      DASHBOARD_DEPLOYMENT_NAME="kubernetes-k8dash"
-      DASHBOARD_NAMESPACE="kube-system"
+    skooner|k8dash)
+      DASHBOARD_DEPLOYMENT_NAME="kubernetes-skooner"
+      DASHBOARD_NAMESPACE="kubernetes-skooner"
       ;;
     *)
       echo "Invalid dashboard name ${DASHBOARD_NAME} specified!"
