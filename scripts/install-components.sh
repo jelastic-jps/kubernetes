@@ -98,11 +98,11 @@ fi
 		case "${DASHBOARD}" in
 		general)
 			kubectl create -f "${BASE_URL}/addons/kubernetes-dashboard.yaml";
-			kubectl create -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress.yaml";
+			while true; do kubectl create -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress.yaml" && break; sleep 5; done;
 		;;
 		k8dash)
 			kubectl apply -f "${BASE_URL}/addons/kubernetes-k8dash.yaml";
-			kubectl apply -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/k8dash-ingress.yaml";
+			while true; do kubectl apply -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/k8dash-ingress.yaml" && break; sleep 5; done;
 		;;
 		*)
 			echo "$(date): unknown kubernetes-dashboard version '${DASHBOARD}', skipped"
