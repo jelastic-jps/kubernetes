@@ -393,20 +393,20 @@ actions:
             # drop in k8s-1.20+
             if [ -n "${globals.ingress-dir}" ]; then
              kubectl get ingress kubernetes-api -n default && {
-              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml; }
+              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml; } ||:
              kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
-              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; }
+              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/dashboard-ingress.yaml; } ||:
              kubectl get deployment kubernetes-k8dash -n kubernetes-k8dash && {
               kubectl -n kube-system delete ingress kubernetes-k8dash;
-              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/k8dash-ingress.yaml; }
+              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/k8dash-ingress.yaml; } ||:
              kubectl get deployment hello-kubernetes && {
-              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; }
+              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml; } ||:
              kubectl get secret --namespace kubernetes-monitoring monitoring-grafana && {
               kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml;
               kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml;
-              kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; }
+              kubectl apply -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml; } ||:
              kubectl get secret --namespace observability observability-jaeger-plain && {
-              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml; }
+              kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml; } ||:
             fi
 
   upgrade-workers:
