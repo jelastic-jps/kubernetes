@@ -77,8 +77,8 @@ onInstall:
 actions:
   check-cluster-status:
     - cmd[${nodes.k8sm.master.id}]: |-
-        for cluster_comp in "Kubernetes control plane" "KubeDNS"; do
-         echo "$(TERM=dumb kubectl cluster-info 2>/dev/null)" | grep -q "${cluster_comp} is running" || echo "false";
+        for cluster_comp in "^Kubernetes (master|control plane)" "^KubeDNS"; do
+         echo "$(TERM=dumb kubectl cluster-info 2>/dev/null)" | grep -Eq "${cluster_comp} is running" || echo "false";
         done
     - set:
         k8s_cluster_status: ${response.out}
@@ -321,7 +321,13 @@ actions:
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
-        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 1
+        rpm -q kubectl | grep -q 'kubectl-1.20' && flag_drain="--delete-emptydir-data" || flag_drain="--delete-local-data"
+        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets ${flag_drain} || exit 1
+        # drop in k8s-1.21+
+        rpm -q kubectl | grep -q 'kubectl-1.19' && {
+          sed -i '/^disabled_plugins/d' /etc/containerd/config.toml;
+          systemctl restart containerd.service; }
+        while true; do kubectl get nodes --no-headers 2>/dev/null && break; sleep 3; done
     - if (${this.main}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 2
@@ -407,8 +413,13 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         sleep 10
-        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 3
+        rpm -q kubectl | grep -q 'kubectl-1.20' && flag_drain="--delete-emptydir-data" || flag_drain="--delete-local-data"
+        /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets ${flag_drain} || exit 3
     - cmd[${this.id}]: |-
+        # drop in k8s-1.21+
+        rpm -q kubectl | grep -q 'kubectl-1.19' && {
+          sed -i '/^disabled_plugins/d' /etc/containerd/config.toml;
+          systemctl restart containerd.service; }
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
         yum update -y "https://app-artifacts.s3.eu-central-1.amazonaws.com/kubernetes/${kubeadm_package}.rpm"
         rpm -qi "${kubeadm_package}" || exit 1
