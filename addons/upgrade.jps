@@ -77,8 +77,8 @@ onInstall:
 actions:
   check-cluster-status:
     - cmd[${nodes.k8sm.master.id}]: |-
-        for cluster_comp in "Kubernetes control plane" "KubeDNS"; do
-         echo "$(TERM=dumb kubectl cluster-info 2>/dev/null)" | grep -q "${cluster_comp} is running" || echo "false";
+        for cluster_comp in "^Kubernetes control plane" "^(KubeDNS|CoreDNS)"; do
+         echo "$(TERM=dumb kubectl cluster-info 2>/dev/null)" | grep -Eq "${cluster_comp} is running" || echo "false";
         done
     - set:
         k8s_cluster_status: ${response.out}
