@@ -28,7 +28,7 @@ fields:
         width: 155
         values:
           general: v2
-          k8dash: K8Dash
+          k8dash: Skooner
         default: general
         hideLabel: false
         editable: false
