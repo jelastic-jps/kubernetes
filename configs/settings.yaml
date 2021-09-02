@@ -6,8 +6,8 @@ fields:
       - type: list
         name: version
         values:
-          - value: v1.21.2
-            caption: v1.21.2
+          - value: v1.21.4
+            caption: v1.21.4
           - value: v1.20.10
             caption: v1.20.10
           - value: v1.19.14
