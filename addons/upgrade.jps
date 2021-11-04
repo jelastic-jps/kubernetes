@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.21.6
-name: Kubernetes Upgrade to 1.21.6
+id: kubernetes-upgrade-to-1.22.3
+name: Kubernetes Upgrade to 1.22.3
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.21.6
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.22.3
 logo: /images/k8s-logo.png
 
 description:
@@ -118,8 +118,6 @@ actions:
          kubectl apply -f ${baseUrl}/addons/weave-pack.yaml;
          kubectl -n kube-system wait --for=condition=Ready pod -l name=weave-net --timeout=-1s; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
-        # invalidate in k8s-1.22+
-        kubectl get daemonset traefik-ingress-controller -n kube-system &>/dev/null && echo "traefik" ||:
         kubectl get daemonset traefik-ingress-controller -n ingress-traefik &>/dev/null && echo "traefik" ||:
         kubectl get daemonset nginx-ingress-controller -n ingress-nginx &>/dev/null && echo "nginx" ||:
         kubectl get daemonset haproxy-ingress -n haproxy-controller &>/dev/null && echo "haproxy" ||:
@@ -128,10 +126,6 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: |-
         case "x${this.ingress-dir}" in
           xtraefik)
-           # drop in k8s-1.22+
-           kubectl delete -f ${baseUrl}/addons/traefik/legacy/traefik-rbac.yaml
-           kubectl delete -f ${baseUrl}/addons/traefik/legacy/traefik-ds.yaml
-           kubectl delete -f ${baseUrl}/addons/traefik/legacy/traefik-ui.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-ns.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-crd.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
@@ -165,12 +159,7 @@ actions:
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
          [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/dashboard-ingress.yaml; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
-        # drop in k8s-1.22+
-        kubectl get deployment kubernetes-k8dash -n kubernetes-k8dash && {
-         kubectl delete ns kubernetes-k8dash;
-         skooner_dashboard_upgrade="true"; } ||:
-        kubectl get deployment kubernetes-skooner -n kubernetes-skooner && skooner_dashboard_upgrade="true";
-        [ -n "${skooner_dashboard_upgrade}" ] && {
+        kubectl get deployment kubernetes-skooner -n kubernetes-skooner && {
          kubectl delete ns kubernetes-skooner;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-skooner.yaml && break; done;
          [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/skooner-ingress.yaml; } ||:
@@ -231,6 +220,20 @@ actions:
         return:
           type: warning
           message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
+    - cmd[${nodes.k8sm.master.id}]: |-
+        echo -n $(kubectl get ValidatingWebhookConfiguration,MutatingWebhookConfiguration --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"admissionregistration.k8s.io/v1beta1"')
+        echo -n $(kubectl get CustomResourceDefinition --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"apiextensions.k8s.io/v1beta1"')
+        echo -n $(kubectl get APIService --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"apiregistration.k8s.io/v1beta1"')
+        echo -n $(kubectl get CertificateSigningRequest --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"certificates.k8s.io/v1beta1"')
+        echo -n $(kubectl get Lease --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"coordination.k8s.io/v1beta1"')
+        echo -n $(kubectl get Ingress --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"extensions/v1beta1"')
+        echo -n $(kubectl get Ingress --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"networking.k8s.io/v1beta1"')
+    - set:
+        k8s_deprecated_api: ${response.out}
+    - if ('${this.k8s_deprecated_api}'):
+        return:
+          type: warning
+          message: Deprecated Kubernetes API found! Please review installed components prior to Kubernetes 1.22+ cluster upgrade.
 
   upgrade-jps-manifests:
     - version: ${this}
