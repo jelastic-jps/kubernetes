@@ -5,9 +5,9 @@ metadata:
   name: kubernetes-api
   namespace: default
   annotations:
-    kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.middlewares: default-api-prefix@kubernetescrd
 spec:
+  ingressClassName: traefik
   rules:
   - http:
       paths:

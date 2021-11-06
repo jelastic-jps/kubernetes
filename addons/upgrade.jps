@@ -126,14 +126,15 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: |-
         case "x${this.ingress-dir}" in
           xtraefik)
+           kubectl delete ns ingress-traefik
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-ns.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-crd.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
            kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
+           kubectl apply -f ${baseUrl}/addons/traefik/traefik-class.yaml
            while [[ $(kubectl -n ingress-traefik get pods -l app.kubernetes.io/name=ingress-traefik,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
            ;;
           xnginx)
-           kubectl -n ingress-nginx delete deployment nginx-ingress-controller
            kubectl delete ns ingress-nginx
            for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/nginx/nginx-deployment.yaml && break; done;
            while [[ $(kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done

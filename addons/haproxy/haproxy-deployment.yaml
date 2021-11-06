@@ -33,7 +33,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - "extensions"
   - "networking.k8s.io"
   resources:
   - ingresses
@@ -44,7 +43,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - "extensions"
   - "networking.k8s.io"
   resources:
   - ingresses/status
@@ -212,3 +210,14 @@ spec:
     port: 1024
     protocol: TCP
     targetPort: 1024
+
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  labels:
+    run: haproxy-ingress
+  name: haproxy
+  namespace: haproxy-controller
+spec:
+  controller: haproxy.org/ingress-controller

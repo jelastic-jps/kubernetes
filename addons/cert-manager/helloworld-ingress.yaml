@@ -4,10 +4,10 @@ metadata:
   name: helloworld-cert
   namespace: default
   annotations:
-    kubernetes.io/ingress.class: "nginx-cert"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     cert-manager.io/cluster-issuer: "letsencrypt-staging"
 spec:
+  ingressClassName: nginx-cert
   tls:
   - hosts:
     - example.com

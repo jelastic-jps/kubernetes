@@ -3,9 +3,8 @@ kind: Ingress
 metadata:
   name: helloworld
   namespace: default
-  annotations:
-    kubernetes.io/ingress.class: haproxy
 spec:
+  ingressClassName: haproxy
   rules:
   - http:
       paths:

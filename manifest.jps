@@ -325,6 +325,7 @@ actions:
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-crd.yaml
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-rbac.yaml
       kubectl apply -f ${baseUrl}/addons/traefik/traefik-ds.yaml
+      kubectl apply -f ${baseUrl}/addons/traefik/traefik-class.yaml
       while [[ $(kubectl -n ingress-traefik get pods -l app.kubernetes.io/name=ingress-traefik,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
 
   install-components:
@@ -1039,13 +1040,13 @@ addons:
             message: Kubernetes Certificate Manager is already configured! Please use Kubernetes Cluster settings!
       - cmd[${nodes.k8sm.master.id}]: |-
           certmanager_version=1.3.1
-          nginx_chart_version=3.36.0
+          nginx_chart_version=4.0.6
           helm repo add jetstack https://charts.jetstack.io
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
           helm repo update
           helm install cert-manager --create-namespace --namespace cert-manager --version v${certmanager_version} jetstack/cert-manager --set installCRDs=true
           wait-deployment.sh cert-manager cert-manager 1 720
-          helm install cert-manager-nginx ingress-nginx/ingress-nginx --namespace cert-manager --version ${nginx_chart_version} --set controller.ingressClass=nginx-cert
+          helm install cert-manager-nginx ingress-nginx/ingress-nginx --namespace cert-manager --version ${nginx_chart_version} --set controller.ingressClassResource.name=nginx-cert --set controller.ingressClassResource.controllerValue="k8s.io/ingress-nginx-cert" --set controller.ingressClassResource.enabled=true  --set controller.ingressClassByName=true
           wait-deployment.sh cert-manager-nginx-ingress-nginx-controller cert-manager 1 720
           for issuer_name in "le-production-issuer" "le-staging-issuer"; do
             wget "${baseUrl}/addons/cert-manager/${issuer_name}.yaml" -O "/tmp/${issuer_name}.yaml"

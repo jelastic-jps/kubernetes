@@ -5,11 +5,11 @@ metadata:
   name: monitoring-prometheus-alertmanager
   namespace: kubernetes-monitoring
   annotations:
-    kubernetes.io/ingress.class: haproxy
     haproxy.org/auth-type: basic-auth
     haproxy.org/auth-secret: monitoring-prometheus
     haproxy.org/path-rewrite: /prometheus-alert(/|$)(.*) /\2
 spec:
+  ingressClassName: haproxy
   rules:
   - http:
       paths:

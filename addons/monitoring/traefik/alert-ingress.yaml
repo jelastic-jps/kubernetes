@@ -5,9 +5,9 @@ metadata:
   name: monitoring-prometheus-alertmanager
   namespace: kubernetes-monitoring
   annotations:
-    kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.middlewares: kubernetes-monitoring-alert-auth@kubernetescrd, kubernetes-monitoring-alert-prefix@kubernetescrd
 spec:
+  ingressClassName: traefik
   rules:
   - http:
       paths:

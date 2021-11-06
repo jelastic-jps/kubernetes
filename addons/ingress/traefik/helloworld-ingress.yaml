@@ -4,9 +4,8 @@ kind: Ingress
 metadata:
   name: helloworld
   namespace: default
-  annotations:
-    kubernetes.io/ingress.class: traefik
 spec:
+  ingressClassName: traefik
   rules:
   - http:
       paths:

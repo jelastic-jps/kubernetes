@@ -5,9 +5,9 @@ metadata:
   name: kubernetes-skooner
   namespace: kubernetes-skooner
   annotations:
-    kubernetes.io/ingress.class: traefik
     traefik.ingress.kubernetes.io/router.middlewares: kubernetes-skooner-strip-prefix@kubernetescrd
 spec:
+  ingressClassName: traefik
   rules:
   - http:
       paths:

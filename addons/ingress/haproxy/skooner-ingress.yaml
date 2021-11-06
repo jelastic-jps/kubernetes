@@ -4,9 +4,9 @@ metadata:
   name: kubernetes-skooner
   namespace: kubernetes-skooner
   annotations:
-    kubernetes.io/ingress.class: haproxy
     haproxy.org/path-rewrite: /kubernetes-dashboard(/|$)(.*) /\2
 spec:
+  ingressClassName: haproxy
   rules:
   - http:
       paths:

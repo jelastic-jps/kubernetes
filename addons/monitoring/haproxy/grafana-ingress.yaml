@@ -5,9 +5,9 @@ metadata:
   name: monitoring-grafana
   namespace: kubernetes-monitoring
   annotations:
-    kubernetes.io/ingress.class: haproxy
     haproxy.org/path-rewrite: /grafana(/|$)(.*) /\2
 spec:
+  ingressClassName: haproxy
   rules:
   - http:
       paths:

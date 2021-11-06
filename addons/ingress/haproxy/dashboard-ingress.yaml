@@ -4,11 +4,11 @@ metadata:
   name: kubernetes-dashboard
   namespace: kubernetes-dashboard
   annotations:
-    kubernetes.io/ingress.class: haproxy
     haproxy.org/path-rewrite: /kubernetes-dashboard(/|$)(.*) /\2
     haproxy.org/server-ssl: 'true'
     haproxy.org/check: 'false'
 spec:
+  ingressClassName: haproxy
   rules:
   - http:
       paths:
