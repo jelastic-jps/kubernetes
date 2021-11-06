@@ -6,6 +6,6 @@ metadata:
 spec:
   strategy: allInOne
   allInOne:
-    image: jaegertracing/all-in-one:1.22
+    image: jaegertracing/all-in-one:1.27
     options:
       log-level: debug

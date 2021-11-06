@@ -4,9 +4,9 @@ kind: Ingress
 metadata:
   name: jaeger-hotrod-haproxy
   annotations:
-    kubernetes.io/ingress.class: haproxy
     haproxy.org/path-rewrite: /hotrod(/|$)(.*) /\2
 spec:
+  ingressClassName: haproxy
   rules:
   - http:
       paths:
