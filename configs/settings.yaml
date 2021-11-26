@@ -6,9 +6,9 @@ fields:
       - type: list
         name: version
         values:
-          - value: v1.21.6
-            caption: v1.21.6
-        default: v1.21.6
+          - value: v1.22.4
+            caption: v1.24.4
+        default: v1.22.4
         hideLabel: false
         editable: false
         width: 155
