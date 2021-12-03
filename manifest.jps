@@ -1176,4 +1176,3 @@ success: |
   ${globals.check_message:}
 
   Press **Open in Browser** to view a default web page of your application.
-  To bind a custom domain name with your Kubernetes cluster please refer to the steps described in Jelastic [documentation](https://docs.jelastic.com/custom-domains).
