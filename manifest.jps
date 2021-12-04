@@ -575,6 +575,20 @@ addons:
             type: info
             message: Cluster Storage is already present!
       - script: |
+          const perEnv = "environment.maxnodescount", perNodeGroup = "environment.maxsamenodescount";
+          var quotas = jelastic.billing.account.GetQuotas(perEnv + ";" + perNodeGroup).array;
+          var storageCount = ${nodes.k8sm.length} > 1 ? 3 : 1;
+
+          for (var i = 0; i < quotas.length; i++){
+            var q = quotas[i], n = toNative(q.quota.name);
+            if (n == perEnv && ${env.nodes.length} + storageCount > q.value) {
+              return {result:"warning", message:"Environment nodes quota is exhausted!"};
+            }
+            if (n == perNodeGroup && storageCount > q.value) {
+              return {result:"warning", message:"NodeGroup nodes quota is exhausted!"};
+            }
+          }
+
           var resp = jelastic.env.control.GetEnvInfo('${env.appid}', session),
               nodeGroups = [],
               nodeGroupsKubernetes = [],
@@ -592,8 +606,6 @@ addons:
             region      : resp.env.hardwareNodeGroup,
             sslstate    : resp.env.sslstate
           };
-
-          var storageCount = ${nodes.k8sm.length} > 1 ? 3 : 1;
 
           for (var i = 0, k = resp.nodes; i < k.length; i++) {
             nodeGroup = String(k[i].nodeGroup);
