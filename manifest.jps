@@ -59,4 +59,9 @@ startPage: ${globals.start_page}
 
 success:
   email: false
-  text: ${globals.success_text}
+  text: |
+    ${globals.success_text}
+    Try it yourself in a few minutes with our tutorials:
+     * [Deploy example of JakartaEE (CargoTracker) application](https://jelastic.com/blog/jakarta-ee-deployment-kubernetes/)
+     * [Configure CI/CD application delivery to K8s](https://jelastic.com/blog/kubernetes-gitlab-integration-testing/)
+     * [Bind custom domain to K8s application](https://jelastic.com/blog/kubernetes-public-ip-address/)
