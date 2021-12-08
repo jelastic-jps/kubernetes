@@ -442,7 +442,7 @@ actions:
           for i in {1..10}; do
             sleep 10
             echo "Attempt ${i} of Grafana dashboard parameters setting"
-            curl -X POST -f -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login" || contunue
+            curl -X POST -f -d "user=admin&password=${grafana_secret}" -c grafana/grafana-jar.txt "http://${env.domain}/grafana/login" || continue
             dash_id=$(curl -sb grafana/grafana-jar.txt 'http://${env.domain}/grafana/api/search?mode=tree&query=Jelastic' | grep -Po '"id":(\d+)' | awk -F ':' '{print $2}')
             [ "${dash_id}" = "" ] && continue
             curl -X POST -f -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}" || continue
