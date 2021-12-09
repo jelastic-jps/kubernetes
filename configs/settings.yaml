@@ -8,11 +8,11 @@ fields:
         values:
           - value: v1.21.4
             caption: v1.21.4
-          - value: v1.20.10
-            caption: v1.20.10
-          - value: v1.19.14
-            caption: v1.19.14
-        default: v1.20.10
+          - value: v1.20.12
+            caption: v1.20.12
+          - value: v1.19.16
+            caption: v1.19.16
+        default: v1.20.12
         hideLabel: false
         editable: false
         width: 155
