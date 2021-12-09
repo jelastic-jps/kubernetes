@@ -68,6 +68,9 @@ onInstall:
   - env.control.ApplyNodeGroupData [${globals.workers}]:
       data:
         isRedeploySupport: false
+  - env.file.AddFavorite [k8sm, ${globals.workers}]:
+        path: /etc/jelastic/redeploy.conf
+        isDir: false
   - script: |
       var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.";
       if ("${settings.avail}") { message += "\n\n**Next version:** ${settings.avail}.  \nPress \"Upgrade\" button to start the upgrade process."; }
