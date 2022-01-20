@@ -520,7 +520,7 @@ actions:
               Credentials - admin / ${this.jaeger_secret}
 
   check-health:
-      cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/check-install.sh -i=${settings.ingress-controller} -app=cc -dash=${settings.dashboard:none} -m=${settings.monitoring:false} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger:false} -d=${env.domain} &> /var/log/kubernetes/k8s-health-check.log ||
+      cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/check-install.sh -i=${settings.ingress-controller} -app=${settings.deploy} -dash=${settings.dashboard:none} -m=${settings.monitoring:false} -r=${settings.api} -s=${settings.storage} -j=${settings.jaeger:false} -d=${env.domain} &> /var/log/kubernetes/k8s-health-check.log ||
          echo "> **Note:** Some cluster components have not yet been initialized, and it may take some time for pods to start. If you encounter problems with your cluster, please check K8s logs in /var/log/kubernetes on control-plane node and contact support."
       setGlobals:
          check_message: ${response.out}

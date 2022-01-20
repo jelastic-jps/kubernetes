@@ -1,4 +1,4 @@
-apiVersion: openliberty.io/v1beta1
+apiVersion: apps.openliberty.io/v1beta2
 kind: OpenLibertyApplication
 metadata:
   name: hello-open-liberty
@@ -11,6 +11,8 @@ spec:
   expose: true
   route:
     path: /
-  storage:
-    size: 2Gi
-    mountPath: "/logs"
+    pathType: Prefix
+  statefulSet:
+    storage:
+      size: 2Gi
+      mountPath: "/logs"
