@@ -40,6 +40,9 @@ spec:
         - name: http
           containerPort: 80
           hostPort: 80
+        - name: https
+          containerPort: 443
+          hostPort: 443
         - name: admin
           containerPort: 8080
         securityContext:
@@ -52,6 +55,7 @@ spec:
         - --api.insecure
         - --api.dashboard
         - --entrypoints.web.address=:80
+        - --entrypoints.websecure.address=:443
         - --providers.kubernetesingress
         - --providers.kubernetescrd
         - --serverstransport.insecureskipverify
@@ -93,3 +97,7 @@ spec:
       port: 80
       name: web
       targetPort: 80
+    - protocol: TCP
+      port: 443
+      name: websecure
+      targetPort: 443
