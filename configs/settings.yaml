@@ -12,8 +12,8 @@ fields:
             caption: v1.20.12
           - value: v1.19.16
             caption: v1.19.16
-          - value: v1.22.4
-            caption: v1.22.4
+          - value: v1.22.6
+            caption: v1.22.6
         default: v1.21.6
         hideLabel: false
         editable: false
