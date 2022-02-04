@@ -15,8 +15,23 @@ var perEnv = "environment.maxnodescount",
     iopsLimit = 1000,
     markup = "", cur = null, text = "used", prod = true, dev = true, prodStorage = true, devStorage = true, storage = false;
 
-var quotas = jelastic.billing.account.GetQuotas(perEnv + ";"+maxEnvs+";" + perNodeGroup + ";" + maxCloudletsPerRec + ";" + diskIOPSlimit).array;
-var group = jelastic.billing.account.GetAccount(appid, session);
+var hasCollaboration = (parseInt('${fn.compareEngine(7.0)}', 10) >= 0),
+    quotas = [], group;
+
+if (hasCollaboration) {
+    quotas = [
+        { quota : { name: perEnv }, value: parseInt('${quota.environment.maxnodescount}', 10) },
+        { quota : { name: maxEnvs }, value: parseInt('${quota.environment.maxcount}', 10) },
+        { quota : { name: perNodeGroup }, value: parseInt('${quota.environment.maxsamenodescount}', 10) },
+        { quota : { name: maxCloudletsPerRec }, value: parseInt('${quota.environment.maxcloudletsperrec}', 10) },
+        { quota : { name: diskIOPSlimit }, value: parseInt('${quota.disk.iopslimit}', 10) }
+    ];
+    group = { groupType: '${account.groupType}' };
+} else {
+    quotas = jelastic.billing.account.GetQuotas(perEnv + ";"+maxEnvs+";" + perNodeGroup + ";" + maxCloudletsPerRec + ";" + diskIOPSlimit).array;
+    group = jelastic.billing.account.GetAccount(appid, session);
+}
+
 for (var i = 0, l = quotas.length; i < l; i++) {
     var q = quotas[i], n = toNative(q.quota.name);
 
@@ -106,6 +121,15 @@ if (!prod && !dev || group.groupType == 'trial') {
             "required": true,
         }]
     });
+}
+
+if (hasCollaboration) {
+    f.push({
+        "type": "owner",
+        "name": "ownerUid",
+        "caption": "Owner"
+    });
+    f[9].dependsOn = "ownerUid";
 }
 
 return resp;

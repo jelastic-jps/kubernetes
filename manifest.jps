@@ -40,10 +40,12 @@ actions:
         displayName: ${settings.displayName}
         envGroups: ${response.envGroups}
         region: ${settings.region}
+        ownerUid: ${settings.ownerUid:[user.uid]}
         settings: ${settings.toJSON()}
       script: |
         params = toNative(params);
         params.envGroups = eval('(' + MANIFEST + ')').envGroups;
+        if (!params.ownerUid) delete params.ownerUid;
         return api.marketplace.jps.Install(params);
     - setGlobals:
         success_text: ${response.successText}

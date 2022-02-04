@@ -1,3 +1,5 @@
+onBeforeInit: return settings;
+
 fields:
   - type: compositefield
     caption: Version
