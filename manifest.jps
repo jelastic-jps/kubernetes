@@ -711,12 +711,101 @@ addons:
     name: Cluster Upgrade
     description: Upgrade Kubernetes cluster to a newer version
     logo: /images/k8s-upgrade.png
+    settings:
+      fields:
+        - type: displayfield
+          hideLabel: true
+          markup: |
+            Press **Start** to automatically upgrade Kubernetes cluster to a newer version.
+            Depending from the current version in the cluster, it will be either a switch to a new major Kubernetes version, or a minor update within the same branch.
+      submitUnchanged: true
+
+      onBeforeInit: |
+        function compareVersions(a, b) {
+          a = a.replace("v", "").split("."); b = b.replace("v", "").split(".");
+          for (var i = 0, l = Math.max(a.length, b.length), x, y; i < l; i++) {x = parseInt(a[i], 10) || 0; y = parseInt(b[i], 10) || 0; if (x != y) return x > y ? 1 : -1 }
+          return 0;
+        }
+
+        var resp = api.system.service.GetVersion();
+        if (resp.result != 0) return resp;
+
+        if (compareVersions([resp.version, resp.build].join("."), '6.1.4') >= 0) {
+          var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
+          var resp = api.env.control.GetNodeInfo(envName, session, nodeId);
+          if (resp.result != 0) return {result:"warning", message:"Cannot retrieve Kubernetes environment settings!"};
+
+          const version = resp.node.version;
+          resp = api.env.control.GetContainerNodeTags(envName, session, nodeId);
+          if (resp.result != 0) return {result:"warning", message:"Cannot retrieve Kubernetes tags!"};
+
+          var tags = resp.object, upgrades = [];
+          tags.sort(compareVersions);
+          const major_version = version.substr(0, version.lastIndexOf("."));
+          var major_next = major_version;
+
+          for (var i = 0; i < tags.length; i++)
+          if (compareVersions(tags[i], version) > 0) {
+            var major_tag = tags[i].substr(0, tags[i].lastIndexOf("."));
+            if (compareVersions(major_tag, major_version) == 0) {
+              upgrades = [ tags[i] ];
+            } else if (compareVersions(major_tag, major_next) > 0) {
+                upgrades.push(tags[i]);
+                major_next = major_tag;
+            }
+          }
+          if (!upgrades.length) return {result:"info", message:"Current version " + version + " is the latest. No upgrades are available."};
+
+          const last_version = tags.pop();
+          if (compareVersions(last_version, upgrades[upgrades.length-1]) > 0) {
+            upgrades.push(last_version);
+          }
+
+          var uplist = {}, updefault;
+          for (var i=0; i < upgrades.length; i++) {
+            var major_upgrade = upgrades[i].substr(0, upgrades[i].lastIndexOf("."));
+            var val = compareVersions(major_upgrade, major_version);
+            uplist[upgrades[i]] = upgrades[i];
+            updefault = upgrades[i];
+            if (val > 0) break;
+          }
+          if (!Object.keys(uplist).length) return {result:"warning", message:"Cannot determine cluster versions to upgrade!"};
+
+          settings.fields = [{
+            type: "displayfield",
+            hideLabel: true,
+            markup: "Upgrade Kubernetes cluster to a newer version. Depending from the current Kubernetes version in the cluster, a few options may be available."
+          }, {
+            type: "displayfield",
+            hideLabel: true
+          }, {
+            type: "list",
+            name: "uplist",
+            values: uplist,
+            required: true,
+            editable: false,
+            default: updefault,
+            caption: "Version to upgrade"
+          }];
+
+          api.env.control.ApplyNodeGroupData({
+            envName: "${env.name}",
+            nodeGroup: "k8sm",
+            data: {
+              version: version,
+              avail: upgrades.join(",")
+            }
+          });
+
+        }
+        return settings;
 
     buttons:
       - caption: Start Cluster Upgrade
+        settings: main
         action: addon-upgrade-init
         loadingText: Updating...
-        confirmText: Do you want to upgrade Kubernetes Cluster?
+        submitButtonText: Start
         successText: Kubernetes Cluster has been successfully upgraded!
 
     actions:
@@ -734,48 +823,72 @@ addons:
             return 0;
           }
 
-          var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
-          var resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
-          if (resp.result != 0) return resp;
-          var version = resp.node.version;
-          var image = resp.node.name;
-          resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
-          if (resp.result != 0) return resp;
-
-          var tags = resp.object;
-          tags.sort(compareVersions);
-          var upgrades = [];
-          var check_version = version;
-          var major_version = version.substr(0, version.lastIndexOf("."));
-
-          for (var i = 0; i < tags.length; i++) {
-            var major_tag = tags[i].substr(0, tags[i].lastIndexOf("."));
-            if (compareVersions(major_tag, major_version) > 0) {
-              check_version = tags[i];
-              upgrades.push(check_version);
-              major_version = major_tag;
-            }
-          }
-
-          var last_version = tags.pop();
-          if (compareVersions(last_version, check_version) > 0) upgrades.push(last_version);
-          var message = "Current version " + version + " is the latest. No upgrades are available.";
-          if (upgrades.length) {
-            upgrades.sort(compareVersions);
-            var next = upgrades.shift();
+          function startUpgrade(version, next, upgrades) {
             var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
-            var url = baseUrl+"/"+next+"/addons/upgrade.jps";
+            var url = baseUrl + "/" + next + "/addons/upgrade.jps";
             var huc = new java.net.URL(url).openConnection();
             huc.setRequestMethod("HEAD");
             var code = huc.getResponseCode();
             if (code == 200){
               return {result:0, onAfterReturn:{"addon-upgrade-start":{current:version, next:next, avail:upgrades.join(", "), jps: url}}};
             } else {
-              message = "The next version is " + next + ". However, automated upgrade procedure is not available yet. Please check it later, or contact support team if upgrade is required urgently.";
+              var message = "The next version is " + next + ". However, automated upgrade procedure is not available yet. Please check it later, or contact support team if upgrade is required urgently.";
               return {result:"info", message:message};
             }
+          }
+
+          var resp = api.system.service.GetVersion();
+          if (resp.result != 0) return {result:"error", message:"Cannot determine platform version!"};
+
+          if (compareVersions([resp.version, resp.build].join("."), '6.1.4') >= 0) {
+            resp = api.env.control.GetNodeGroups("${env.name}", session);
+            if (resp.result !=0) return {result:"error", message:"Cannot obtain node groups!"};
+            var groups = resp.object, next = "${settings.uplist}", upgrades = [], version;
+            for (var i = 0, n = groups.length; i < n; i++)
+            if (groups[i].name == "k8sm" && groups[i].version && groups[i].avail) {
+              upgrades = groups[i].avail.split(",");
+              version = groups[i].version;
+              break;
+            }
+            if (!upgrades.length || !version) return {result:"warning", message:"Cannot determine cluster upgrade parameters!"};
+
+            while (upgrades.length && compareVersions(next, upgrades[0]) >= 0) upgrades.shift();
+
+            return startUpgrade(version, next, upgrades);
+
           } else {
-            return {result:"info", message:message};
+            var envName = "${env.envName}", nodeId = "${nodes.k8sm.master.id}";
+            resp = jelastic.env.control.GetNodeInfo(envName, session, nodeId);
+            if (resp.result != 0) return {result:"error", message:"Cannot obtain node info!"};
+            var version = resp.node.version;
+            resp = jelastic.env.control.GetContainerNodeTags(envName, session, nodeId);
+            if (resp.result != 0) return {result:"error", message:"Cannot obtain node tags!"};
+
+            var tags = resp.object;
+            tags.sort(compareVersions);
+            var check_version = version, upgrades = [];
+            var major_version = version.substr(0, version.lastIndexOf("."));
+
+            for (var i = 0; i < tags.length; i++) {
+              var major_tag = tags[i].substr(0, tags[i].lastIndexOf("."));
+              if (compareVersions(major_tag, major_version) > 0) {
+                check_version = tags[i];
+                upgrades.push(check_version);
+                major_version = major_tag;
+              }
+            }
+
+            var last_version = tags.pop();
+            if (compareVersions(last_version, check_version) > 0) upgrades.push(last_version);
+            if (!upgrades.length) {
+              var message = "Current version " + version + " is the latest. No upgrades are available.";
+              return {result:"info", message:message};
+            }
+
+            upgrades.sort(compareVersions);
+            var next = upgrades.shift();
+
+            return startUpgrade(version, next, upgrades);
           }
 
       addon-upgrade-start:
@@ -821,7 +934,7 @@ addons:
 
     buttons:
       - caption: Configure
-        settings: gitlab
+        settings: main
         action: addon-gitlab-config
         loadingText: Configuration...
         confirmText: Are you sure?
@@ -1029,7 +1142,7 @@ addons:
           name: certificate_domain
     buttons:
       - caption: Install Certificate Manager
-        settings: certman
+        settings: main
         action: addon-certman-config
         loadingText: Installing...
         successText: Certficate manager has been successfully installed!
@@ -1156,7 +1269,7 @@ addons:
           name: creds_email
     buttons:
       - caption: DockerHub Credentials
-        settings: regcreds
+        settings: main
         action: addon-regcreds-config
         loadingText: Setting up...
         successText: DockerHub registry user credentials have been successfully set!
