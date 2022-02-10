@@ -64,6 +64,7 @@ fields:
     name: storage
     caption: Attach dedicated NFS Storage with dynamic volume provisioning
     value: true
+    default: true
     showIf:
       true:
       - type: checkbox
