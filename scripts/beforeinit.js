@@ -88,12 +88,14 @@ if (!prod && dev) {
     if (!devStorage) {
         f[4].disabled = true;
         f[4].value = false;
+        f[4]['default'] = false;
     }
 }
 
 if (prod && !prodStorage){
     f[4].disabled = true;
     f[4].value = false;
+    f[4]['default'] = false;
 }
 
 if (!prod && !dev || group.groupType == 'trial') {
@@ -109,6 +111,7 @@ if (!prod && !dev || group.groupType == 'trial') {
         f[2].markup = "Production and Development topologies are not available for " + group.groupType + " account. Please upgrade your account.";
     f[2].height =  60;
     f[4].value = false;
+    f[4]['default'] = false;
 
     f.push({
         "type": "compositefield",

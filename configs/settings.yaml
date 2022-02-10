@@ -118,6 +118,7 @@ fields:
     caption: NFS Storage
     tooltip: Attach dedicated NFS Storage with dynamic volume provisioning
     value: true
+    default: true
     showIf:
       true:
         - type: compositefield
