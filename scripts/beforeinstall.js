@@ -21,6 +21,9 @@ var resp = {
     nodeGroup: "cp",
     nodeType: "kubernetes",
     tag: tag,
+    validation: {
+      scalingMode: "stateless"
+    },
     scalingMode: "stateless",
     displayName: "Workers",
     cloudlets: 32,

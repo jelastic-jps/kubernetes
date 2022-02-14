@@ -67,6 +67,8 @@ onInstall:
             version: ${settings.version}
   - env.control.ApplyNodeGroupData [${globals.workers}]:
       data:
+        validation:
+          scalingMode: "stateless"
         isRedeploySupport: false
   - env.file.AddFavorite [k8sm, ${globals.workers}]:
         path: /etc/jelastic/redeploy.conf

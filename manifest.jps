@@ -116,6 +116,10 @@ onAfterScaleOut:
 
             return {result: 0, onAfterReturn: { api: mount } }
 
+      - env.control.ApplyNodeGroupData[${event.response.nodes.nodeGroup}]:
+          data:
+            validation:
+              scalingMode: "stateless"
       - cmd[${nodes.k8sm.master.id}]: |-
           token_age=$(expr $(date +%s) - $(stat /var/log/kubeadm-init.log -c %Y))
           [ ${token_age} -lt $((20*60*60)) ] && { sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep -v 'control-plane'; } || { kubeadm token create --print-join-command; }
@@ -193,6 +197,7 @@ actions:
           validation:
             minCount: ${nodes.k8sm.length}
             maxCount: ${nodes.k8sm.length}
+            scalingMode: "stateless"
     - if (${nodes.storage.length:0} > 0):
         - script: |
             return { result: 0, min: ${nodes.storage.length:0} > 1 ? 3: 1, max: ${nodes.storage.length:0} > 1 ? 7: 1 }
