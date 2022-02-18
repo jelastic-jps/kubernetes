@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.21.6
-name: Kubernetes Upgrade to 1.21.6
+id: kubernetes-upgrade-to-1.21.10
+name: Kubernetes Upgrade to 1.21.10
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.21.6
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.21.10
 logo: /images/k8s-logo.png
 
 description:
