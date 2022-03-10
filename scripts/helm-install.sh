@@ -2,7 +2,7 @@
 # set -x
 
 # core
-HELM_VERSION="v3.6.3"
+HELM_VERSION="v3.7.2"
 
 HELP="Usage:
 	$0 --migrate=(main|secondary)
