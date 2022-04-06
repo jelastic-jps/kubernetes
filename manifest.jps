@@ -1204,9 +1204,6 @@ addons:
 
     actions:
       addon-rancher:
-      - return:
-          type: warning
-          message: Rancher Management Platform is not compatible with K8s 1.22 yet!
       - cmd[${nodes.k8sm.master.id}]: kubectl -n cattle-system get deployment rancher &>/dev/null && echo "true" || echo "false"
       - if ('${response.out}' == 'true'):
           return:
@@ -1234,10 +1231,13 @@ addons:
           return:
             type: warning
             message: Cannot deploy Rancher UI! ${response.out}.
+      - cmd[${nodes.k8sm.master.id}]: cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
+      - set:
+          rancher_secret: ${response.out}
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
           helm repo update
-          helm install rancher rancher-stable/rancher --create-namespace --namespace cattle-system --set tls=external
+          helm install rancher rancher-stable/rancher --create-namespace --namespace cattle-system --set tls=external --set bootstrapPassword="${this.rancher_secret}"
           kubectl -n cattle-system rollout status deploy/rancher
       - message.email.send:
           to: "${user.email}"
@@ -1245,13 +1245,15 @@ addons:
           body: |-
             Rancher Management Platform installed in <b>${env.name}</b> Kubernetes Cluster: <br>
             Rancher Dashboard - ${env.url}<br>
-            Set your login credentials there during the first login.
+            Your login password: ${this.rancher_secret}
       - return:
           type: success
           message: |
             Rancher Platform has been successfully installed!
 
-            Enter [Rancher dashboard](${env.url}), and set your login credentials there.
+            Enter [Rancher dashboard](${env.url}), using password:
+
+            ```${this.rancher_secret}```
 
   - id: regcreds-k8s-addon
     type: update
