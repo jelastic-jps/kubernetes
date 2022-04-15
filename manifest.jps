@@ -929,6 +929,7 @@ addons:
     description: Add Kubernetes GitLab integrations
     logo: /images/k8s-gitlab.png
     settings:
+      submitUnchanged: true
       fields:
         - type: displayfield
           hideLabel: true
@@ -937,6 +938,7 @@ addons:
           hideLabel: true
         - type: envlist
           name: envlist
+          required: true
           valueField: shortdomain
           caption: GitLab environment
 
@@ -1034,7 +1036,7 @@ addons:
             sleep 10
             echo "Attempt ${i} of GitLab Kubernetes cluster creation"
             page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/new')
-            csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /new_cluster.*?authenticity_token"[[:blank:]]value="(.+?)"/' | sed -n 1p)
+            csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /meta[[:blank:]]name="csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
             echo "Add cluster CSRF token: ${csrf_token}"
             [ -n "${csrf_token}" ] || continue
             page_content=$(curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "cluster[name]=Kubernetes&cluster[platform_kubernetes_attributes][authorization_type]=rbac&cluster[managed]=1&cluster[namespace_per_environment]=1" --data-urlencode "cluster[platform_kubernetes_attributes][api_url]=${this.gitlab_api_url}" --data-urlencode "cluster[platform_kubernetes_attributes][ca_cert]=${this.gitlab_ca_cert}" --data-urlencode "cluster[platform_kubernetes_attributes][token]=${this.gitlab_token}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/create_user')
@@ -1042,7 +1044,6 @@ addons:
             echo "Kubernetes GitLab cluster: ${cluster_url}"
             [ -n "${cluster_url}" ] && break || continue
           done
-          echo "${page_content}"
           [ -n "${cluster_url}" ] || exit 4
           cluster_id=$(echo ${cluster_url} | perl -ne 'print "$1\n" if /\/admin\/clusters\/(\d+)$/')
           [ -n "${cluster_id}" ] || exit 4
