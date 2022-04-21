@@ -946,6 +946,18 @@ addons:
           required: true
           valueField: shortdomain
           caption: GitLab environment
+      submitUnchanged: true
+
+      onBeforeInit: |
+        settings.fields[2] = {
+          type: "envlist",
+          name: "envlist",
+          required: true,
+          valueField: "shortdomain",
+          caption: "GitLab environment",
+          value: "${env.name}"
+        };
+        return settings;
 
     buttons:
       - caption: Configure
@@ -1078,51 +1090,54 @@ addons:
       - cmd[${nodes.k8sm.master.id}]: kubectl get configmaps -n gitlab-managed-apps gitlab-configuration -o jsonpath='{.data.cluster_id}'
       - set:
           gitlab_cluster_id: ${response.out}
-      - env.control.GetEnvInfo:
-          envName: ${this.gitlab_cluster_env}
+      - script: |
+          var resp = api.env.control.GetEnvInfo('${this.gitlab_cluster_env}', session);
+          if (resp.result != 0 || resp.env == null) return { result: 0, envDomain: "" };
+          return { result: 0, envDomain: resp.env.domain };
       - set:
-          gitlab_domain: ${response.env.domain}
-      - env.control.ExecCmdByGroup [cp]:
-          envName: ${this.gitlab_cluster_env}
-          commandList:
-            - command: echo ${ROOT_PASSWORD}
-      - set:
-          gitlab_pass: ${response.out}
-      - env.control.ExecCmdByGroup [cp]:
-          envName: ${this.gitlab_cluster_env}
-          commandList:
-            - command: echo ${HTTPS_PORT}
-      - set:
-          gitlab_port: ${response.out}
-          gitlab_http_endpoint: "https://${this.gitlab_domain}:${this.gitlab_port}"
-      - if ('${this.gitlab_pass}' == '' || '${this.gitlab_port}' == ''):
-          return:
-            type: warning
-            message: Cannot determine GitLab credentials!
-      - cmd[${nodes.k8sm.master.id}]: |-
-          # Login
-          page_content=$(curl -sk -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/users/sign_in')
-          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /new_user.*?authenticity_token"[[:blank:]]value="(.+?)"/' | sed -n 1p)
-          echo "Sign-in CSRF token: ${csrf_token}"
-          [ -n "${csrf_token}" ] || exit 1
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "user[login]=root&user[password]=${this.gitlab_pass}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/users/sign_in'
-      - cmd[${nodes.k8sm.master.id}]: |-
-          # Runner
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}')
-          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
-          echo "Remove runner CSRF token: ${csrf_token}"
-          [ -n "${csrf_token}" ] || exit 5
-          curl -X DELETE -sk -b gitlab-jar.txt -c gitlab-jar.txt -H "X-CSRF-Token: ${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}/applications/runner'
-      - cmd[${nodes.k8sm.master.id}]: |-
-          while true; do kubectl -n gitlab-managed-apps get deploy runner-gitlab-runner --no-headers && sleep 5 || break; done
-      - cmd[${nodes.k8sm.master.id}]: |-
-          # Cluster
-          sleep 10
-          page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}')
-          csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
-          echo "Remove cluster CSRF token: ${csrf_token}"
-          [ -n "${csrf_token}" ] || exit 5
-          curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "_method=delete&no_cleanup=true&confirm_cluster_name_input=Kubernetes" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}'
+          gitlab_domain: ${response.envDomain}
+      - if ('${this.gitlab_domain}'):
+          - env.control.ExecCmdByGroup [cp]:
+              envName: ${this.gitlab_cluster_env}
+              commandList:
+                - command: echo ${ROOT_PASSWORD}
+          - set:
+              gitlab_pass: ${response.out}
+          - env.control.ExecCmdByGroup [cp]:
+              envName: ${this.gitlab_cluster_env}
+              commandList:
+                - command: echo ${HTTPS_PORT}
+          - set:
+              gitlab_port: ${response.out}
+              gitlab_http_endpoint: "https://${this.gitlab_domain}:${this.gitlab_port}"
+          - if ('${this.gitlab_pass}' == '' || '${this.gitlab_port}' == ''):
+              return:
+                type: warning
+                message: Cannot determine GitLab credentials!
+          - cmd[${nodes.k8sm.master.id}]: |-
+              # Login
+              page_content=$(curl -sk -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/users/sign_in')
+              csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /new_user.*?authenticity_token"[[:blank:]]value="(.+?)"/' | sed -n 1p)
+              echo "Sign-in CSRF token: ${csrf_token}"
+              [ -n "${csrf_token}" ] || exit 1
+              curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -f -d "user[login]=root&user[password]=${this.gitlab_pass}" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/users/sign_in'
+          - cmd[${nodes.k8sm.master.id}]: |-
+              # Runner
+              page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}')
+              csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
+              echo "Remove runner CSRF token: ${csrf_token}"
+              [ -n "${csrf_token}" ] || exit 5
+              curl -X DELETE -sk -b gitlab-jar.txt -c gitlab-jar.txt -H "X-CSRF-Token: ${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}/applications/runner'
+          - cmd[${nodes.k8sm.master.id}]: |-
+              while true; do kubectl -n gitlab-managed-apps get deploy runner-gitlab-runner --no-headers && sleep 5 || break; done
+          - cmd[${nodes.k8sm.master.id}]: |-
+              # Cluster
+              sleep 10
+              page_content=$(curl -sk -b gitlab-jar.txt -c gitlab-jar.txt  '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}')
+              csrf_token=$(echo ${page_content} | perl -ne 'print "$1\n" if /csrf-param.*?csrf-token"[[:blank:]]content="(.+?)"/' | sed -n 1p)
+              echo "Remove cluster CSRF token: ${csrf_token}"
+              [ -n "${csrf_token}" ] || exit 5
+              curl -X POST -sk -b gitlab-jar.txt -c gitlab-jar.txt -d "_method=delete&no_cleanup=true&confirm_cluster_name_input=Kubernetes" --data-urlencode "authenticity_token=${csrf_token}" '${this.gitlab_http_endpoint}/admin/clusters/${this.gitlab_cluster_id}'
       - cmd[${nodes.k8sm.master.id}]: |-
           sleep 10
           rm -f /var/lib/kubelet/worker-data/gitlab-*
