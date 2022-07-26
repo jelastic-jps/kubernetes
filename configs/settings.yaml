@@ -10,10 +10,10 @@ fields:
         values:
           - value: v1.23.6
             caption: v1.23.6
-          - value: v1.22.10
-            caption: v1.22.10
-          - value: v1.21.12
-            caption: v1.21.12
+          - value: v1.22.12
+            caption: v1.22.12
+          - value: v1.21.14
+            caption: v1.21.14
         default: v1.23.6
         hideLabel: false
         editable: false
