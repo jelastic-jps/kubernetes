@@ -16,3 +16,12 @@ subjects:
 - kind: ServiceAccount
   name: fulladmin
   namespace: kube-system
+---
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: fulladmin-token
+  namespace: kube-system
+  annotations:
+    kubernetes.io/service-account.name: "fulladmin"
