@@ -2,7 +2,7 @@
 # set -x
 
 # components
-METALLB_VER="0.12.1"
+METALLB_VER="0.13.4"
 
 HELP="Usage:
 	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metallb=(true|false) --metrics-server=(true|false) --dashboard=(general|skooner) --ingress-name=<ingress-controller>
@@ -76,8 +76,7 @@ fi
 
 	if [ "x${METALLB}" = "xtrue" ]; then
 		echo "$(date): installing metallb-controller"
-		kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/v${METALLB_VER}/manifests/namespace.yaml";
-		kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/v${METALLB_VER}/manifests/metallb.yaml";
+		kubectl apply -f "https://raw.githubusercontent.com/metallb/metallb/v${METALLB_VER}/config/manifests/metallb-native.yaml";
 		kubectl -n metallb-system get secret memberlist &>/dev/null || \
 			kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(/usr/bin/openssl rand -base64 128)";
 		kubectl apply -f "${BASE_URL}/addons/metallb-config.yaml";
