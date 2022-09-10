@@ -1,6 +1,9 @@
 #!/bin/bash
 # set -x
 
+# components
+NPD_TAG="v0.8.12"
+
 HELP="Usage:
 	$0 --base-url=<base64-encoded-url> --nfs-provisioner=(true|false) --nfs-server=<ip-address> --problem-detector=(true|false)
 Options:
@@ -67,7 +70,7 @@ fi
 		echo "$(date): installing node-problem-detector"
 		helm repo add deliveryhero https://charts.deliveryhero.io/;
 		helm repo update;
-		helm install node-problem-detector deliveryhero/node-problem-detector;
+		helm install node-problem-detector deliveryhero/node-problem-detector --set image.tag=${NPD_TAG};
 	else
 		echo "$(date): node-problem-detector installation skipped"
 	fi
