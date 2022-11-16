@@ -20,7 +20,7 @@ fields:
           kubectl apply -f https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/main/deploy/releases/0.8.2/kubectl/openliberty-app-crd.yaml
           curl -L https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/main/deploy/releases/0.8.2/kubectl/openliberty-app-rbac-watch-another.yaml | sed -e "s/OPEN_LIBERTY_OPERATOR_NAMESPACE/${OPERATOR_NAMESPACE}/" | sed -e "s/OPEN_LIBERTY_WATCH_NAMESPACE/${OPERATOR_NAMESPACE}/" | kubectl apply -f -
           curl -L https://raw.githubusercontent.com/OpenLiberty/open-liberty-operator/main/deploy/releases/0.8.2/kubectl/openliberty-app-operator.yaml | sed -e "s/OPEN_LIBERTY_WATCH_NAMESPACE/${OPERATOR_NAMESPACE}/" | kubectl apply -n ${OPERATOR_NAMESPACE} -f -
-          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.24.8/addons/open-liberty.yaml
+          kubectl apply -f https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.25.4/addons/open-liberty.yaml
 
   - name: label
     caption: Topology
@@ -101,4 +101,4 @@ fields:
     name: version
     inputType: hidden
     caption: Kubernetes Version
-    default: v1.24.8
+    default: v1.25.4
