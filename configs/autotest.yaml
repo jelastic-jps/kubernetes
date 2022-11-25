@@ -7,7 +7,7 @@ helm.version: v3.9.4
 cni.plugins.version: 1.1.1
 k9s.version: 0.26.3
 crictl.version: v1.24.2
-stern.version: 1.11.0
+stern.version: 1.22.0
 containerd.version: 1.3.9
 ingress.nginx.version: 1.3.0
 kubernetes.dashboard.version: 2.6.1
