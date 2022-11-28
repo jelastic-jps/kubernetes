@@ -17,7 +17,7 @@ spec:
           service:
             name: monitoring-prometheus-alertmanager
             port:
-              number: 80
+              number: 9093
 
 ---
 apiVersion: traefik.containo.us/v1alpha1
