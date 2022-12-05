@@ -1031,7 +1031,7 @@ addons:
       - cmd[${nodes.k8sm.master.id}]: kubectl cluster-info | sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" | grep '^Kubernetes control plane' | awk '/http/ {print $NF}'
       - set:
           gitlab_api_url: ${response.out}
-      - cmd[${nodes.k8sm.master.id}]: kubectl get secret $(kubectl get secrets | grep default-token | cut -d " " -f 1) -o jsonpath="{['data']['ca\.crt']}" | base64 --decode
+      - cmd[${nodes.k8sm.master.id}]: kubectl -n kube-system get secret $(kubectl -n kube-system get secret | grep gitlab-admin | awk '{print $1}') -o jsonpath="{['data']['ca\.crt']}" | base64 --decode
       - set:
           gitlab_ca_cert: ${response.out}
       - cmd[${nodes.k8sm.master.id}]: |-
@@ -1152,7 +1152,7 @@ addons:
           sleep 10
           rm -f /var/lib/kubelet/worker-data/gitlab-*
           kubectl delete ns gitlab-managed-apps
-          kubectl delete -f ${baseUrl}/addons/gitlab/gitlab-service-account.yaml
+          kubectl delete -f ${baseUrl}/addons/gitlab/gitlab-service-account.yaml ||:
       - init-globals-workers
       - cmd[${globals.workers}]: |-
           wget -nv ${baseUrl}/addons/gitlab/gitlab-integration-remove.sh -O /var/lib/worker/gitlab-integration-remove.sh
