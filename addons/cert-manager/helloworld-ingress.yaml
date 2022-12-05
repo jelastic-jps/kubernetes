@@ -17,7 +17,7 @@ spec:
     http:
       paths:
       - path: /
-        pathType: Prefix
+        pathType: Exact
         backend:
           service:
             name: hello-cert-manager
