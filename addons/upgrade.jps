@@ -349,6 +349,7 @@ actions:
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
         sed '/^$/d' /tmp/redeploy.conf.merged | sort | uniq > /etc/jelastic/redeploy.conf
+        sed -i -r -e 's;--network-plugin=cni[[:blank:]]?;;' -e 's;--cni-conf-dir=/etc/cni/net.d[[:blank:]]?;;' -e 's;--cni-bin-dir=/opt/cni/bin[[:blank:]]?;;' /var/lib/kubelet/kubeadm-flags.env
         sleep 10
     - env.control.RedeployContainers:
         nodeId: ${this.id}
@@ -407,6 +408,7 @@ actions:
         sed -i -e '$a\' /tmp/redeploy.conf.stock
         cat /tmp/redeploy.conf.stock /etc/jelastic/redeploy.conf > /tmp/redeploy.conf.merged
         sed '/^$/d' /tmp/redeploy.conf.merged | sort | uniq > /etc/jelastic/redeploy.conf
+        sed -i -r -e 's;--network-plugin=cni[[:blank:]]?;;' -e 's;--cni-conf-dir=/etc/cni/net.d[[:blank:]]?;;' -e 's;--cni-bin-dir=/opt/cni/bin[[:blank:]]?;;' /var/lib/kubelet/kubeadm-flags.env
     - env.control.RedeployContainers:
         nodeId: ${this.id}
         tag: ${this.version}
