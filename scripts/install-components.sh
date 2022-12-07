@@ -80,7 +80,7 @@ fi
 		kubectl -n metallb-system get secret memberlist &>/dev/null || \
 			kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(/usr/bin/openssl rand -base64 128)";
 		wait-deployment.sh controller metallb-system 1 720;
-		kubectl apply -f "${BASE_URL}/addons/metallb-config.yaml";
+		while true; do echo "Applying metallb-config.yaml configuration.."; kubectl apply -f "${BASE_URL}/addons/metallb-config.yaml" &>/dev/null && break; sleep 5; done;
 		metallb-config -u;
 	else
 		echo "$(date): metallb-controller installation skipped"
