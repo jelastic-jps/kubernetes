@@ -190,6 +190,25 @@ onAfterAttachExtIp:
           - cmd[${nodes.k8sm.master.id}]: metallb-config -a '${this.attachIp}'
           - cmd[${event.params.nodeid}]: systemctl restart kube-config.service
 
+onAfterSetCloudletCount:
+  - script: |
+      var resp = jelastic.env.control.GetEnvInfo('${env.appid}', session);
+
+      if (resp.result != 0 || resp.nodes == null) return { result: 0, isKubernetes: "false" };
+
+      for (var i = 0, k = resp.nodes; i < k.length; i++) {
+        nodeGroup = String(k[i].nodeGroup);
+        nodeType = String(k[i].nodeType);
+        if (nodeGroup == "${event.params.nodeGroup}" && nodeType == "kubernetes") {
+          return { result: 0, isKubernetes: "true" }
+        }
+      }
+
+      return { result: 0, isKubernetes: "false" };
+
+  - if ('${response.isKubernetes}' == 'true'):
+      - cmd[${event.params.nodeGroup}]: systemctl restart kubelet.service
+
 actions:
   set-scaling-parameters:
     - env.control.ApplyNodeGroupData[k8sm]:
