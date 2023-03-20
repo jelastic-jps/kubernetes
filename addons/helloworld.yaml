@@ -41,7 +41,7 @@ spec:
             port: http
         env:
         - name: MESSAGE
-          value: Hello Jelastic!
+          value: Hello World!
         - name: KUBERNETES_NAMESPACE
           valueFrom:
             fieldRef:
