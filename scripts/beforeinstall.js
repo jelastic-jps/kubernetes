@@ -13,7 +13,7 @@ var resp = {
     scalingMode: "stateless",
     nodeGroup: "k8sm",
     isRedeploySupport: false,
-    addons: ["conf-k8s-addon", "upgrade-k8s-addon", "monitor-k8s-addon", "gitlab-k8s-addon", "certman-k8s-addon", "rancher-k8s-addon", "regcreds-k8s-addon"],
+    addons: ["conf-k8s-addon", "upgrade-k8s-addon", "monitor-k8s-addon", "certman-k8s-addon", "rancher-k8s-addon", "regcreds-k8s-addon"],
     displayName: "Control Plane",
     extip: false
   }, {
