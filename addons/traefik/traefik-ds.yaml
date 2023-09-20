@@ -34,7 +34,7 @@ spec:
       serviceAccountName: traefik-ingress-controller
       terminationGracePeriodSeconds: 60
       containers:
-      - image: traefik:v2.5
+      - image: traefik:v2.10
         name: controller
         ports:
         - name: http
