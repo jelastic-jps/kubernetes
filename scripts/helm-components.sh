@@ -2,7 +2,7 @@
 # set -x
 
 # components
-NPD_TAG="v0.8.12"
+NPD_TAG="v0.8.14"
 
 HELP="Usage:
 	$0 --base-url=<base64-encoded-url> --nfs-provisioner=(true|false) --nfs-server=<ip-address> --problem-detector=(true|false)
