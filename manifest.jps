@@ -1240,9 +1240,6 @@ addons:
 
     actions:
       addon-rancher:
-      - return:
-          type: warning
-          message: Rancher Management Platform is not compatible with K8s 1.25 yet!
       - cmd[${nodes.k8sm.master.id}]: kubectl -n cattle-system get deployment rancher &>/dev/null && echo "true" || echo "false"
       - if ('${response.out}' == 'true'):
           return:
