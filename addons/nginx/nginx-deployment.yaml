@@ -402,7 +402,7 @@ metadata:
   namespace: ingress-nginx
 spec:
   updateStrategy:
-  type: RollingUpdate
+    type: RollingUpdate
   minReadySeconds: 0
   revisionHistoryLimit: 10
   selector:

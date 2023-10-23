@@ -20,7 +20,7 @@ spec:
               number: 9093
 
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: alert-auth
@@ -30,7 +30,7 @@ spec:
     secret: monitoring-prometheus
 
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: alert-prefix
