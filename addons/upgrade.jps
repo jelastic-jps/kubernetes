@@ -212,34 +212,6 @@ actions:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get secret --namespace observability observability-jaeger-plain && {
          [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/jaeger-ingress.yaml; } ||:
-    - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get NetworkPolicy,PodSecurityPolicy,DaemonSet,Deployment,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"extensions/v1beta1"')
-    - set:
-        k8s_deprecated_ext: ${response.out}
-    - if ('${this.k8s_deprecated_ext}'):
-        return:
-          type: warning
-          message: Deprecated Kubernetes Extensions API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
-    - cmd[${nodes.k8sm.master.id}]: echo $(kubectl get DaemonSet,Deployment,StatefulSet,ReplicaSet --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"apps/v1beta')
-    - set:
-        k8s_deprecated_app: ${response.out}
-    - if ('${this.k8s_deprecated_app}'):
-        return:
-          type: warning
-          message: Deprecated Kubernetes Apps API found! Please review installed components prior to Kubernetes 1.16+ cluster upgrade.
-    - cmd[${nodes.k8sm.master.id}]: |-
-        echo -n $(kubectl get ValidatingWebhookConfiguration,MutatingWebhookConfiguration --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"admissionregistration.k8s.io/v1beta1"')
-        echo -n $(kubectl get CustomResourceDefinition --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"apiextensions.k8s.io/v1beta1"')
-        echo -n $(kubectl get APIService --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"apiregistration.k8s.io/v1beta1"')
-        echo -n $(kubectl get CertificateSigningRequest --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"certificates.k8s.io/v1beta1"')
-        echo -n $(kubectl get Lease --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"coordination.k8s.io/v1beta1"')
-        echo -n $(kubectl get Ingress --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"extensions/v1beta1"')
-        echo -n $(kubectl get Ingress --all-namespaces -o 'jsonpath={range .items[*]}{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}{"\n"}{end}' | grep '"apiVersion":"networking.k8s.io/v1beta1"')
-    - set:
-        k8s_deprecated_api: ${response.out}
-    - if ('${this.k8s_deprecated_api}'):
-        return:
-          type: warning
-          message: Deprecated Kubernetes API found! Please review installed components prior to Kubernetes 1.22+ cluster upgrade.
 
   upgrade-jps-manifests:
     - version: ${this}
@@ -423,6 +395,12 @@ actions:
         /usr/bin/kubectl uncordon ${this.hostname} || exit 5
         /usr/local/sbin/worker-config -n ${this.id} -g ${this.group} -r ${env.region}
         while true; do echo "$(kubectl get pods --field-selector=status.phase=Pending -n kube-system)" | grep -q Pending || break; sleep 3; done
+        if kubectl get daemonset weave-net -n kube-system; then
+           FAILED_PODS=$(kubectl -n kube-system get pods -l name=weave-net --no-headers | grep Error|awk '{print $1}');
+           if [[ -n "$FAILED_PODS" ]] ; then
+             kubectl -n kube-system delete pods $FAILED_PODS;
+           fi 
+        fi
 
 success:
   email: false

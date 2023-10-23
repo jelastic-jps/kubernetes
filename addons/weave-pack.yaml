@@ -166,7 +166,7 @@ items:
                   port: 6784
               resources:
                 requests:
-                  cpu: 50m
+                  cpu: 80m
               securityContext:
                 privileged: true
               volumeMounts:

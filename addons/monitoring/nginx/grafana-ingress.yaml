@@ -6,6 +6,7 @@ metadata:
   namespace: kubernetes-monitoring
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: 'false'
 spec:
   ingressClassName: nginx
@@ -13,7 +14,7 @@ spec:
   - http:
       paths:
       - path: /grafana(/|$)(.*)
-        pathType: Prefix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: monitoring-grafana
