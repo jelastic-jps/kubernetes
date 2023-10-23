@@ -11,4 +11,4 @@ stern.version: 1.26.0
 containerd.version: 1.6.8
 ingress.nginx.version: 1.8.1
 kubernetes.dashboard.version: 2.7.0
-metallb.version: 0.13.9
+metallb.version: 0.13.12

@@ -7,6 +7,7 @@ metadata:
     nginx.org/ssl-services: kubernetes-dashboard
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
@@ -15,7 +16,7 @@ spec:
   - http:
       paths:
       - path: /kubernetes-dashboard(/|$)(.*)
-        pathType: Prefix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: kubernetes-dashboard
