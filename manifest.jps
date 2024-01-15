@@ -975,6 +975,7 @@ addons:
         - type: string
           caption: External domain
           name: certificate_domain
+      onBeforeInit: /scripts/certAddonOnBeforeInit.js  
     buttons:
       - caption: Install Certificate Manager
         settings: main
@@ -985,11 +986,8 @@ addons:
     actions:
       addon-certman-config:
       - cmd[${nodes.k8sm.master.id}]: kubectl -n cert-manager get deployment cert-manager &>/dev/null && echo "true" || echo "false"
-      - if ('${response.out}' == 'true'):
-          return:
-            type: warning
-            message: Kubernetes Certificate Manager is already configured! Please use Kubernetes Cluster settings!
-      - install-cert-manager
+      - if ('${response.out}' == 'false'):
+          - install-cert-manager
       - cmd[${nodes.k8sm.master.id}]: |-
           nginx_chart_version=4.4.0
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -1000,6 +998,7 @@ addons:
           wget "${baseUrl}/addons/cert-manager/helloworld-ingress.yaml" -O /tmp/helloworld-ingress.yaml
           sed -i 's/example\.com/${settings.certificate_domain}/g' /tmp/helloworld-ingress.yaml
           kubectl apply -f /tmp/helloworld-ingress.yaml
+          kubectl create secret generic -n cert-manager jelastic-domain --from-literal=certificate_domain=${settings.certificate_domain}
 
   - id: rancher-k8s-addon
     type: update
