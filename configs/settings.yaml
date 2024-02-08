@@ -8,12 +8,12 @@ fields:
       - type: list
         name: version
         values:
-          - value: v1.25.4
-            caption: v1.25.4
-          - value: v1.24.8
-            caption: v1.24.8
-          - value: v1.23.14
-            caption: v1.23.14
+          - value: v1.28.0
+            caption: v1.28.0
+          - value: v1.27.4
+            caption: v1.27.4
+          - value: v1.26.7
+            caption: v1.26.7
         default: v1.25.4
         hideLabel: false
         editable: false
