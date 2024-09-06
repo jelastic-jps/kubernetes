@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.28.0
-name: Kubernetes Upgrade to 1.28.0
+id: kubernetes-upgrade-to-1.29.8
+name: Kubernetes Upgrade to 1.29.8
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.28.0
+baseUrl: https://raw.githubusercontent.com/dimkadt/kubernetes/v1.29.8
 logo: /images/k8s-logo.png
 
 description:

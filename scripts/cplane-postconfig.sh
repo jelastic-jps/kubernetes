@@ -2,8 +2,8 @@
 # set -x
 
 # components
-K9S="0.26.7"
-STERN="1.26.0"
+K9S="0.32.5"
+STERN="1.30.0"
 KUBECTX="0.9.5"
 
 ( ( echo "$(date): --- cplane postconfig started";
