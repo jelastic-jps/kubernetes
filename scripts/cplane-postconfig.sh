@@ -10,7 +10,7 @@ KUBECTX="0.9.5"
 
 	# utilities
 	echo "$(date): retrieving k8s utilities";
-	[ -n "${K9S}" ] && { wget -nv -O- "https://github.com/derailed/k9s/releases/download/v${K9S}/k9s_Linux_x86_64.tar.gz" | tar xz -C /usr/bin k9s; };
+	[ -n "${K9S}" ] && { wget -nv -O- "https://github.com/derailed/k9s/releases/download/v${K9S}/k9s_Linux_amd64.tar.gz" | tar xz -C /usr/bin k9s; };
 	[ -n "${STERN}" ] && {
 		wget -nv -O- https://github.com/stern/stern/releases/download/v${STERN}/stern_${STERN}_linux_amd64.tar.gz | tar xz -C /usr/bin stern;
 		/usr/bin/stern --completion=bash > /etc/bash_completion.d/stern.bash;

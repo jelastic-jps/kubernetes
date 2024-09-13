@@ -6,7 +6,7 @@ monitoringAction: addon-monitoring
 helm.version: v3.15.4
 cni.plugins.version: 1.3.0
 k9s.version: 0.32.5
-crictl.version: v1.31.1
+crictl.version: v1.29.0
 stern.version: 1.30.0
 containerd.version: 1.7.21
 ingress.nginx.version: 1.8.1
