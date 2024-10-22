@@ -3,7 +3,7 @@
 
 # components
 K9S="0.32.5"
-STERN="1.30.0"
+STERN="1.31.0"
 KUBECTX="0.9.5"
 
 ( ( echo "$(date): --- cplane postconfig started";
