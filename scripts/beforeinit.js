@@ -75,9 +75,16 @@ for (var i = 0, l = quotas.length; i < l; i++) {
     }
 }
 var resp = {result:0};
-var url = "https://raw.githubusercontent.com/dimkadt/kubernetes/main/configs/settings.yaml";
+var url = "https://raw.githubusercontent.com/jelastic-jps/kubernetes/main/configs/settings.yaml";
 resp.settings = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(url)));
 var f = resp.settings.fields;
+
+let latestDefaultVersion = "v1.29.9";
+
+if (${fn.compareEngine(8.3)} == 1) {
+    f[0].items[0].default = latestDefaultVersion;
+    f[0].items[0].values.push({ caption: latestDefaultVersion, value: latestDefaultVersion });
+}
 
 if (!prod && dev) {
     //f[2].values[1].disabled = true;
