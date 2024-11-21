@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes-release
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.30.6
+baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.31.3
 description:
   text: /text/description-kube.md
   short: Kubernetes cluster with automated scaling & cost efficient pay-per-use pricing for running cloud-native microservices.
@@ -10,7 +10,7 @@ categories:
   - apps/dev-and-admin-tools
 
 logo: /images/k8s-logo.png
-name: Kubernetes Cluster v1.30.6
+name: Kubernetes Cluster v1.31.3
 targetRegions:
   type: vz7
 
@@ -564,7 +564,7 @@ addons:
   - id: conf-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.30.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.31.3
     name: Cluster Configuration
     description: Configure remote API access and install complementary tools
     logo: /images/k8s-config.png
@@ -725,7 +725,7 @@ addons:
   - id: monitor-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.30.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.31.3
     name: Cluster Monitoring
     description: Install cluster monitoring components (Prometheus and Grafana)
     logo: /images/k8s-monitor.png
@@ -750,7 +750,7 @@ addons:
   - id: upgrade-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.30.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.31.3
     name: Cluster Upgrade
     description: Upgrade Kubernetes cluster to a newer version
     logo: /images/k8s-upgrade.png
@@ -959,7 +959,7 @@ addons:
   - id: certman-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.30.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.31.3
     name: Certificate Manager
     description: |
       Kubernetes SSL Certificate Manager allows to bind custom domain names
@@ -1003,7 +1003,7 @@ addons:
   - id: rancher-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.30.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.31.3
     name: Rancher Installer
     description: Rancher Management Platform
     logo: /images/k8s-rancher.png
@@ -1070,7 +1070,7 @@ addons:
   - id: regcreds-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.30.6
+    baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/v1.31.3
     name: DockerHub Registry Credentials
     description: |
       Leverage DockerHub images pull rate limits: assign DockerHub user credentials to Kubernetes deployments cluster-wide
