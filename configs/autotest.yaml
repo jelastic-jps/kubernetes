@@ -4,11 +4,11 @@ id: kubernetes
 jaegerAction: addon-jaeger
 monitoringAction: addon-monitoring
 helm.version: v3.15.4
-cni.plugins.version: 1.4.0
-k9s.version: 0.32.5
+cni.plugins.version: 1.5.1
+k9s.version: 0.32.7
 crictl.version: v1.30.0
 stern.version: 1.31.0
-containerd.version: 1.7.21
+containerd.version: 1.7.23
 ingress.nginx.version: 1.11.2
 kubernetes.dashboard.version: 2.7.0
 metallb.version: 0.14.8
