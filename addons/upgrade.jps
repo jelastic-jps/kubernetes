@@ -1,7 +1,7 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.30.6
-name: Kubernetes Upgrade to 1.30.6
+id: kubernetes-upgrade-to-1.31.3
+name: Kubernetes Upgrade to 1.31.3
 
 categories:
   - apps/dev-and-admin-tools
@@ -332,6 +332,7 @@ actions:
         while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
     - cmd[${this.id}]: |-
         systemctl restart systemd-journald.service
+        systemctl restart rsyslog.service
         systemctl restart kubelet.service
         systemctl enable kubelet.service
 
@@ -389,6 +390,7 @@ actions:
         echo '${globals.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
         /usr/local/sbin/worker-integration.sh | tee -a /var/log/kubernetes/k8s-worker-integration.log
         systemctl restart systemd-journald.service
+        systemctl restart rsyslog.service
         systemctl restart kubelet.service
         systemctl enable kubelet.service
     - cmd[${nodes.k8sm.master.id}]: |-
