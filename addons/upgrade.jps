@@ -306,7 +306,7 @@ actions:
     - if (${this.main}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 2
-            /usr/bin/kubeadm upgrade apply ${this.version} || exit 2
+            /usr/bin/kubeadm upgrade apply ${this.version} --ignore-preflight-errors=CreateJob || exit 2
     - if (!${this.main}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade node || exit 2
