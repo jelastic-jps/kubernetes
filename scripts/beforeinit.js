@@ -79,11 +79,12 @@ var url = "https://raw.githubusercontent.com/jelastic-jps/kubernetes/main/config
 resp.settings = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(url)));
 var f = resp.settings.fields;
 
-let latestDefaultVersion = "v1.30.6";
+let latestDefaultVersion = "v1.31.3";
 
 if (${fn.compareEngine(8.3)} == 1) {
     f[0].items[0].default = latestDefaultVersion;
     f[0].items[0].values.push({ caption: "v1.29.9", value: "v1.29.9" });
+    f[0].items[0].values.push({ caption: "v1.30.6", value: "v1.30.6" });
     f[0].items[0].values.push({ caption: latestDefaultVersion, value: latestDefaultVersion });
 }
 
