@@ -300,8 +300,8 @@ actions:
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/local/sbin/k8sm-config -f
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
-        yum update -y "https://repository.jelastic.com/pub/k8s/${kubeadm_package}.rpm"
-        rpm -qi "${kubeadm_package}" || exit 1
+        yum update -y "https://repository.jelastic.com/pub/k8s/$kubeadm_package.rpm"
+        rpm -qi "$kubeadm_package" || exit 1
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 1
     - if (${this.main}):
         - cmd[${this.id}]: |-
@@ -371,8 +371,8 @@ actions:
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 3
     - cmd[${this.id}]: |-
         kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el7.x86_64
-        yum update -y "https://repository.jelastic.com/pub/k8s/${kubeadm_package}.rpm"
-        rpm -qi "${kubeadm_package}" || exit 1
+        yum update -y "https://repository.jelastic.com/pub/k8s/$kubeadm_package.rpm"
+        rpm -qi "$kubeadm_package" || exit 1
         /usr/bin/kubeadm upgrade node || exit 4
         rm -f /etc/kubernetes/custom-kubeadm.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
