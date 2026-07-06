@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.31.14
-name: Kubernetes Upgrade to 1.31.14
+id: kubernetes-upgrade-to-1.32.13
+name: Kubernetes Upgrade to 1.32.13
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://raw.githubusercontent.com/xzkutor/kubernetes/v1.31.14
+baseUrl: https://raw.githubusercontent.com/xzkutor/kubernetes/v1.32.13
 logo: /images/k8s-logo.png
 
 description:
