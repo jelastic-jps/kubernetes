@@ -786,6 +786,9 @@ addons:
           if (resp.result != 0) return {result:"warning", message:"Cannot retrieve Kubernetes tags!"};
 
           var tags = resp.object, upgrades = [];
+          if (tags.indexOf("v1.35.6") < 0 && compareVersions("v1.35.6", version) > 0) {
+            tags.push("v1.35.6");
+          }
           tags.sort(compareVersions);
           const major_version = version.substr(0, version.lastIndexOf("."));
           var major_next = major_version;
@@ -917,6 +920,9 @@ addons:
             if (resp.result != 0) return {result:"error", message:"Cannot obtain node tags!"};
 
             var tags = resp.object;
+            if (tags.indexOf("v1.35.6") < 0 && compareVersions("v1.35.6", version) > 0) {
+              tags.push("v1.35.6");
+            }
             tags.sort(compareVersions);
             var check_version = version, upgrades = [];
             var major_version = version.substr(0, version.lastIndexOf("."));
