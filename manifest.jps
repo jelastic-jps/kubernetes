@@ -272,7 +272,7 @@ actions:
         entryPoint=$((( ${nodes.mbl.length:0} > 0 )) && echo mbl || echo k8sm)
         sed -i "s/^controlPlaneEndpoint:.*/controlPlaneEndpoint: \"${entryPoint}.${env.domain}:6443\"/g" /etc/custom-kubeadm.yaml
         while true; do [ -f "/tmp/jelastic-init-mark" ] && break; echo "Waiting for cluster initial configuration"; sleep 3; done
-        kubeadm init --config /etc/custom-kubeadm.yaml --upload-certs --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-init.log
+        kubeadm init --config /etc/custom-kubeadm.yaml --upload-certs --ignore-preflight-errors=swap,numcpu,SystemVerification | tee /var/log/kubeadm-init.log
         mkdir /var/lib/kubelet/worker-data
     - configure-cplane: ${nodes.k8sm.master.id}
     - cmd[${nodes.k8sm.master.id}]: sed -n '/kubeadm join/,/^$/{/./p}' /var/log/kubeadm-init.log | sed ':a;N;$!ba;s/\\\n//g' | grep 'control-plane'
@@ -300,7 +300,7 @@ actions:
               systemctl daemon-reload > /dev/null 2>&1
               systemctl restart systemd-journald.service
               systemctl restart rsyslog.service
-              ${globals.cplane_join_cmd} --ignore-preflight-errors=swap,numcpu | tee /var/log/kubeadm-join.log
+              ${globals.cplane_join_cmd} --ignore-preflight-errors=swap,numcpu,SystemVerification | tee /var/log/kubeadm-join.log
       - configure-cplane: ${globals.k8sm-secondary-ids}
       - add-cplane-balancer: ${globals.k8sm-secondary-ips}
 
@@ -326,7 +326,7 @@ actions:
         systemctl daemon-reload > /dev/null 2>&1
         systemctl restart systemd-journald.service
         systemctl restart rsyslog.service
-        screen -d -m /usr/bin/bash -c '${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu 1>/var/log/kubeadm-join.log 2>/var/log/kubeadm-join-error.log'
+        screen -d -m /usr/bin/bash -c '${globals.worker_join_cmd} --ignore-preflight-errors=swap,numcpu,SystemVerification 1>/var/log/kubeadm-join.log 2>/var/log/kubeadm-join-error.log'
         systemctl enable kubelet.service
 
   setup-overlay:

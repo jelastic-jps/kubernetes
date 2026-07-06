@@ -306,11 +306,17 @@ actions:
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 1
     - if (${this.main}):
         - cmd[${this.id}]: |-
+            kubectl -n kube-system get configmap kubelet-config -o yaml > /tmp/kubelet-config-cm.yaml || exit 2
+            if ! grep -q '^[[:space:]]*failCgroupV1:' /tmp/kubelet-config-cm.yaml; then
+              awk '{ print; if ($0 ~ /^    cgroupDriver:[[:space:]]*systemd[[:space:]]*$/) print "    failCgroupV1: false" }' /tmp/kubelet-config-cm.yaml > /tmp/kubelet-config-cm.yaml.tmp
+              mv /tmp/kubelet-config-cm.yaml.tmp /tmp/kubelet-config-cm.yaml
+              kubectl apply -f /tmp/kubelet-config-cm.yaml || exit 2
+            fi
             /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 2
-            /usr/bin/kubeadm upgrade apply ${this.version} --ignore-preflight-errors=CreateJob || exit 2
+            /usr/bin/kubeadm upgrade apply ${this.version} --ignore-preflight-errors=CreateJob,SystemVerification || exit 2
     - if (!${this.main}):
         - cmd[${this.id}]: |-
-            /usr/bin/kubeadm upgrade node || exit 2
+            /usr/bin/kubeadm upgrade node --ignore-preflight-errors=SystemVerification || exit 2
     - cmd[${this.id}]: |-
         /usr/bin/kubectl uncordon ${this.hostname} || exit 3
 
@@ -376,7 +382,7 @@ actions:
         kubeadm_package="kubeadm-$upgrade_version-1.el9.x86_64"
         yum update -y "https://repository.jelastic.com/pub/k8s/$kubeadm_package.rpm"
         rpm -qi "$kubeadm_package" || exit 1
-        /usr/bin/kubeadm upgrade node || exit 4
+        /usr/bin/kubeadm upgrade node --ignore-preflight-errors=SystemVerification || exit 4
         rm -f /etc/kubernetes/custom-kubeadm.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
         sed -i -e '$a\' /tmp/redeploy.conf.stock
