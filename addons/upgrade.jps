@@ -307,7 +307,7 @@ actions:
     - if (${this.main}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade plan --ignore-preflight-errors=all || exit 2
-            /usr/bin/kubeadm upgrade apply ${this.version} || exit 2
+            /usr/bin/kubeadm upgrade apply ${this.version} --ignore-preflight-errors=CreateJob || exit 2
     - if (!${this.main}):
         - cmd[${this.id}]: |-
             /usr/bin/kubeadm upgrade node || exit 2
@@ -333,6 +333,7 @@ actions:
         while true; do [ -f "/tmp/jelastic-conf-mark" ] && break; echo "Waiting for cluster bootstrap configuration"; sleep 3; done
     - cmd[${this.id}]: |-
         systemctl restart systemd-journald.service
+        systemctl restart rsyslog.service
         systemctl restart kubelet.service
         systemctl enable kubelet.service
 
@@ -391,6 +392,7 @@ actions:
         echo '${globals.worker_integration}' | base64 -d | tar zxv --strip-components=4 -C /var/lib/worker
         /usr/local/sbin/worker-integration.sh | tee -a /var/log/kubernetes/k8s-worker-integration.log
         systemctl restart systemd-journald.service
+        systemctl restart rsyslog.service
         systemctl restart kubelet.service
         systemctl enable kubelet.service
     - cmd[${nodes.k8sm.master.id}]: |-
