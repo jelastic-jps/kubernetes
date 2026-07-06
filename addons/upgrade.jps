@@ -22,28 +22,28 @@ onInstall:
       id: ${nodes.k8sm.master.id}
       main: true
       hostname: node${nodes.k8sm.master.id}-${env.domain}
-      version: ${settings.version}
+      version: v1.31.14
   - forEach(nodes.k8sm):
       if (!${@i.ismaster}):
         upgrade-cplanes-cluster:
           id: ${@i.id}
           main: false
           hostname: node${@i.id}-${env.domain}
-          version: ${settings.version}
-  - upgrade-jps-manifests: ${settings.version}
+          version: v1.31.14
+  - upgrade-jps-manifests: v1.31.14
   - env.control.ApplyNodeGroupData [k8sm]:
       data:
         isRedeploySupport: true
   - upgrade-cplanes-redeploy:
       id: ${nodes.k8sm.master.id}
       main: true
-      version: ${settings.version}
+      version: v1.31.14
   - forEach(nodes.k8sm):
       if (!${@i.ismaster}):
         upgrade-cplanes-redeploy:
           id: ${@i.id}
           main: false
-          version: ${settings.version}
+          version: v1.31.14
   - upgrade-cplanes-post:
       id: ${nodes.k8sm.master.id}
       main: true
@@ -64,7 +64,7 @@ onInstall:
             id: ${@node.id}
             group: ${@group}
             hostname: node${@node.id}-${env.domain}
-            version: ${settings.version}
+            version: v1.31.14
   - env.control.ApplyNodeGroupData [${globals.workers}]:
       data:
         validation:
@@ -74,7 +74,7 @@ onInstall:
         path: /etc/jelastic/redeploy.conf
         isDir: false
   - script: |
-      var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** ${settings.version}.";
+      var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** v1.31.14.";
       if ("${settings.avail}") { message += "\n\n**Next version:** ${settings.avail}.  \nPress \"Upgrade\" button to start the upgrade process."; }
       else { message += "\n\nNo other upgrades are available."; }
       return {result:"info", message:message};
@@ -299,9 +299,10 @@ actions:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/local/sbin/k8sm-config -f
-        kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el9.x86_64
-        yum update -y "https://repository.jelastic.com/pub/k8s/${kubeadm_package}.rpm"
-        rpm -qi "${kubeadm_package}" || exit 1
+        upgrade_version="1.31.14"
+        kubeadm_package="kubeadm-$upgrade_version-1.el9.x86_64"
+        yum update -y "https://repository.jelastic.com/pub/k8s/$kubeadm_package.rpm"
+        rpm -qi "$kubeadm_package" || exit 1
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 1
     - if (${this.main}):
         - cmd[${this.id}]: |-
@@ -371,9 +372,10 @@ actions:
         sleep 10
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 3
     - cmd[${this.id}]: |-
-        kubeadm_package=kubeadm-$(echo '${this.version}' | cut -d 'v' -f2)-1.el9.x86_64
-        yum update -y "https://repository.jelastic.com/pub/k8s/${kubeadm_package}.rpm"
-        rpm -qi "${kubeadm_package}" || exit 1
+        upgrade_version="1.31.14"
+        kubeadm_package="kubeadm-$upgrade_version-1.el9.x86_64"
+        yum update -y "https://repository.jelastic.com/pub/k8s/$kubeadm_package.rpm"
+        rpm -qi "$kubeadm_package" || exit 1
         /usr/bin/kubeadm upgrade node || exit 4
         rm -f /etc/kubernetes/custom-kubeadm.yaml
         wget -nv ${baseUrl}/configs/redeploy.conf -O /tmp/redeploy.conf.stock
