@@ -353,7 +353,7 @@ actions:
       while [[ $(kubectl -n ingress-traefik get pods -l app.kubernetes.io/name=ingress-traefik,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
 
   install-components:
-    - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --admin-account=true --metallb=true --metrics-server=true --dashboard=${settings.dashboard:none} --ingress-name=${globals.ingress-dir}
+    - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --admin-account=true --metallb=true --metrics-server=true --dashboard=${settings.dashboard:none} --ingress-name=${globals.ingress-dir} --env-domain=${env.domain}
 
   install-helm-main:
     cmd[${nodes.k8sm.master.id}]: |-
@@ -379,7 +379,12 @@ actions:
     - if ('${settings.deploy}' == 'cc'):
         cmd[${nodes.k8sm.master.id}]: |-
           kubectl apply -f ${baseUrl}/addons/helloworld.yaml
-          while true; do kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml && break; sleep 5; done
+          while true; do
+            wget "${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml" -O /tmp/helloworld-ingress.yaml
+            sed -i 's/example\.com/${env.domain}/g' /tmp/helloworld-ingress.yaml
+            kubectl apply -f /tmp/helloworld-ingress.yaml && break
+            sleep 5
+          done
     - elif ('${settings.deploy}' == 'cmd'):
         cmd[${nodes.k8sm.master.id}]: |-
           ${settings.cmd}
@@ -440,9 +445,14 @@ actions:
   - log: 'api: ${this}'
   - cmd[${nodes.k8sm.master.id}]: |-
       if [ "${this}" == "true" ]; then
-        while true; do kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml && break; sleep 5; done
+        while true; do
+          wget "${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml" -O /tmp/api-ingress.yaml
+          sed -i 's/example\.com/${env.domain}/g' /tmp/api-ingress.yaml
+          kubectl apply -f /tmp/api-ingress.yaml && break
+          sleep 5
+        done
       else
-        kubectl delete -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
+        kubectl delete ingress kubernetes-api -n default --ignore-not-found
       fi
   - if (${settings.api:true}):
       - setGlobals:
@@ -452,8 +462,8 @@ actions:
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana &>/dev/null && echo "true" || echo "false"
   - set:
       monitoring_installed: ${response.out}
+  - init-globals-ingress
   - if ('${this.monitoring_installed}' == 'false'):
-      - init-globals-ingress
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo add grafana https://grafana.github.io/helm-charts
@@ -469,9 +479,6 @@ actions:
           grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
           [ "${globals.ingress-dir}" == "haproxy" ] && crypt_params="admin=$(openssl passwd -1 ${grafana_secret})" || crypt_params="auth=admin:$(openssl passwd -apr1 ${grafana_secret})"
           kubectl create secret generic --namespace=kubernetes-monitoring monitoring-prometheus --from-literal=${crypt_params}
-          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
-          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
-          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml
           for i in {1..10}; do
             sleep 10
             echo "Attempt ${i} of Grafana dashboard parameters setting"
@@ -481,6 +488,12 @@ actions:
             curl -X POST -f -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}" || continue
             curl -X PUT -f -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences" && break || continue
           done
+  - cmd[${nodes.k8sm.master.id}]: |-
+      for ingress_name in prometheus alert grafana; do
+        wget "${baseUrl}/addons/monitoring/${globals.ingress-dir}/${ingress_name}-ingress.yaml" -O "/tmp/${ingress_name}-ingress.yaml"
+        sed -i 's/example\.com/${env.domain}/g' "/tmp/${ingress_name}-ingress.yaml"
+        kubectl apply -f "/tmp/${ingress_name}-ingress.yaml"
+      done
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
   - set:
       grafana_secret: ${response.out}
@@ -1031,7 +1044,7 @@ addons:
             type: warning
             message: Rancher Platforms requires 'nginx' ingress controller! The current ingress controller is '${globals.ingress-dir}'
       - cmd[${nodes.k8sm.master.id}]: |-
-          kubectl delete -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml ||:
+          kubectl delete ingress helloworld -n default --ignore-not-found ||:
           kubectl delete -f ${baseUrl}/addons/helloworld.yaml ||:
       - cmd[${nodes.k8sm.master.id}]: |-
           kubectl get ingress -A -o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{" "}{range .spec.rules[*]}{.host}{" "}{range .http.paths[*]}{.path}{"\n"}{end}{end}{end}' |
