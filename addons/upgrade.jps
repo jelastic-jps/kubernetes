@@ -163,20 +163,32 @@ actions:
         kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard && {
          kubectl delete ns kubernetes-dashboard;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-dashboard.yaml && break; done;
-         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/dashboard-ingress.yaml; } ||:
+         if [ -n "${this.ingress-dir}" ]; then
+          wget "${baseUrl}/addons/ingress/${this.ingress-dir}/dashboard-ingress.yaml" -O /tmp/dashboard-ingress.yaml;
+          sed -i 's/example\.com/${env.domain}/g' /tmp/dashboard-ingress.yaml;
+          kubectl apply -f /tmp/dashboard-ingress.yaml; fi; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment kubernetes-skooner -n kubernetes-skooner && {
          kubectl delete ns kubernetes-skooner;
          for i in {1..5}; do sleep 5; echo "Attempt ${i}/5: "; kubectl apply -f ${baseUrl}/addons/kubernetes-skooner.yaml && break; done;
-         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/skooner-ingress.yaml; } ||:
+         if [ -n "${this.ingress-dir}" ]; then
+          wget "${baseUrl}/addons/ingress/${this.ingress-dir}/skooner-ingress.yaml" -O /tmp/skooner-ingress.yaml;
+          sed -i 's/example\.com/${env.domain}/g' /tmp/skooner-ingress.yaml;
+          kubectl apply -f /tmp/skooner-ingress.yaml; fi; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get ingress kubernetes-api -n default && {
-         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/api-ingress.yaml; } ||:
+         if [ -n "${this.ingress-dir}" ]; then
+          wget "${baseUrl}/addons/ingress/${this.ingress-dir}/api-ingress.yaml" -O /tmp/api-ingress.yaml;
+          sed -i 's/example\.com/${env.domain}/g' /tmp/api-ingress.yaml;
+          kubectl apply -f /tmp/api-ingress.yaml; fi; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get deployment hello-kubernetes && {
          kubectl delete -f ${baseUrl}/addons/helloworld.yaml;
          kubectl apply -f ${baseUrl}/addons/helloworld.yaml;
-         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/helloworld-ingress.yaml; } ||:
+         if [ -n "${this.ingress-dir}" ]; then
+          wget "${baseUrl}/addons/ingress/${this.ingress-dir}/helloworld-ingress.yaml" -O /tmp/helloworld-ingress.yaml;
+          sed -i 's/example\.com/${env.domain}/g' /tmp/helloworld-ingress.yaml;
+          kubectl apply -f /tmp/helloworld-ingress.yaml; fi; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         helm list | grep -q "nfs-client-provisioner" && {
          helm get values nfs-client-provisioner -o yaml > /tmp/nfs-provisioner-options.yaml;
@@ -206,12 +218,17 @@ actions:
          wait-deployment.sh monitoring-grafana kubernetes-monitoring 1 720;
          kubectl patch secret --namespace kubernetes-monitoring monitoring-grafana -p="{\"data\":{\"admin-password\":\"${grafana_base64}\"}}";
          if [ -n "${this.ingress-dir}" ]; then
-          kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/prometheus-ingress.yaml;
-          kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/alert-ingress.yaml;
-          kubectl apply -f ${baseUrl}/addons/monitoring/${this.ingress-dir}/grafana-ingress.yaml; fi; } ||:
+          for ingress_name in prometheus alert grafana; do
+           wget "${baseUrl}/addons/monitoring/${this.ingress-dir}/${ingress_name}-ingress.yaml" -O "/tmp/${ingress_name}-ingress.yaml";
+           sed -i 's/example\.com/${env.domain}/g' "/tmp/${ingress_name}-ingress.yaml";
+           kubectl apply -f "/tmp/${ingress_name}-ingress.yaml";
+          done; fi; } ||:
     - cmd[${nodes.k8sm.master.id}]: |-
         kubectl get secret --namespace observability observability-jaeger-plain && {
-         [ -n "${this.ingress-dir}" ] && kubectl apply -f ${baseUrl}/addons/ingress/${this.ingress-dir}/jaeger-ingress.yaml; } ||:
+         if [ -n "${this.ingress-dir}" ]; then
+          wget "${baseUrl}/addons/ingress/${this.ingress-dir}/jaeger-ingress.yaml" -O /tmp/jaeger-ingress.yaml;
+          sed -i 's/example\.com/${env.domain}/g' /tmp/jaeger-ingress.yaml;
+          kubectl apply -f /tmp/jaeger-ingress.yaml; fi; } ||:
 
   upgrade-jps-manifests:
     - version: ${this}
