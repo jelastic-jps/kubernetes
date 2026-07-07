@@ -9,7 +9,8 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-  - http:
+  - host: example.com
+    http:
       paths:
       - path: /prometheus-alert
         pathType: Prefix

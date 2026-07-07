@@ -11,7 +11,8 @@ metadata:
 spec:
   ingressClassName: haproxy
   rules:
-  - http:
+  - host: example.com
+    http:
       paths:
       - path: /prometheus-alert
         pathType: Prefix
