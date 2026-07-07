@@ -7,11 +7,12 @@ metadata:
   annotations:
     haproxy.org/auth-type: basic-auth
     haproxy.org/auth-secret: monitoring-prometheus
-    haproxy.org/path-rewrite: /prometheus-alert(/|$)(.*) /\2
+    haproxy.org/path-rewrite: /prometheus(/|$)(.*) /\2
 spec:
-  ingressClassName: nginx
+  ingressClassName: haproxy
   rules:
-  - http:
+  - host: example.com
+    http:
       paths:
       - path: /prometheus
         pathType: Prefix
