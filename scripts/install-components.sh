@@ -69,8 +69,8 @@ if [ -z "${BASE_URL}" ]; then
 fi
 
 if [ -n "${DASHBOARD}" ] && [ -n "${INGRESS_NAME}" ] && [ -z "${ENV_DOMAIN}" ]; then
-	echo -e "Missing mandatory argument --env-domain=<domain>"
-	exit 1
+	ENV_DOMAIN="$((hostname -f 2>/dev/null || hostname 2>/dev/null || true) | sed -E 's/^[^-]+-//')"
+	echo "$(date): --env-domain was not provided, using detected domain '${ENV_DOMAIN}'"
 fi
 
 apply_env_ingress() {
