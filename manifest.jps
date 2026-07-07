@@ -1066,6 +1066,20 @@ addons:
       - set:
           rancher_existing: ${response.out}
       - if ('${this.rancher_existing}' != 'true'):
+          - cmd[${nodes.k8sm.master.id}]: |-
+              http_code=$(curl -Lks -o /dev/null -w "%{http_code}" "${env.url}")
+              ret_code=$?
+              if [ ${ret_code} -ne 0 ]; then
+                echo "An error occurred while accessing the [endpoint](${env.url})"
+              elif [ ${http_code} -eq 200 ]; then
+                echo "The [endpoint](${env.url}) is already taken"
+              elif [ ${http_code} -ne 404 ]; then
+                echo "The [endpoint](${env.url}) is present and answered with HTTP code ${http_code}"
+              fi
+          - if ('${response.out}'):
+              return:
+                type: warning
+                message: Cannot deploy Rancher UI! ${response.out}.
           - cmd[${nodes.k8sm.master.id}]: cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
           - set:
               rancher_secret: ${response.out}
