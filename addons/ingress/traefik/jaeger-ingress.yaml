@@ -5,6 +5,10 @@ metadata:
   name: jaeger
   namespace: observability
 spec:
+  ingress:
+    hosts:
+      - example.com
+    ingressClassName: traefik
   allInOne:
     options:
       query:
