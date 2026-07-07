@@ -519,8 +519,8 @@ actions:
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret observability-jaeger-plain --namespace=observability &>/dev/null && echo "true" || echo "false"
   - set:
       jaeger_installed: ${response.out}
+  - init-globals-ingress
   - if ('${this.jaeger_installed}' == 'false'):
-      - init-globals-ingress
       - cmd[${nodes.k8sm.master.id}]: kubectl -n cert-manager get deployment cert-manager &>/dev/null && echo "true" || echo "false"
       - if ('${response.out}' == 'false'):
           - install-cert-manager
@@ -533,8 +533,11 @@ actions:
           kubectl create secret generic --namespace=observability observability-jaeger-plain --from-literal=auth="${jaeger_secret}"
           kubectl create secret generic --namespace=observability observability-jaeger --from-literal=${crypt_params}
           kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
-          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
           wait-deployment.sh jaeger observability 1 720
+  - cmd[${nodes.k8sm.master.id}]: |-
+      wget "${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml" -O /tmp/jaeger-ingress.yaml
+      sed -i 's/example\.com/${env.domain}/g' /tmp/jaeger-ingress.yaml
+      kubectl apply -f /tmp/jaeger-ingress.yaml
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace=observability observability-jaeger-plain -o jsonpath='{.data.auth}' | base64 --decode
   - set:
       jaeger_secret: ${response.out}
