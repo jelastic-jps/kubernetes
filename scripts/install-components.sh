@@ -5,7 +5,7 @@
 METALLB_VER="0.14.8"
 
 HELP="Usage:
-	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metallb=(true|false) --metrics-server=(true|false) --dashboard=(general|skooner) --ingress-name=<ingress-controller>
+	$0 --base-url=<base64-encoded-url> --admin-account=(true|false) --metallb=(true|false) --metrics-server=(true|false) --dashboard=(general|skooner) --ingress-name=<ingress-controller> --env-domain=<domain>
 Options:
 	--base-url=         manifest baseUrl
 	--admin-account=    setup admin account
@@ -13,6 +13,7 @@ Options:
 	--metrics-server=   install metrics-server
 	--dashboard=        install kubernetes-dashboard
 	--ingress-name=     ingress controller used
+	--env-domain=       environment domain for host-specific ingress rules
 	-h, --help          show this help
 "
 if [[ $# -eq 0 ]] ; then
@@ -46,6 +47,10 @@ for key in "$@"; do
 		INGRESS_NAME="${key#*=}"
 		shift
 		;;
+	--env-domain=*)
+		ENV_DOMAIN="${key#*=}"
+		shift
+		;;
 	-h | --help)
 		echo -e "${HELP}"
 		exit 1
@@ -62,6 +67,27 @@ if [ -z "${BASE_URL}" ]; then
 	echo -e "Missing mandatory argument --base-url=<base64-encoded-url>"
 	exit 1
 fi
+
+if [ -n "${DASHBOARD}" ] && [ -n "${INGRESS_NAME}" ] && [ -z "${ENV_DOMAIN}" ]; then
+	ENV_DOMAIN="$((hostname -f 2>/dev/null || hostname 2>/dev/null || true) | sed -E 's/^[^-]+-//')"
+	echo "$(date): --env-domain was not provided, using detected domain '${ENV_DOMAIN}'"
+fi
+
+apply_env_ingress() {
+	local source_url="${1}"
+	local manifest_file
+
+	manifest_file="$(mktemp)"
+	wget -q "${source_url}" -O "${manifest_file}" || {
+		rm -f "${manifest_file}"
+		return 1
+	}
+	sed -i "s/example\\.com/${ENV_DOMAIN}/g" "${manifest_file}"
+	kubectl apply -f "${manifest_file}"
+	local result=$?
+	rm -f "${manifest_file}"
+	return ${result}
+}
 
 ( ( echo "$(date): --- install components started";
 
@@ -99,11 +125,11 @@ fi
 		case "${DASHBOARD}" in
 		general)
 			kubectl create -f "${BASE_URL}/addons/kubernetes-dashboard.yaml";
-			while true; do kubectl create -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress.yaml" && break; sleep 5; done;
+			while true; do apply_env_ingress "${BASE_URL}/addons/ingress/${INGRESS_NAME}/dashboard-ingress.yaml" && break; sleep 5; done;
 		;;
 		skooner|k8dash)
 			kubectl apply -f "${BASE_URL}/addons/kubernetes-skooner.yaml";
-			while true; do kubectl apply -f "${BASE_URL}/addons/ingress/${INGRESS_NAME}/skooner-ingress.yaml" && break; sleep 5; done;
+			while true; do apply_env_ingress "${BASE_URL}/addons/ingress/${INGRESS_NAME}/skooner-ingress.yaml" && break; sleep 5; done;
 		;;
 		*)
 			echo "$(date): unknown kubernetes-dashboard version '${DASHBOARD}', skipped"

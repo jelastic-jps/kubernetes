@@ -8,7 +8,8 @@ metadata:
 spec:
   ingressClassName: haproxy
   rules:
-  - http:
+  - host: example.com
+    http:
       paths:
       - path: /kubernetes-dashboard
         pathType: Prefix
