@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes-release
-baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.3
+baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.14
 description:
   text: /text/description-kube.md
   short: Kubernetes cluster with automated scaling & cost efficient pay-per-use pricing for running cloud-native microservices.
@@ -10,7 +10,7 @@ categories:
   - apps/dev-and-admin-tools
 
 logo: /images/k8s-logo.png
-name: Kubernetes Cluster v1.31.3
+name: Kubernetes Cluster v1.31.14
 targetRegions:
   type: vz7
 
@@ -356,7 +356,7 @@ actions:
       while [[ $(kubectl -n ingress-traefik get pods -l app.kubernetes.io/name=ingress-traefik,app.kubernetes.io/component=controller -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True"* ]]; do sleep 5; done
 
   install-components:
-    - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --admin-account=true --metallb=true --metrics-server=true --dashboard=${settings.dashboard:none} --ingress-name=${globals.ingress-dir}
+    - cmd[${nodes.k8sm.master.id}]: /usr/local/sbin/install-components.sh --base-url=$(echo '${baseUrl}' | base64 -w 0) --admin-account=true --metallb=true --metrics-server=true --dashboard=${settings.dashboard:none} --ingress-name=${globals.ingress-dir} --env-domain=${env.domain}
 
   install-helm-main:
     cmd[${nodes.k8sm.master.id}]: |-
@@ -382,7 +382,12 @@ actions:
     - if ('${settings.deploy}' == 'cc'):
         cmd[${nodes.k8sm.master.id}]: |-
           kubectl apply -f ${baseUrl}/addons/helloworld.yaml
-          while true; do kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml && break; sleep 5; done
+          while true; do
+            wget "${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml" -O /tmp/helloworld-ingress.yaml
+            sed -i 's/example\.com/${env.domain}/g' /tmp/helloworld-ingress.yaml
+            kubectl apply -f /tmp/helloworld-ingress.yaml && break
+            sleep 5
+          done
     - elif ('${settings.deploy}' == 'cmd'):
         cmd[${nodes.k8sm.master.id}]: |-
           ${settings.cmd}
@@ -443,9 +448,14 @@ actions:
   - log: 'api: ${this}'
   - cmd[${nodes.k8sm.master.id}]: |-
       if [ "${this}" == "true" ]; then
-        while true; do kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml && break; sleep 5; done
+        while true; do
+          wget "${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml" -O /tmp/api-ingress.yaml
+          sed -i 's/example\.com/${env.domain}/g' /tmp/api-ingress.yaml
+          kubectl apply -f /tmp/api-ingress.yaml && break
+          sleep 5
+        done
       else
-        kubectl delete -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/api-ingress.yaml
+        kubectl delete ingress kubernetes-api -n default --ignore-not-found
       fi
   - if (${settings.api:true}):
       - setGlobals:
@@ -455,8 +465,8 @@ actions:
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana &>/dev/null && echo "true" || echo "false"
   - set:
       monitoring_installed: ${response.out}
+  - init-globals-ingress
   - if ('${this.monitoring_installed}' == 'false'):
-      - init-globals-ingress
       - cmd[${nodes.k8sm.master.id}]: |-
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo add grafana https://grafana.github.io/helm-charts
@@ -472,9 +482,6 @@ actions:
           grafana_secret=$(kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode ; echo)
           [ "${globals.ingress-dir}" == "haproxy" ] && crypt_params="admin=$(openssl passwd -1 ${grafana_secret})" || crypt_params="auth=admin:$(openssl passwd -apr1 ${grafana_secret})"
           kubectl create secret generic --namespace=kubernetes-monitoring monitoring-prometheus --from-literal=${crypt_params}
-          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/prometheus-ingress.yaml
-          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/alert-ingress.yaml
-          kubectl create -f ${baseUrl}/addons/monitoring/${globals.ingress-dir}/grafana-ingress.yaml
           for i in {1..10}; do
             sleep 10
             echo "Attempt ${i} of Grafana dashboard parameters setting"
@@ -484,6 +491,12 @@ actions:
             curl -X POST -f -b grafana/grafana-jar.txt "http://${env.domain}/grafana/api/user/stars/dashboard/${dash_id}" || continue
             curl -X PUT -f -H 'Content-Type: application/json' -b grafana/grafana-jar.txt -d "{\"homeDashboardId\":${dash_id}}" "http://${env.domain}/grafana/api/org/preferences" && break || continue
           done
+  - cmd[${nodes.k8sm.master.id}]: |-
+      for ingress_name in prometheus alert grafana; do
+        wget "${baseUrl}/addons/monitoring/${globals.ingress-dir}/${ingress_name}-ingress.yaml" -O "/tmp/${ingress_name}-ingress.yaml"
+        sed -i 's/example\.com/${env.domain}/g' "/tmp/${ingress_name}-ingress.yaml"
+        kubectl apply -f "/tmp/${ingress_name}-ingress.yaml"
+      done
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace kubernetes-monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 --decode
   - set:
       grafana_secret: ${response.out}
@@ -522,8 +535,8 @@ actions:
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret observability-jaeger-plain --namespace=observability &>/dev/null && echo "true" || echo "false"
   - set:
       jaeger_installed: ${response.out}
+  - init-globals-ingress
   - if ('${this.jaeger_installed}' == 'false'):
-      - init-globals-ingress
       - cmd[${nodes.k8sm.master.id}]: kubectl -n cert-manager get deployment cert-manager &>/dev/null && echo "true" || echo "false"
       - if ('${response.out}' == 'false'):
           - install-cert-manager
@@ -536,8 +549,11 @@ actions:
           kubectl create secret generic --namespace=observability observability-jaeger-plain --from-literal=auth="${jaeger_secret}"
           kubectl create secret generic --namespace=observability observability-jaeger --from-literal=${crypt_params}
           kubectl apply -f ${baseUrl}/addons/jaeger/jelastic-jaeger.yaml
-          kubectl apply -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml
           wait-deployment.sh jaeger observability 1 720
+  - cmd[${nodes.k8sm.master.id}]: |-
+      wget "${baseUrl}/addons/ingress/${globals.ingress-dir}/jaeger-ingress.yaml" -O /tmp/jaeger-ingress.yaml
+      sed -i 's/example\.com/${env.domain}/g' /tmp/jaeger-ingress.yaml
+      kubectl apply -f /tmp/jaeger-ingress.yaml
   - cmd[${nodes.k8sm.master.id}]: kubectl get secret --namespace=observability observability-jaeger-plain -o jsonpath='{.data.auth}' | base64 --decode
   - set:
       jaeger_secret: ${response.out}
@@ -567,7 +583,7 @@ addons:
   - id: conf-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.3
+    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.14
     name: Cluster Configuration
     description: Configure remote API access and install complementary tools
     logo: /images/k8s-config.png
@@ -728,7 +744,7 @@ addons:
   - id: monitor-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.3
+    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.14
     name: Cluster Monitoring
     description: Install cluster monitoring components (Prometheus and Grafana)
     logo: /images/k8s-monitor.png
@@ -753,7 +769,7 @@ addons:
   - id: upgrade-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.3
+    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.14
     name: Cluster Upgrade
     description: Upgrade Kubernetes cluster to a newer version
     logo: /images/k8s-upgrade.png
@@ -870,7 +886,13 @@ addons:
           }
 
           function startUpgrade(version, next, upgrades) {
-            var baseUrl = "${baseUrl}".replace(/@[^\/]+/, "@" + next);
+            var baseUrl = "${baseUrl}";
+            var versionSeparator = baseUrl.lastIndexOf("@");
+            if (versionSeparator >= 0) {
+              baseUrl = baseUrl.substring(0, versionSeparator + 1) + next;
+            } else {
+              baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf("/") + 1) + next;
+            }
             var url = baseUrl + "/addons/upgrade.jps";
             var huc = new java.net.URL(url).openConnection();
             huc.setRequestMethod("HEAD");
@@ -962,7 +984,7 @@ addons:
   - id: certman-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.3
+    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.14
     name: Certificate Manager
     description: |
       Kubernetes SSL Certificate Manager allows to bind custom domain names
@@ -1006,7 +1028,7 @@ addons:
   - id: rancher-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.3
+    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.14
     name: Rancher Installer
     description: Rancher Management Platform
     logo: /images/k8s-rancher.png
@@ -1019,64 +1041,87 @@ addons:
 
     actions:
       addon-rancher:
-      - return:
-          type: warning
-          message: Rancher Management Platform is not compatible with K8s 1.31 yet!
-      - cmd[${nodes.k8sm.master.id}]: kubectl -n cattle-system get deployment rancher &>/dev/null && echo "true" || echo "false"
-      - if ('${response.out}' == 'true'):
-          return:
-            type: info
-            message: Rancher Management Platform is already installed!
       - init-globals-ingress
       - if ('${globals.ingress-dir}' != 'nginx'):
           return:
             type: warning
             message: Rancher Platforms requires 'nginx' ingress controller! The current ingress controller is '${globals.ingress-dir}'
       - cmd[${nodes.k8sm.master.id}]: |-
-          kubectl delete -f ${baseUrl}/addons/ingress/${globals.ingress-dir}/helloworld-ingress.yaml ||:
+          kubectl delete ingress helloworld -n default --ignore-not-found ||:
           kubectl delete -f ${baseUrl}/addons/helloworld.yaml ||:
       - cmd[${nodes.k8sm.master.id}]: |-
-          http_code=$(curl -Lks -o /dev/null -w "%{http_code}" "${env.url}")
-          ret_code=$?
-          if [ ${ret_code} -ne 0 ]; then
-            echo "An error occurred while accessing the [endpoint](${env.url})"
-          elif [ ${http_code} -eq 200 ]; then
-            echo "The [endpoint](${env.url}) is already taken"
-          elif [ ${http_code} -ne 404 ]; then
-            echo "The [endpoint](${env.url}) is present and answered with HTTP code ${http_code}"
-          fi
+          kubectl get ingress -A -o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{" "}{range .spec.rules[*]}{.host}{" "}{range .http.paths[*]}{.path}{"\n"}{end}{end}{end}' |
+            awk '$3 == "${env.domain}" && ($4 == "/" || $4 == "") && !($1 == "cattle-system" && $2 == "rancher") { print $1 "/" $2 }'
       - if ('${response.out}'):
           return:
             type: warning
-            message: Cannot deploy Rancher UI! ${response.out}.
-      - cmd[${nodes.k8sm.master.id}]: cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
+            message: Cannot deploy Rancher UI. Root ingress for ${env.domain} is already used by ${response.out}.
+      - cmd[${nodes.k8sm.master.id}]: kubectl -n cattle-system get deployment rancher &>/dev/null && echo "true" || echo "false"
       - set:
-          rancher_secret: ${response.out}
+          rancher_existing: ${response.out}
+      - if ('${this.rancher_existing}' != 'true'):
+          - cmd[${nodes.k8sm.master.id}]: |-
+              http_code=$(curl -Lks -o /dev/null -w "%{http_code}" "${env.url}")
+              ret_code=$?
+              if [ ${ret_code} -ne 0 ]; then
+                echo "An error occurred while accessing the [endpoint](${env.url})"
+              elif [ ${http_code} -eq 200 ]; then
+                echo "The [endpoint](${env.url}) is already taken"
+              elif [ ${http_code} -ne 404 ]; then
+                echo "The [endpoint](${env.url}) is present and answered with HTTP code ${http_code}"
+              fi
+          - if ('${response.out}'):
+              return:
+                type: warning
+                message: Cannot deploy Rancher UI! ${response.out}.
+          - cmd[${nodes.k8sm.master.id}]: cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
+          - set:
+              rancher_secret: ${response.out}
+      - else:
+          - set:
+              rancher_secret: ""
       - cmd[${nodes.k8sm.master.id}]: |-
-          helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
-          helm repo update
-          helm install rancher rancher-stable/rancher --create-namespace --namespace cattle-system --set tls=external --set bootstrapPassword="${this.rancher_secret}"
-          kubectl -n cattle-system rollout status deploy/rancher
-      - message.email.send:
-          to: "${user.email}"
-          subject: Rancher Platform Successfully Installed in ${env.name}
-          body: |-
-            Rancher Management Platform installed in <b>${env.name}</b> Kubernetes Cluster: <br>
-            Rancher Dashboard - ${env.url}<br>
-            Your login password: ${this.rancher_secret}
+          rancher_installer="/tmp/install-rancher-workarounds.sh"
+          rancher_installer_url="${baseUrl}/scripts/install-rancher-workarounds.sh"
+          if ! curl -fsSL "$rancher_installer_url" -o "$rancher_installer"; then
+            if ! wget -qO "$rancher_installer" "$rancher_installer_url"; then
+              echo "ERROR: cannot download Rancher installer helper from $rancher_installer_url" >&2
+              exit 2
+            fi
+          fi
+          chmod 0700 "$rancher_installer"
+          if [ -n "${this.rancher_secret}" ]; then
+            RANCHER_HOSTNAME="${env.domain}" BOOTSTRAP_PASSWORD="${this.rancher_secret}" bash "$rancher_installer"
+          else
+            RANCHER_HOSTNAME="${env.domain}" bash "$rancher_installer"
+          fi
+      - if ('${this.rancher_existing}' != 'true'):
+          - message.email.send:
+              to: "${user.email}"
+              subject: Rancher Platform Successfully Installed in ${env.name}
+              body: |-
+                Rancher Management Platform installed in <b>${env.name}</b> Kubernetes Cluster: <br>
+                Rancher Dashboard - ${env.url}<br>
+                Your login password: ${this.rancher_secret}
+          - return:
+              type: success
+              message: |
+                Rancher Platform has been successfully installed!
+
+                Enter [Rancher dashboard](${env.url}), using password:
+
+                ```${this.rancher_secret}```
       - return:
           type: success
           message: |
-            Rancher Platform has been successfully installed!
+            Rancher Platform has been successfully repaired or updated.
 
-            Enter [Rancher dashboard](${env.url}), using password:
-
-            ```${this.rancher_secret}```
+            Existing Rancher credentials were not changed.
 
   - id: regcreds-k8s-addon
     type: update
     permanent: true
-    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.3
+    baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.14
     name: DockerHub Registry Credentials
     description: |
       Leverage DockerHub images pull rate limits: assign DockerHub user credentials to Kubernetes deployments cluster-wide
