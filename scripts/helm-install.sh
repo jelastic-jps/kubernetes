@@ -2,7 +2,8 @@
 # set -x
 
 # core
-HELM_VERSION="v3.15.4"
+HELM_VERSION="v3.21.2"
+HELM_SHA256="0a745198de24545d0055cd8414bc8d2ba10363ef5f5d38369ea1b399671cc083"
 
 HELP="Usage:
 	$0 --migrate=(main|secondary)
@@ -55,14 +56,28 @@ migrate_full() {
 	helm 2to3 cleanup --skip-confirmation
 }
 
-mv -f /usr/local/bin/helm /usr/local/bin/helm_old &>/dev/null
+install_helm() {
+	local helm_archive="helm-${HELM_VERSION}-linux-amd64.tar.gz"
+	local tmp_dir
+	local moved_old=0
 
-export DESIRED_VERSION="$HELM_VERSION"
+	tmp_dir="$(mktemp -d)" || return 1
+	curl -fsSL -o "${tmp_dir}/${helm_archive}" "https://get.helm.sh/${helm_archive}" || { rm -rf "${tmp_dir}"; return 1; }
+	echo "${HELM_SHA256}  ${tmp_dir}/${helm_archive}" | sha256sum -c - || { rm -rf "${tmp_dir}"; return 1; }
+	tar xzf "${tmp_dir}/${helm_archive}" -C "${tmp_dir}" linux-amd64/helm || { rm -rf "${tmp_dir}"; return 1; }
+	if [ -f /usr/local/bin/helm ]; then
+		mv -f /usr/local/bin/helm /usr/local/bin/helm_old || { rm -rf "${tmp_dir}"; return 1; }
+		moved_old=1
+	fi
+	install -m 0755 "${tmp_dir}/linux-amd64/helm" /usr/local/bin/helm || {
+		[ "${moved_old}" = "1" ] && mv -f /usr/local/bin/helm_old /usr/local/bin/helm
+		rm -rf "${tmp_dir}"
+		return 1
+	}
+	rm -rf "${tmp_dir}"
+}
 
-while true; do
-	curl -s https://cdn.jsdelivr.net/gh/helm/helm@main/scripts/get-helm-3 | bash;
-	[ -f /usr/local/bin/helm ] && break; sleep 5;
-done
+install_helm || exit 1
 
 if [ -n "${MIG_TYPE}" ]; then
 
