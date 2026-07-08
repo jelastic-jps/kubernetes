@@ -5,7 +5,7 @@ jaegerAction: addon-jaeger
 monitoringAction: addon-monitoring
 helm.version: v3.15.4
 cni.plugins.version: 1.9.1
-k9s.version: 0.32.7
+k9s.version: 0.32.5
 crictl.version: v1.31.1
 stern.version: 1.31.0
 containerd.version: 1.7.29
