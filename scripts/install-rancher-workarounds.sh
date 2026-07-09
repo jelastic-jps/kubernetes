@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 
 # Rancher addon constants. Change these values to select another supported version.
-RANCHER_VERSION="${RANCHER_VERSION:-2.10.3}"
+RANCHER_VERSION="${RANCHER_VERSION:-2.14.3}"
 RANCHER_IMAGE_TAG="${RANCHER_IMAGE_TAG:-v${RANCHER_VERSION#v}}"
-CERT_MANAGER_VERSION="${CERT_MANAGER_VERSION:-v1.16.2}"
+CERT_MANAGER_VERSION="${CERT_MANAGER_VERSION:-v1.20.2}"
 RANCHER_CHART_REPO_NAME="${RANCHER_CHART_REPO_NAME:-rancher-latest}"
 RANCHER_CHART_REPO_URL="${RANCHER_CHART_REPO_URL:-https://releases.rancher.com/server-charts/latest}"
 RANCHER_NAMESPACE="${RANCHER_NAMESPACE:-cattle-system}"

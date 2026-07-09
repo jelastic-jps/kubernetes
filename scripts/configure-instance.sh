@@ -60,6 +60,11 @@ fi
 
 BASE_URL="$(echo ${BASE_URL} | base64 --decode)"
 
+if [ -f /etc/custom-kubeadm.yaml ] && ! grep -q '^[[:space:]]*failCgroupV1:' /etc/custom-kubeadm.yaml; then
+	awk '{ print; if ($0 ~ /^cgroupDriver:[[:space:]]*systemd[[:space:]]*$/) print "failCgroupV1: false" }' /etc/custom-kubeadm.yaml > /etc/custom-kubeadm.yaml.tmp
+	mv /etc/custom-kubeadm.yaml.tmp /etc/custom-kubeadm.yaml
+fi
+
 echo "$(date): downloading initialization scripts";
 for ADD_SCRIPT in "${SCRIPT_SET[@]}"; do
 	wget -nv "${BASE_URL}/scripts/${ADD_SCRIPT}.sh" -O "/usr/local/sbin/${ADD_SCRIPT}.sh";
