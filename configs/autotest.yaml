@@ -3,11 +3,11 @@ ingress.controller: nginx
 id: kubernetes
 jaegerAction: addon-jaeger
 monitoringAction: addon-monitoring
-helm.version: v3.15.4
+helm.version: v3.21.2
 cni.plugins.version: 1.9.1
-k9s.version: 0.32.5
-crictl.version: v1.31.1
-stern.version: 1.31.0
+k9s.version: 0.51.0
+crictl.version: v1.34.0
+stern.version: 1.34.0
 containerd.version: 1.7.29
 ingress.nginx.version: 1.11.2
 kubernetes.dashboard.version: 2.7.0

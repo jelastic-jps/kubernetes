@@ -1,13 +1,13 @@
 version: 1.5
 type: update
-id: kubernetes-upgrade-to-1.31.14
-name: Kubernetes Upgrade to 1.31.14
+id: kubernetes-upgrade-to-1.34.8
+name: Kubernetes Upgrade to 1.34.8
 
 categories:
   - apps/dev-and-admin-tools
 
 homepage: https://github.com/jelastic-jps/kubernetes
-baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.31.14
+baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@v1.34.8
 logo: /images/k8s-logo.png
 
 description:
@@ -22,28 +22,28 @@ onInstall:
       id: ${nodes.k8sm.master.id}
       main: true
       hostname: node${nodes.k8sm.master.id}-${env.domain}
-      version: v1.31.14
+      version: v1.34.8
   - forEach(nodes.k8sm):
       if (!${@i.ismaster}):
         upgrade-cplanes-cluster:
           id: ${@i.id}
           main: false
           hostname: node${@i.id}-${env.domain}
-          version: v1.31.14
-  - upgrade-jps-manifests: v1.31.14
+          version: v1.34.8
+  - upgrade-jps-manifests: v1.34.8
   - env.control.ApplyNodeGroupData [k8sm]:
       data:
         isRedeploySupport: true
   - upgrade-cplanes-redeploy:
       id: ${nodes.k8sm.master.id}
       main: true
-      version: v1.31.14
+      version: v1.34.8
   - forEach(nodes.k8sm):
       if (!${@i.ismaster}):
         upgrade-cplanes-redeploy:
           id: ${@i.id}
           main: false
-          version: v1.31.14
+          version: v1.34.8
   - upgrade-cplanes-post:
       id: ${nodes.k8sm.master.id}
       main: true
@@ -64,7 +64,7 @@ onInstall:
             id: ${@node.id}
             group: ${@group}
             hostname: node${@node.id}-${env.domain}
-            version: v1.31.14
+            version: v1.34.8
   - env.control.ApplyNodeGroupData [${globals.workers}]:
       data:
         validation:
@@ -74,7 +74,7 @@ onInstall:
         path: /etc/jelastic/redeploy.conf
         isDir: false
   - script: |
-      var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** v1.31.14.";
+      var message = "Kubernetes Cluster has been successfuly upgraded! **Current version:** v1.34.8.";
       if ("${settings.avail}") { message += "\n\n**Next version:** ${settings.avail}.  \nPress \"Upgrade\" button to start the upgrade process."; }
       else { message += "\n\nNo other upgrades are available."; }
       return {result:"info", message:message};
@@ -316,7 +316,7 @@ actions:
     - cmd[${this.id}]: |-
         while true; do echo "$(kubectl get nodes --no-headers 2>/dev/null)" | grep -qv '\sReady\s' || break; sleep 3; done
         /usr/local/sbin/k8sm-config -f
-        upgrade_version="1.31.14"
+        upgrade_version="1.34.8"
         kubeadm_package="kubeadm-$upgrade_version-1.el9.x86_64"
         yum update -y "https://repository.jelastic.com/pub/k8s/$kubeadm_package.rpm"
         rpm -qi "$kubeadm_package" || exit 1
@@ -389,7 +389,7 @@ actions:
         sleep 10
         /usr/bin/kubectl drain ${this.hostname} --ignore-daemonsets --delete-emptydir-data || exit 3
     - cmd[${this.id}]: |-
-        upgrade_version="1.31.14"
+        upgrade_version="1.34.8"
         kubeadm_package="kubeadm-$upgrade_version-1.el9.x86_64"
         yum update -y "https://repository.jelastic.com/pub/k8s/$kubeadm_package.rpm"
         rpm -qi "$kubeadm_package" || exit 1
