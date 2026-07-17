@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/xzkutor/kubernetes/main
+baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@main
 description:
   text: /text/description-kube.md
   short: Kubernetes cluster with automated scaling & cost efficient pay-per-use pricing for running cloud-native microservices.
@@ -33,9 +33,19 @@ actions:
           }
         }
 
-        var repositoryRoot = "${baseUrl}";
-        repositoryRoot = repositoryRoot.substring(0, repositoryRoot.lastIndexOf("/"));
-        var versionBaseUrl = repositoryRoot + "/${settings.version}";
+        function getVersionBaseUrl(baseUrl, version) {
+          var atIndex = baseUrl.lastIndexOf("@");
+          if (atIndex >= 0) {
+            var slashAfterRef = baseUrl.indexOf("/", atIndex);
+            if (slashAfterRef >= 0) {
+              return baseUrl.substring(0, atIndex + 1) + version + baseUrl.substring(slashAfterRef);
+            }
+            return baseUrl.substring(0, atIndex + 1) + version;
+          }
+          return baseUrl.substring(0, baseUrl.lastIndexOf("/")) + "/" + version;
+        }
+
+        var versionBaseUrl = getVersionBaseUrl("${baseUrl}", "${settings.version}");
         var manifestUrl = versionBaseUrl + "/manifest.jps";
         var manifestText = "";
 
