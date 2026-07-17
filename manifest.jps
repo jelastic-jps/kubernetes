@@ -1,7 +1,7 @@
 type: install
 version: 1.5
 id: kubernetes
-baseUrl: https://raw.githubusercontent.com/jelastic-jps/kubernetes/main
+baseUrl: https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@main
 description:
   text: /text/description-kube.md
   short: Kubernetes cluster with automated scaling & cost efficient pay-per-use pricing for running cloud-native microservices.
@@ -21,17 +21,65 @@ onInstall:
 actions:
   check-version:
     - script: |
-        var baseUrl = "${baseUrl}".split("/"); baseUrl.pop(); baseUrl = baseUrl.join("/");
-        var url = baseUrl+"/${settings.version}/manifest.jps"
-        var huc = new java.net.URL(url).openConnection();
-        huc.setRequestMethod("HEAD");
-        var code = huc.getResponseCode();
-        if (code == 200){
-          return {result:0, onAfterReturn:{"install-cluster":{jps: url}}};
-        } else {
-          message = "The specified version ${settings.version} has no installation script!";
-          return {result:"", message: message};
+        function getStatusCode(url) {
+          try {
+            var connection = new java.net.URL(url).openConnection();
+            connection.setRequestMethod("HEAD");
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(10000);
+            return connection.getResponseCode();
+          } catch (e) {
+            return -1;
+          }
         }
+
+        function getVersionBaseUrl(baseUrl, version) {
+          var atIndex = baseUrl.lastIndexOf("@");
+          if (atIndex >= 0) {
+            var slashAfterRef = baseUrl.indexOf("/", atIndex);
+            if (slashAfterRef >= 0) {
+              return baseUrl.substring(0, atIndex + 1) + version + baseUrl.substring(slashAfterRef);
+            }
+            return baseUrl.substring(0, atIndex + 1) + version;
+          }
+          return baseUrl.substring(0, baseUrl.lastIndexOf("/")) + "/" + version;
+        }
+
+        var versionBaseUrl = getVersionBaseUrl("${baseUrl}", "${settings.version}");
+        var manifestUrl = versionBaseUrl + "/manifest.jps";
+        var manifestText = "";
+
+        try {
+          manifestText = String(new com.hivext.api.core.utils.Transport().get(manifestUrl));
+        } catch (e) {
+          manifestText = "";
+        }
+
+        if (!manifestText || manifestText.indexOf("baseUrl: " + versionBaseUrl) < 0) {
+          return {
+            result: "",
+            message: "The manifest for ${settings.version} is missing or points to a different baseUrl: " + manifestUrl
+          };
+        }
+
+        var requiredFiles = [
+          "/scripts/beforeinit.js",
+          "/scripts/beforeinstall.js",
+          "/configs/settings.yaml",
+          "/addons/upgrade.jps"
+        ];
+
+        for (var i = 0; i < requiredFiles.length; i++) {
+          var assetUrl = versionBaseUrl + requiredFiles[i];
+          if (getStatusCode(assetUrl) != 200) {
+            return {
+              result: "",
+              message: "The selected Kubernetes version has a missing asset: " + assetUrl
+            };
+          }
+        }
+
+        return {result: 0, onAfterReturn: {"install-cluster": {jps: manifestUrl}}};
 
   install-cluster:
     - params:

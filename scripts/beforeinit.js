@@ -75,16 +75,20 @@ for (var i = 0, l = quotas.length; i < l; i++) {
     }
 }
 var resp = {result:0};
-var url = "https://raw.githubusercontent.com/jelastic-jps/kubernetes/main/configs/settings.yaml";
+var url = "https://cdn.jsdelivr.net/gh/jelastic-jps/kubernetes@main/configs/settings.yaml";
 resp.settings = toNative(new org.yaml.snakeyaml.Yaml().load(new com.hivext.api.core.utils.Transport().get(url)));
 var f = resp.settings.fields;
 
-let latestDefaultVersion = "v1.31.3";
+let latestDefaultVersion = "v1.35.6";
 
 if (${fn.compareEngine(8.3)} == 1) {
     f[0].items[0].default = latestDefaultVersion;
-    f[0].items[0].values.push({ caption: "v1.29.9", value: "v1.29.9" });
-    f[0].items[0].values.push({ caption: "v1.30.6", value: "v1.30.6" });
+    f[0].items[0].values.push({ caption: "v1.29.14", value: "v1.29.14" });
+    f[0].items[0].values.push({ caption: "v1.30.14", value: "v1.30.14" });
+    f[0].items[0].values.push({ caption: "v1.31.14", value: "v1.31.14" });
+    f[0].items[0].values.push({ caption: "v1.32.13", value: "v1.32.13" });
+    f[0].items[0].values.push({ caption: "v1.33.12", value: "v1.33.12" });
+    f[0].items[0].values.push({ caption: "v1.34.8", value: "v1.34.8" });
     f[0].items[0].values.push({ caption: latestDefaultVersion, value: latestDefaultVersion });
 }
 
