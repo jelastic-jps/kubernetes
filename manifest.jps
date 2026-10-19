@@ -12,7 +12,7 @@ categories:
 logo: /images/k8s-logo.png
 name: Kubernetes Cluster v1.35.6
 targetRegions:
-  type: vz7
+  type: [vz7, vz8]
 
 ssl: true
 onBeforeInit: /scripts/beforeinit.js
