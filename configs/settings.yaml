@@ -183,5 +183,5 @@ fields:
     disableInactive: true
     selectFirstAvailable: true
     filter:
-      type: ["vz7"]
+      type: ["vz7", "vz8"]
       isActive: true
